@@ -1,5 +1,5 @@
 { config, pkgs, ... }: {
-  home.packages = with pkgs; [ qogir-icon-theme grimblast wl-clipboard ];
+  home.packages = with pkgs; [ qogir-icon-theme grimblast wl-clipboard dunst ];
   programs.wlogout = {
     enable = true;
     # style = '' '';
@@ -40,13 +40,26 @@
         "$mod, Escape, exec, wlogout"
         "$mod, L, exec, loginctl lock-session"
         "$mod, T, exec, kitty"
-        #
+        # Arrows move focus
         "$mod, left, movefocus, l"
         "$mod, right, movefocus, r"
         "$mod, up, movefocus, u"
         "$mod, down, movefocus, d"
+        # Shift + Arrows move windows
+        "$mod SHIFT, left, movewindow, l"
+        "$mod SHIFT, right, movewindow, r"
+        "$mod SHIFT, up, movewindow, u"
+        "$mod SHIFT, down, movewindow, d"
+        # Ctrl + Arrow scroll across workspaces
+        "$mod CTRL, left, workspace, prev"
+        "$mod CTRL, right, workspace, next"
+        # Ctrl + Shift + Arrow move window across workspaces
+        "$mod CTRL SHIFT, left, movetoworkspace, prev"
+        "$mod CTRL SHIFT, right, movetoworkspace, next"
         #
         ", Print, exec, grimblast --notify copysave area"
+        ## TODO: send notification when screenshot is saved
+        ## TODO: open screenshot in editor when notification is clicked
       ] ++ (
         # workspaces binds $mod + [shift +] {1..9} to [move to] workspace {1..9}
         builtins.concatLists (builtins.genList (i:

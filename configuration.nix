@@ -21,6 +21,7 @@ in {
   };
 
   security.polkit.enable = true;
+  security.rtkit.enable = true;
   time.timeZone = "Europe/Paris";
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
