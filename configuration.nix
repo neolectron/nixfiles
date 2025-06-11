@@ -1,19 +1,18 @@
-{ config, lib, pkgs, ... }:
-let
-  home-manager-src = builtins.fetchTarball
-    "https://github.com/nix-community/home-manager/archive/master.tar.gz";
+{ config, lib, pkgs, inputs, ... }:
 
-in {
+{
   imports = [
     ./hardware/hardware-configuration.nix # results of the hardware scan.
-    (import "${home-manager-src}/nixos")
     ./system/audio.nix # audio configuration
     ./system/programs.nix # system programs configuration
     ./user/user.nix # user account, programs, and settings configuration
   ];
 
+  # nix allow nix-command
+
   nixpkgs.config.allowUnfree = true;
   nix.settings.max-jobs = "auto";
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nix.gc = {
     automatic = true;
     dates = "weekly";

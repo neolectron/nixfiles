@@ -20,14 +20,24 @@
 ### Installation
 
 - Install NixOS on your machine
-- Clone this repository to `/etc/nixos`
-- Run `nixos-generate-config` to generate your `hardware-configuration.nix`
-- Edit `configuration.nix` to your liking
-- Run `nixos-rebuild switch` to apply the configuration
+- Clone this repository to your desired location (e.g., `~/dev/nixfiles`)
+- Generate your hardware configuration:
+  ```bash
+  sudo nixos-generate-config --dir ./hardware/
+  ```
+- Update the `flake.nix` file if needed (hostname, etc.)
+- Test the configuration:
+  ```bash
+  sudo nixos-rebuild test --flake .#your-hostname
+  ```
+- Apply the configuration:
+  ```bash
+  sudo nixos-rebuild switch --flake .#your-hostname
+  ```
 
 ### Customization
 
-- `configuration.nix` is the entrypoint, start reading from there
+- `flake.nix` is the entrypoint, start reading from there
 - You'll notice you need to provide your own `hardware-configuration.nix` ( by running `nixos-generate-config`)
 - Then you will find system programs under `system/programs.nix`, only add SYSTEM programs there
 - User programs and dotfiles are managed by Home Manager, see `user.nix`.
@@ -38,7 +48,6 @@
   (for the time being, right click on the audio icon in the bar and draw with Helvum)
 - Fix nerd-fonts not being used correctly in Vscode etc..
 - Add more documentation
-- Use nix flakes to manage the configuration
 
 - Better default for Hyprland:
 
