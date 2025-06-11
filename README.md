@@ -41,11 +41,27 @@
 - Use nix flakes to manage the configuration
 
 - Better default for Hyprland:
+
   - plugin `split-monitor-workspaces`
   - Adjust too large gaps
   - Set better default Keyboard shortcuts to navigate workspaces with arrows
+  - Mod+Arrows change window focus, Mod+Shift+Arrows move windows, Mod+Ctrl+Arrows move windows across workspaces, Mod+Ctrl+Arrows focus workspaces
+
 - Better default for Rofi (launcher):
+
   - Add a custom theme
   - Only show applications, not all binaries.
   - Allow rofi to input emojis when we seach with ":" as prefix
   - Integrate LLM as well with maybe ! bang prefix
+
+- Support for global themes to change colors
+
+- Add a shell such as Quickshell to have widgets on the desktop
+
+  - Music Player widget
+  - Scratchpad widget
+  - Add a calendar widget
+
+- Add vscode with home manager
+  - Add vscode extensions with home manager
+  - Customize fonts and themes with nix
