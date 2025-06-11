@@ -65,18 +65,20 @@
           "<span color='#99ffdd'>{bandwidthDownBytes} {bandwidthUpBytes}</span>";
         format-disconnected = "<span color='#ff6699'>睊</span>";
         format-ethernet =
-          "<span color='#ffcc66'>{bandwidthDownBytes} {bandwidthUpBytes}</span>";
+          "<span color='#fff'>{bandwidthDownBytes} {bandwidthUpBytes}</span>";
       };
 
       pulseaudio = {
-        format = "{volume}%";
+        # add speaker icon in format
+        format = "<span color='#99ffdd'></span>   {volume}%";
+        # format = " {volume}%";
         format-muted = "";
         on-click = "pavucontrol";
         on-click-right = "helvum";
       };
 
       clock = {
-        format = "{:%H:%M}  ";
+        format = "<span color='#ffcc66'><b></b></span>  {:%H:%M}";
         format-alt = "{:%A, %B %d, %Y (%R)}  ";
         tooltip-format = "<tt><small>{calendar}</small></tt>";
         calendar = {
