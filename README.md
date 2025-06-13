@@ -37,22 +37,23 @@
 
 ### Customization
 
-- `flake.nix` is the entrypoint, start reading from there
-- You'll notice you need to provide your own `hardware-configuration.nix` ( by running `nixos-generate-config`)
-- Then you will find system programs under `system/programs.nix`, only add SYSTEM programs there
-- User programs and dotfiles are managed by Home Manager, see `user.nix`.
+- `flake.nix` is the entrypoint, start reading from there, it only loads the `profiles/` directory.
+- You'll notice you need to provide your own `hardware-configuration.nix` ( by running `nixos-generate-config --dir ./hardware/` )
+- Then you should create a profile. A profile is a collection of system packages, user packages, services, and home configurations.
+  - Profiles are defined in `profiles/`
+  - You can create a new profile by copying an existing one or use the minimal template and modifying it to your needs
 
 ### Todo
 
 - Fix audio services not remembering audio preferences by using WirePlumber
   (for the time being, right click on the audio icon in the bar and draw with Helvum)
 - Fix nerd-fonts not being used correctly in Vscode etc..
-- Add more documentation
 
 - Better default for Hyprland:
 
   - plugin `split-monitor-workspaces`
-  - Adjust too large gaps
+  - Adjust too large outter gaps
+  - Fix qwerty-fr using the wrong layout.
   - Set better default Keyboard shortcuts to navigate workspaces with arrows
   - Mod+Arrows change window focus, Mod+Shift+Arrows move windows, Mod+Ctrl+Arrows move windows across workspaces, Mod+Ctrl+Arrows focus workspaces
 
@@ -71,6 +72,6 @@
   - Scratchpad widget
   - Add a calendar widget
 
-- Add vscode with home manager
+- Add vscode within home manager
   - Add vscode extensions with home manager
   - Customize fonts and themes with nix
