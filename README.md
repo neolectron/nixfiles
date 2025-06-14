@@ -45,6 +45,7 @@
 
 ### Todo
 
+- Fix the split between system and user packages, allow for defining both in the same file, and load them at the right place.
 - Fix audio services not remembering audio preferences by using WirePlumber
   (for the time being, right click on the audio icon in the bar and draw with Helvum)
 - Fix nerd-fonts not being used correctly in Vscode etc..

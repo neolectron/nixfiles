@@ -59,6 +59,7 @@
         ];
         bind = [
           "$mod, Q, killactive,"
+          "$mod, W, exec, systemctl --user restart waybar"
           "$mod, F, fullscreen,"
           "$mod SHIFT, F, togglefloating,"
           "$mod, space, exec, rofi -show run"
