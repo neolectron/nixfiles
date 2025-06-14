@@ -47,7 +47,35 @@
         input = {
           kb_layout = "fr";
           kb_variant = "us";
+          # kb_rules = "";
+          
+          # Use the AltGr key (sometimes labeled Right Alt) for 3rd level symbols
+          # kb_options = "lv3:ralt_switch";
         };
+        
+        # Apply specific configuration to all Moonlander devices
+        # device = [
+        #   {
+        #     name = "zsa-technology-labs-moonlander-mark-i";
+        #     kb_layout = "us_qwerty-fr";
+        #     kb_variant = "";
+        #   }
+        #   {
+        #     name = "zsa-technology-labs-moonlander-mark-i-keyboard";
+        #     kb_layout = "us_qwerty-fr";
+        #     kb_variant = "";
+        #   }
+        #   {
+        #     name = "zsa-technology-labs-moonlander-mark-i-system-control";
+        #     kb_layout = "us_qwerty-fr";
+        #     kb_variant = "";
+        #   }
+        #   {
+        #     name = "zsa-technology-labs-moonlander-mark-i-consumer-control";
+        #     kb_layout = "us_qwerty-fr";
+        #     kb_variant = "";
+        #   }
+        # ];
 
         exec-once = [ "hyprctl setcursor Qogir 24" ];
 
