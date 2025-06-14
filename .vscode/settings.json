@@ -1,0 +1,10 @@
+{
+  "chat.agent.enabled": true,
+  "chat.mcp.enabled": true,
+  "mcpServers": {
+    "nixos": {
+      "command": "nix",
+      "args": ["run", "github:utensils/mcp-nixos", "--"]
+    }
+  }
+}
