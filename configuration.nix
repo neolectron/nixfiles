@@ -197,6 +197,7 @@
       ripgrep
       gh
       nixfmt
+      uv
       kitty
       helvum # PipeWire patchbay (audio routing GUI)
       pavucontrol # PulseAudio volume control
@@ -213,6 +214,9 @@
     #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     #  wget
   ];
+
+  # Enable nix-ld to run dynamically linked binaries (e.g. uvx-managed Python)
+  programs.nix-ld.enable = true;
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
