@@ -2,13 +2,18 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+  imports = [
+    # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+  ];
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -67,16 +72,104 @@
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
+    audio.enable = true;
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
-    # If you want to use JACK applications, uncomment this
-    #jack.enable = true;
+    wireplumber.enable = true;
+    jack.enable = false;
 
-    # use the example session manager (no others are packaged yet so this is enabled by default,
-    # no need to redefine it in your config for now)
-    #media-session.enable = true;
+    # Behringer UMC1820 loopback config is in environment.etc below
+    # (PipeWire SPA JSON needs dotted keys which Nix JSON serialization can't produce)
   };
+
+  # Behringer UMC1820 - virtual microphones via PipeWire loopback modules.
+  #
+  # WHY: The UMC1820 exposes a single 18-channel ALSA device. Apps like Discord
+  # only understand simple mono/stereo sources, so the raw multichannel device
+  # is either invisible or unusable to them. We use libpipewire-module-loopback
+  # to extract individual AUX channels into standalone Audio/Source nodes that
+  # appear as normal microphones in PulseAudio-compatible apps.
+  #
+  # HOW IT WORKS:
+  #   - capture.props targets the UMC1820 multichannel ALSA node
+  #   - audio.position = [ AUX<n> ] selects which channel to grab
+  #   - stream.dont-remix = true prevents PipeWire from remixing channels
+  #     (without this, it connects AUX0/AUX1 instead of the requested channel)
+  #   - playback.props with media.class = "Audio/Source" registers a real source
+  #     device visible to PulseAudio/PipeWire clients (Discord, OBS, etc.)
+  #     NOTE: "Stream/Source/Virtual" does NOT show up in Discord -- must use "Audio/Source"
+  #   - audio.position = [ MONO ] on playback outputs a single mono channel
+  #   - node.passive = true on capture avoids forcing the UMC1820 to stay active
+  #
+  # NIX GOTCHA: We use services.pipewire.configPackages with pkgs.writeTextDir
+  # instead of services.pipewire.extraConfig because PipeWire's SPA JSON uses
+  # dotted keys (e.g. node.name, audio.position) which Nix's attrset-to-JSON
+  # serialization incorrectly nests as { node = { name = ... } }.
+  # NixOS 25.11 also blocks direct environment.etc."pipewire/..." writes.
+  #
+  # ALSA NODE NAME: The target.object value includes the device serial number.
+  # Find yours with: pw-cli list-objects | grep -A2 BEHRINGER
+  # Current: alsa_input.usb-BEHRINGER_UMC1820_BAB9273B-00.multichannel-input
+  #
+  # DEBUGGING:
+  #   pw-cli list-objects | grep -i "loopback\|Audio/Source\|UMC"  -- check if loopback loaded
+  #   journalctl --user -u pipewire -n 50    -- PipeWire startup errors
+  #   journalctl --user -u wireplumber -n 50 -- WirePlumber linking errors
+  #   helvum                                 -- visual audio routing (patchbay)
+  #   pavucontrol                            -- volume levels & device selection
+  #   After nixos-rebuild switch, restart user services:
+  #     systemctl --user restart pipewire pipewire-pulse wireplumber
+  #
+  # REFERENCE: PipeWire loopback module docs with examples (Scarlett Focusrite, Behringer UMC404HD):
+  #   https://man.archlinux.org/man/libpipewire-module-loopback.7.en
+  #
+  # Currently only AUX2 is enabled (main mic input).
+  # To add more channels, duplicate the loopback block and change AUX2 to AUX0-AUX11.
+  services.pipewire.configPackages = [
+    (pkgs.writeTextDir "share/pipewire/pipewire.conf.d/umc1820-loopback.conf" ''
+      context.modules = [
+        {
+          name = libpipewire-module-loopback
+          args = {
+            node.description = "UMC1820 Mic (AUX2)"
+            capture.props = {
+              node.name         = capture.UMC1820_AUX2
+              audio.position    = [ AUX2 ]
+              stream.dont-remix = true
+              target.object     = "alsa_input.usb-BEHRINGER_UMC1820_BAB9273B-00.multichannel-input"
+              node.passive      = true
+            }
+            playback.props = {
+              node.name         = UMC1820_Mic_AUX2
+              media.class       = "Audio/Source"
+              audio.position    = [ MONO ]
+            }
+          }
+        }
+        # To enable more channels, duplicate the block above and change AUX2.
+        # Example for AUX0:
+        # {
+        #   name = libpipewire-module-loopback
+        #   args = {
+        #     node.description = "UMC1820 Mic (AUX0)"
+        #     capture.props = {
+        #       node.name         = capture.UMC1820_AUX0
+        #       audio.position    = [ AUX0 ]
+        #       stream.dont-remix = true
+        #       target.object     = "alsa_input.usb-BEHRINGER_UMC1820_BAB9273B-00.multichannel-input"
+        #       node.passive      = true
+        #     }
+        #     playback.props = {
+        #       node.name         = UMC1820_Mic_AUX0
+        #       media.class       = "Audio/Source"
+        #       audio.position    = [ MONO ]
+        #     }
+        #   }
+        # }
+      ]
+    '')
+  ];
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.xserver.libinput.enable = true;
@@ -85,7 +178,11 @@
   users.users.neolectron = {
     isNormalUser = true;
     description = "neolectron";
-    extraGroups = [ "networkmanager" "wheel" "docker" ];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "docker"
+    ];
     packages = with pkgs; [
       kdePackages.kate
       discord
@@ -101,6 +198,9 @@
       gh
       nixfmt
       kitty
+      helvum # PipeWire patchbay (audio routing GUI)
+      pavucontrol # PulseAudio volume control
+      spotify
     ];
   };
 
@@ -110,8 +210,8 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
+    #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    #  wget
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
