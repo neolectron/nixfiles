@@ -4,6 +4,10 @@
     "nixos": {
       "type":"local",
       "command": ["uvx", "mcp-nixos"]
+    },
+    "arch-linux": {
+      "type": "local",
+      "command": ["uvx", "arch-ops-server"]
     }
   }
 }
