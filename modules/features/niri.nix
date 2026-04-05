@@ -17,6 +17,27 @@ in
       # Enable niri (auto-configures XDG portals, polkit, gnome-keyring, etc.)
       programs.niri.enable = true;
 
+      # Add GTK portal backend for file chooser dialogs (Save As, Open File, etc.)
+      # The GNOME backend installed by niri delegates FileChooser to Nautilus,
+      # which isn't installed. The GTK backend provides a standalone file picker.
+      xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+
+      # Override niri's default portal preferences to force GTK for FileChooser.
+      # The GNOME backend claims FileChooser but delegates to Nautilus at runtime;
+      # when Nautilus is missing, the call fails without falling back to GTK.
+      # This writes to /etc/xdg/xdg-desktop-portal/niri-portals.conf, which takes
+      # priority over the niri-portals.conf shipped by the niri package.
+      xdg.portal.config.niri = {
+        default = [
+          "gnome"
+          "gtk"
+        ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Access" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+      };
+
       # Electron apps on Wayland
       environment.sessionVariables.NIXOS_OZONE_WL = "1";
 

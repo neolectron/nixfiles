@@ -15,6 +15,7 @@ in
       nixos.audioInterface
       nixos.coding
       nixos.graphics
+      nixos.gaming
 
       # ── Home Manager integration ─────────────────────────
       inputs.home-manager.nixosModules.home-manager
