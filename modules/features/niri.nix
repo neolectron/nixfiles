@@ -61,6 +61,12 @@ in
     { pkgs, lib, ... }:
     {
       programs.niri.settings = {
+        # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
+        cursor = {
+          theme = "Adwaita";
+          size = 24;
+        };
+
         # XWayland support via xwayland-satellite (X11 compat for apps like Discord)
         xwayland-satellite.path = lib.getExe pkgs.xwayland-satellite;
 

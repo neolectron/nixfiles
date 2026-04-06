@@ -5,10 +5,13 @@
     { pkgs, ... }:
     {
       home.pointerCursor = {
-        name = "adwaita";
+        name = "Adwaita";
         package = pkgs.adwaita-icon-theme;
         size = 24;
         gtk.enable = true;
       };
+
+      # Let HM manage GTK settings so cursor theme propagates to GTK apps
+      gtk.enable = true;
     };
 }
