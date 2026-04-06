@@ -38,19 +38,19 @@
         })
         uv
         htop
+        devenv
       ];
 
-      # OpenCode headless web server — always running, reachable at http://localhost:4096
+      # OpenCode headless server — always running, reachable at http://localhost:4096
       systemd.user.services.opencode-web = {
         Unit = {
-          Description = "OpenCode headless web server";
-          After = [ "default.target" ];
+          Description = "Shared OpenCode backend";
         };
         Service = {
           Type = "simple";
-          ExecStart = "${opencode-bin} web --port 4096";
-          Restart = "on-failure";
-          RestartSec = "5s";
+          ExecStart = "${opencode-bin} serve";
+          Restart = "always";
+          RestartSec = "2";
           WorkingDirectory = "%h";
         };
         Install = {
@@ -70,6 +70,8 @@
 
       programs.direnv = {
         enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
         nix-direnv.enable = true;
       };
     };
