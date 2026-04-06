@@ -61,6 +61,27 @@ in
     { pkgs, lib, ... }:
     {
       programs.niri.settings = {
+        # Window rules
+        window-rules = [
+          # Chrome / Chromium Picture-in-Picture
+          {
+            matches = [
+              { title = "^Picture in Picture$"; }
+            ];
+            open-floating = true;
+          }
+
+          # Firefox Picture-in-Picture
+          {
+            matches = [
+              {
+                app-id = "firefox$";
+                title = "^Picture-in-Picture$";
+              }
+            ];
+            open-floating = true;
+          }
+        ];
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
         cursor = {
           theme = "Adwaita";
@@ -170,10 +191,14 @@ in
           "Mod+Shift+4".action.move-window-to-workspace = 4;
           "Mod+Shift+5".action.move-window-to-workspace = 5;
 
-          # Layout
+          # Columns + fullscreen (F)
           "Mod+R".action.switch-preset-column-width = [ ];
           "Mod+F".action.maximize-column = [ ];
           "Mod+Shift+F".action.fullscreen-window = [ ];
+
+          # Floating (Ctrl)
+          "Mod+Ctrl+F".action.toggle-window-floating = [ ];
+          "Mod+Ctrl+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
 
           # Volume keys
           "XF86AudioRaiseVolume".action.spawn = [
@@ -200,8 +225,8 @@ in
           "Mod+Print".action.screenshot-screen = [ ];
 
           # Quit niri
-          "Mod+Shift+E".action.quit = {
-            skip-confirmation = true;
+          "Mod+Ctrl+Q".action.quit = {
+            # skip-confirmation = true;
           };
         };
       };
