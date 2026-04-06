@@ -1,4 +1,4 @@
-{ ... }:
+{ config, ... }:
 {
   # NixOS side: nix-ld for VSCode remote extensions and other dynamically-linked tools
   flake.modules.nixos.coding =
@@ -60,9 +60,9 @@
 
       programs.git = {
         enable = true;
-        userName = "neolectron";
-        userEmail = ""; # TODO: set your email
-        extraConfig = {
+        settings = {
+          user.name = config.flake.username;
+          user.email = config.flake.userEmail;
           init.defaultBranch = "main";
           push.autoSetupRemote = true;
         };

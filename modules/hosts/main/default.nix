@@ -17,6 +17,10 @@ in
       nixos.graphics
       nixos.gaming
       nixos.wslMount
+      {
+        wslMount.enable = true;
+        wslMount.path = "/mnt/windows/Users/manu/AppData/Local/Packages/22955VineelSai.ArchWSL_qz230bc1wsk9j/LocalState/ext4.vhdx";
+      }
 
       # ── Home Manager integration ─────────────────────────
       inputs.home-manager.nixosModules.home-manager

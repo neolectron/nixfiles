@@ -10,7 +10,9 @@ in
         inputs.self.nixosModules.mainHardware
       ];
 
-      # Bootloader
+      # Boot
+      boot.kernelPackages = pkgs.linuxPackages_latest;
+      boot.supportedFilesystems = [ "ntfs" ];
       boot.loader.systemd-boot.enable = true;
       boot.loader.efi.canTouchEfiVariables = true;
 
@@ -27,17 +29,6 @@ in
         title = "Windows";
         efiDeviceHandle = "PLACEHOLDER"; # TODO: replace after UEFI shell discovery
       };
-
-      # NTFS support (for mounting Windows partitions)
-      boot.supportedFilesystems = [ "ntfs" ];
-
-      # Disk management
-      environment.systemPackages = with pkgs; [
-        gparted
-      ];
-
-      # Use latest kernel
-      boot.kernelPackages = pkgs.linuxPackages_latest;
 
       # Networking
       networking.hostName = "main";

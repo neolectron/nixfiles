@@ -14,7 +14,7 @@ flake.nix                              # Entrypoint: inputs + mkFlake via import
 flake.lock                             # Pinned input versions (auto-generated)
 AGENTS.md                              # This file
 modules/
-  helpers.nix                          # Shared options: systems, flake.username
+  config.nix                           # Shared options: systems, flake.username
   flake-modules.nix                    # Imports flake-parts modules + home-manager flake module
   hosts/
     main/
@@ -33,8 +33,6 @@ modules/
     terminal.nix                       # Kitty terminal (HM)
 docs/plans/                            # Design docs and references (informational only)
 references/                            # Third-party config repos for reference (gitignored)
-configuration.nix                      # Legacy pre-flake config (unused, kept for reference)
-hardware-configuration.nix             # Legacy pre-flake hardware config (unused)
 ```
 
 ---
@@ -96,7 +94,7 @@ When implementing a new feature (e.g., adding a browser, gaming, theming):
    modules to include. To add or remove a feature from a host, edit only this file.
 
 4. **Shared values via `config.flake.*`.** The username is accessed as `config.flake.username`
-   (defined in `helpers.nix`). No `specialArgs` threading is needed.
+   (defined in `config.nix`). No `specialArgs` threading is needed.
 
 ### Module Namespaces
 
@@ -148,8 +146,6 @@ The `--sudo` flag runs activation as root while keeping the build unprivileged.
   and `home-manager.flakeModules.home-manager` in `modules/flake-modules.nix`.
 - When adding a new external flake input, add `inputs.<name>.follows = "nixpkgs"` when the input
   supports it, to avoid duplicate nixpkgs evaluations.
-- The old `configuration.nix` and `hardware-configuration.nix` at the repo root are **unused
-  leftovers** from before the flake conversion. The active config lives entirely under `modules/`.
 - PipeWire SPA JSON uses dotted keys (e.g., `node.name`) that cannot be expressed as Nix attrsets.
   Use `pkgs.writeTextDir` with raw strings for PipeWire config files, as done in
   `audio-interface.nix`.
