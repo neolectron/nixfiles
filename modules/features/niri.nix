@@ -52,8 +52,8 @@ in
         };
       };
 
-      # Disable greetd restart to avoid re-triggering auto-login on logout
-      services.greetd.restart = false;
+      # Restart greetd after logout so it re-triggers auto-login into niri
+      services.greetd.restart = true;
     };
 
   # Home Manager side: niri keybindings, layout, and startup
