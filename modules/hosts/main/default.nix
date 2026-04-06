@@ -16,6 +16,7 @@ in
       nixos.coding
       nixos.graphics
       nixos.gaming
+      nixos.wslMount
 
       # ── Home Manager integration ─────────────────────────
       inputs.home-manager.nixosModules.home-manager
