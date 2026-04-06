@@ -31,6 +31,7 @@ in
             hm.spotify
             hm.coding
             hm.terminal
+            hm.cursor
           ];
 
           home.username = username;
