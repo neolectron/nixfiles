@@ -39,6 +39,34 @@
         ];
       };
 
+      # Windows data drive (Crucial MX500 1.8TB SATA — "Data")
+      fileSystems."/mnt/data" = {
+        device = "/dev/disk/by-uuid/1EA237D2A237ACE1";
+        fsType = "ntfs-3g";
+        options = [
+          "rw"
+          "uid=1000"
+          "gid=100"
+          "dmask=022"
+          "fmask=133"
+          "nofail"
+        ];
+      };
+
+      # Windows system drive (Crucial P3 Plus NVMe — "System")
+      fileSystems."/mnt/windows" = {
+        device = "/dev/disk/by-uuid/78E69A0BE699C9B0";
+        fsType = "ntfs-3g";
+        options = [
+          "rw"
+          "uid=1000"
+          "gid=100"
+          "dmask=022"
+          "fmask=133"
+          "nofail"
+        ];
+      };
+
       swapDevices = [
         { device = "/dev/disk/by-uuid/cd40882d-e48e-462c-a41a-5bd2365c7a50"; }
       ];
