@@ -196,9 +196,9 @@ in
           "Mod+F".action.maximize-column = [ ];
           "Mod+Shift+F".action.fullscreen-window = [ ];
 
-          # Floating (Ctrl)
-          "Mod+Ctrl+F".action.toggle-window-floating = [ ];
-          "Mod+Ctrl+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
+          # Floating (Alt)
+          "Mod+Alt+F".action.toggle-window-floating = [ ];
+          "Mod+Alt+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
 
           # Volume keys
           "XF86AudioRaiseVolume".action.spawn = [
