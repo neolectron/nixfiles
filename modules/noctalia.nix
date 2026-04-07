@@ -1,7 +1,4 @@
-{ inputs, config, ... }:
-let
-  username = config.flake.username;
-in
+{ inputs, ... }:
 {
   # NixOS side: enable services noctalia benefits from
   flake.modules.nixos.noctalia =
@@ -15,7 +12,7 @@ in
 
   # Home Manager side: noctalia shell config
   flake.modules.homeManager.noctalia =
-    { pkgs, ... }:
+    { config, ... }:
     {
       imports = [
         inputs.noctalia.homeModules.default
@@ -67,7 +64,7 @@ in
           dock.enable = false;
           wallpaper.enabled = false;
           general = {
-            avatarImage = "/home/${username}/.face";
+            avatarImage = "/home/${config.home.username}/.face";
             radiusRatio = 0.2;
           };
           appLauncher = {

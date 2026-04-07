@@ -1,10 +1,9 @@
 { ... }:
 {
-  flake.nixosModules.mainHardware =
+  flake.nixosModules.frostbitHardware =
     {
       config,
       lib,
-      pkgs,
       modulesPath,
       ...
     }:

@@ -1,4 +1,4 @@
-{ config, ... }:
+{ ... }:
 {
   # NixOS side: nix-ld for VSCode remote extensions and other dynamically-linked tools
   flake.modules.nixos.coding =
@@ -9,7 +9,7 @@
 
   # Home Manager side: development tools
   flake.modules.homeManager.coding =
-    { pkgs, ... }:
+    { pkgs, config, ... }:
     let
       opencode-bin = "${pkgs.opencode}/bin/opencode";
 
@@ -61,8 +61,8 @@
       programs.git = {
         enable = true;
         settings = {
-          user.name = config.flake.username;
-          user.email = config.flake.userEmail;
+          user.name = config.home.username;
+          user.email = "neolectron@users.noreply.github.com"; # TODO: set real email
           init.defaultBranch = "main";
           push.autoSetupRemote = true;
         };
