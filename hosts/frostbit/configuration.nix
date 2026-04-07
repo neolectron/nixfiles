@@ -12,13 +12,12 @@
           "wheel"
         ];
       };
+      nixpkgs.config.allowUnfree = true;
       # Networking
       networking.hostName = "frostbit";
       networking.networkmanager.enable = true;
-
       # Timezone & locale
       time.timeZone = "Europe/Paris";
-
       i18n.defaultLocale = "en_US.UTF-8";
       i18n.extraLocaleSettings = {
         LC_ADDRESS = "fr_FR.UTF-8";
@@ -46,19 +45,11 @@
       #   '';
       # };
 
-      # Allow unfree packages
-      nixpkgs.config.allowUnfree = true;
-
-      # Enable flakes
-      nix.settings.experimental-features = [
-        "nix-command"
-        "flakes"
-      ];
-
       imports = [
         inputs.self.nixosModules.frostbitHardware
       ];
       # Boot
+      boot.tmp.cleanOnBoot = true; # Clean /tmp on reboot (prevents stale lockfiles/sockets)
       boot.kernelPackages = pkgs.linuxPackages_latest;
       boot.supportedFilesystems = [ "ntfs" ];
       boot.loader.systemd-boot.enable = true;
@@ -78,6 +69,11 @@
         efiDeviceHandle = "PLACEHOLDER"; # TODO: replace after UEFI shell discovery
       };
 
+      # Enable flakes
+      nix.settings.experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
       system.stateVersion = "25.11";
     };
 }

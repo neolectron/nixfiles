@@ -47,9 +47,12 @@
       ];
 
       # OpenCode headless server — always running, reachable at http://localhost:4096
+      # Starts after graphical-session.target so niri-session has already run
+      # `systemctl --user import-environment`, giving us the full NixOS PATH.
       systemd.user.services.opencode-web = {
         Unit = {
           Description = "Shared OpenCode backend";
+          After = [ "graphical-session.target" ];
         };
         Service = {
           Type = "simple";
@@ -59,7 +62,7 @@
           WorkingDirectory = "%h";
         };
         Install = {
-          WantedBy = [ "default.target" ];
+          WantedBy = [ "graphical-session.target" ];
         };
       };
 
