@@ -1,4 +1,5 @@
 references
 result
 .direnv
+*.local.md
 my-wsl-opencode
