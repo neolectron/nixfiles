@@ -2,12 +2,12 @@
 {
   # Home Manager side: cursor theme for Wayland + GTK apps
   flake.modules.homeManager.cursor =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     {
       home.pointerCursor = {
-        name = "Adwaita";
-        package = pkgs.adwaita-icon-theme;
-        size = 24;
+        name = lib.mkDefault "Adwaita";
+        package = lib.mkDefault pkgs.adwaita-icon-theme;
+        size = lib.mkDefault 24;
         gtk.enable = true;
       };
 

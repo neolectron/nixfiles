@@ -39,6 +39,18 @@ in
             hm.cursor
           ];
 
+          # Monitor layout (hardware-specific)
+          programs.niri.settings.outputs = {
+            "HDMI-A-1".position = {
+              x = 1920;
+              y = 0;
+            };
+            "DP-1".position = {
+              x = 0;
+              y = 0;
+            };
+          };
+
           home.username = username;
           home.homeDirectory = "/home/${username}";
           home.stateVersion = "25.11";

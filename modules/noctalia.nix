@@ -12,7 +12,7 @@
 
   # Home Manager side: noctalia shell config
   flake.modules.homeManager.noctalia =
-    { config, ... }:
+    { lib, config, ... }:
     {
       imports = [
         inputs.noctalia.homeModules.default
@@ -22,8 +22,8 @@
         enable = true;
         settings = {
           bar = {
-            density = "comfortable";
-            position = "left";
+            density = lib.mkDefault "comfortable";
+            position = lib.mkDefault "left";
             widgets = {
               left = [
                 {
@@ -61,16 +61,16 @@
               ];
             };
           };
-          dock.enable = false;
-          wallpaper.enabled = false;
+          dock.enable = lib.mkDefault false;
+          wallpaper.enabled = lib.mkDefault false;
           general = {
             avatarImage = "/home/${config.home.username}/.face";
-            radiusRatio = 0.2;
+            radiusRatio = lib.mkDefault 0.2;
           };
           appLauncher = {
-            position = "center";
-            viewMode = "list";
-            terminalCommand = "kitty -e";
+            position = lib.mkDefault "center";
+            viewMode = lib.mkDefault "list";
+            terminalCommand = lib.mkDefault "kitty -e";
           };
         };
       };

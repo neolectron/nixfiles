@@ -9,7 +9,12 @@
 
   # Home Manager side: development tools
   flake.modules.homeManager.coding =
-    { pkgs, config, ... }:
+    {
+      pkgs,
+      config,
+      lib,
+      ...
+    }:
     let
       opencode-bin = "${pkgs.opencode}/bin/opencode";
 
@@ -61,10 +66,10 @@
       programs.git = {
         enable = true;
         settings = {
-          user.name = config.home.username;
-          user.email = "neolectron@users.noreply.github.com"; # TODO: set real email
-          init.defaultBranch = "main";
-          push.autoSetupRemote = true;
+          user.name = lib.mkDefault config.home.username;
+          user.email = lib.mkDefault "jhon-doe@users.noreply.github.com";
+          init.defaultBranch = lib.mkDefault "main";
+          push.autoSetupRemote = lib.mkDefault true;
         };
       };
 

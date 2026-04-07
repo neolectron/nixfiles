@@ -84,28 +84,12 @@ in
         ];
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
         cursor = {
-          theme = "Adwaita";
-          size = 24;
+          theme = lib.mkDefault "Adwaita";
+          size = lib.mkDefault 24;
         };
 
         # XWayland support via xwayland-satellite (X11 compat for apps like Discord)
         xwayland-satellite.path = lib.getExe pkgs.xwayland-satellite;
-
-        # Output positioning (swap left/right)
-        outputs = {
-          "HDMI-A-1" = {
-            position = {
-              x = 1920;
-              y = 0;
-            };
-          };
-          "DP-1" = {
-            position = {
-              x = 0;
-              y = 0;
-            };
-          };
-        };
 
         # Spawn noctalia-shell and other startup apps
         spawn-at-startup = [
@@ -120,25 +104,25 @@ in
         # Input
         input = {
           keyboard.xkb = {
-            layout = "us";
+            layout = lib.mkDefault "us";
           };
-          focus-follows-mouse.enable = false;
-          warp-mouse-to-focus.enable = false;
+          focus-follows-mouse.enable = lib.mkDefault false;
+          warp-mouse-to-focus.enable = lib.mkDefault false;
         };
 
         # Layout
         layout = {
-          gaps = 8;
-          center-focused-column = "on-overflow";
+          gaps = lib.mkDefault 8;
+          center-focused-column = lib.mkDefault "on-overflow";
 
           border = {
-            enable = true;
-            width = 2;
-            active.color = "#89b4fa";
-            inactive.color = "#313244";
+            enable = lib.mkDefault true;
+            width = lib.mkDefault 2;
+            active.color = lib.mkDefault "#89b4fa";
+            inactive.color = lib.mkDefault "#313244";
           };
 
-          focus-ring.enable = false;
+          focus-ring.enable = lib.mkDefault false;
 
           preset-column-widths = [
             { proportion = 1.0 / 3.0; }
@@ -147,7 +131,7 @@ in
           ];
 
           default-column-width = {
-            proportion = 1.0 / 2.0;
+            proportion = lib.mkDefault (1.0 / 2.0);
           };
         };
 
