@@ -78,20 +78,22 @@ in
           # Chrome / Chromium Picture-in-Picture
           {
             matches = [
-              { title = "^Picture in Picture$"; }
+              { title = "^Picture in picture$"; }
             ];
             open-floating = true;
           }
 
-          # Firefox Picture-in-Picture
+          # pwvucontrol — floating top-right
           {
             matches = [
-              {
-                app-id = "firefox$";
-                title = "^Picture-in-Picture$";
-              }
+              { app-id = "^com\\.saivert\\.pwvucontrol$"; }
             ];
             open-floating = true;
+            default-floating-position = {
+              x = 0;
+              y = 0;
+              relative-to = "top-right";
+            };
           }
         ];
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
@@ -117,6 +119,10 @@ in
         input = {
           keyboard.xkb = {
             layout = lib.mkDefault "us";
+          };
+          mouse = {
+            accel-speed = lib.mkDefault 1;
+            accel-profile = lib.mkDefault "flat";
           };
           focus-follows-mouse.enable = lib.mkDefault false;
           warp-mouse-to-focus.enable = lib.mkDefault false;

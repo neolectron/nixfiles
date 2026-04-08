@@ -63,12 +63,12 @@
               {
                 id = "Volume";
                 displayMode = "onhover";
-                middleClickCommand = "pwvucontrol || pavucontrol";
+                middleClickCommand = "pwvucontrol";
               }
               {
                 id = "Microphone";
                 displayMode = "onhover";
-                middleClickCommand = "pwvucontrol || pavucontrol";
+                middleClickCommand = "pwvucontrol";
               }
               {
                 id = "Network";

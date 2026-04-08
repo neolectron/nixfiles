@@ -41,6 +41,7 @@ in
             hm.coding
             hm.terminal
             hm.cursor
+            hm.frostbitKeybinds
           ];
 
           programs.niri.settings = {
@@ -56,8 +57,12 @@ in
               };
             };
             prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible
+            input.keyboard.xkb = {
+              layout = "us_qwerty-fr";
+              variant = "qwerty-fr";
+            };
             input.focus-follows-mouse.enable = true;
-            binds."Mod+Tab".action.toggle-overview = [ ];
+            # binds."Mod+Tab".action.toggle-overview = [ ];
 
             # White focus ring on active window only (follows corner radius with prefer-no-csd)
             layout.border.enable = false;

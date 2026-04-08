@@ -1,10 +1,20 @@
-{ ... }:
+{ config, ... }:
+let
+  username = config.flake.username;
+in
 {
   # NixOS side: nix-ld for VSCode remote extensions and other dynamically-linked tools
   flake.modules.nixos.coding =
-    { ... }:
+    { lib, ... }:
     {
       programs.nix-ld.enable = true;
+
+      # Docker daemon — socket-activated by default (enableOnBoot = false)
+      virtualisation.docker.enable = lib.mkDefault true;
+      virtualisation.docker.autoPrune.enable = lib.mkDefault true;
+
+      # Let the user run docker without sudo
+      users.users.${username}.extraGroups = [ "docker" ];
     };
 
   # Home Manager side: development tools
@@ -44,6 +54,7 @@
         uv
         htop
         devenv
+        docker-compose
       ];
 
       # OpenCode headless server — always running, reachable at http://localhost:4096
