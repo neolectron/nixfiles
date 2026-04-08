@@ -28,6 +28,10 @@ in
         home-manager.useGlobalPkgs = true;
         home-manager.useUserPackages = true;
         home-manager.users.${username} = {
+          home.username = username;
+          home.homeDirectory = "/home/${username}";
+          home.stateVersion = "25.11";
+
           imports = [
             hm.niri
             hm.noctalia
@@ -39,21 +43,53 @@ in
             hm.cursor
           ];
 
-          # Monitor layout (hardware-specific)
-          programs.niri.settings.outputs = {
-            "HDMI-A-1".position = {
-              x = 1920;
-              y = 0;
+          programs.niri.settings = {
+            # Monitor layout
+            outputs = {
+              "DP-1".position = {
+                x = 0;
+                y = 0;
+              };
+              "HDMI-A-1".position = {
+                x = 1920;
+                y = 0;
+              };
             };
-            "DP-1".position = {
-              x = 0;
-              y = 0;
+            prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible
+            input.focus-follows-mouse.enable = true;
+            binds."Mod+Tab".action.toggle-overview = [ ];
+
+            # White focus ring on active window only (follows corner radius with prefer-no-csd)
+            layout.border.enable = false;
+            layout.focus-ring = {
+              enable = true;
+              width = 1;
+              active.color = "#ffffff";
+              inactive.color = "#00000000";
             };
+            # Subtle shadow on active window only
+            layout.shadow = {
+              enable = true;
+              softness = 20.0;
+              spread = 2.0;
+              offset = {
+                x = 0.0;
+                y = 2.0;
+              };
+              color = "#00000040";
+              inactive-color = "#00000000";
+            };
+
           };
 
-          home.username = username;
-          home.homeDirectory = "/home/${username}";
-          home.stateVersion = "25.11";
+          programs.noctalia-shell.settings = {
+            location.name = "Toulouse";
+            wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
+            notifications.monitors = [ "DP-1" ];
+            osd.monitors = [ "DP-1" ];
+            general.animationSpeed = 1.3;
+            general.scaleRatio = 0.9;
+          };
         };
       }
     ];

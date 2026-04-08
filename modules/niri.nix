@@ -11,10 +11,7 @@ in
         inputs.niri.nixosModules.niri
       ];
 
-      # Apply niri overlay so pkgs.niri-stable is available
       nixpkgs.overlays = [ inputs.niri.overlays.niri ];
-
-      # Enable niri (auto-configures XDG portals, polkit, gnome-keyring, etc.)
       programs.niri.enable = true;
 
       # Add GTK portal backend for file chooser dialogs (Save As, Open File, etc.)
@@ -63,6 +60,21 @@ in
       programs.niri.settings = {
         # Window rules
         window-rules = [
+          # Slight corner radius on all windows
+          {
+            geometry-corner-radius =
+              let
+                r = 2.0;
+              in
+              {
+                top-left = r;
+                top-right = r;
+                bottom-left = r;
+                bottom-right = r;
+              };
+            clip-to-geometry = true;
+          }
+
           # Chrome / Chromium Picture-in-Picture
           {
             matches = [
@@ -110,6 +122,9 @@ in
           warp-mouse-to-focus.enable = lib.mkDefault false;
         };
 
+        # Disable hot corners (overview on top-left hover)
+        gestures.hot-corners.enable = lib.mkDefault false;
+
         # Layout
         layout = {
           gaps = lib.mkDefault 8;
@@ -138,7 +153,7 @@ in
         # Keybindings
         binds = {
           # Launch apps
-          "Mod+T".action.spawn = "kitty";
+          "Mod+Return".action.spawn = "kitty";
           "Mod+Space".action.spawn = [
             "noctalia-shell"
             "ipc"
@@ -149,40 +164,51 @@ in
 
           # Window management
           "Mod+Q".action.close-window = [ ];
+          "Mod+F".action.maximize-column = [ ];
+          "Mod+Shift+F".action.fullscreen-window = [ ];
+          "Mod+R".action.switch-preset-column-width = [ ];
+          "Print".action.screenshot = [ ];
+          "Mod+Print".action.screenshot-screen = [ ];
+          "Mod+Ctrl+Q".action.quit = {
+            # skip-confirmation = true;
+          };
 
-          # Focus
+          # Floating (Alt key)
+          "Mod+Alt+F".action.toggle-window-floating = [ ];
+          "Mod+Alt+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
+
+          # Focus (Arrow keys)
           "Mod+Left".action.focus-column-left = [ ];
           "Mod+Right".action.focus-column-right = [ ];
           "Mod+Up".action.focus-window-up = [ ];
           "Mod+Down".action.focus-window-down = [ ];
 
-          # Move windows
+          # Focus workspaces (Ctrl+Arrow keys)
+          "Mod+Ctrl+Up".action.focus-workspace-up = [ ];
+          "Mod+Ctrl+Down".action.focus-workspace-down = [ ];
+
+          # Move windows (Shift+Arrow keys)
           "Mod+Shift+Left".action.move-column-left = [ ];
           "Mod+Shift+Right".action.move-column-right = [ ];
           "Mod+Shift+Up".action.move-window-up = [ ];
           "Mod+Shift+Down".action.move-window-down = [ ];
 
-          # Workspaces
+          # Move window to workspace (Ctrl+Shift+Arrow keys)
+          "Mod+Ctrl+Shift+Up".action.move-window-to-workspace-up = [ ];
+          "Mod+Ctrl+Shift+Down".action.move-window-to-workspace-down = [ ];
+
+          # Workspaces (number keys)
           "Mod+1".action.focus-workspace = 1;
           "Mod+2".action.focus-workspace = 2;
           "Mod+3".action.focus-workspace = 3;
           "Mod+4".action.focus-workspace = 4;
           "Mod+5".action.focus-workspace = 5;
-
+          # Workspaces Move (Shift+number keys)
           "Mod+Shift+1".action.move-window-to-workspace = 1;
           "Mod+Shift+2".action.move-window-to-workspace = 2;
           "Mod+Shift+3".action.move-window-to-workspace = 3;
           "Mod+Shift+4".action.move-window-to-workspace = 4;
           "Mod+Shift+5".action.move-window-to-workspace = 5;
-
-          # Columns + fullscreen (F)
-          "Mod+R".action.switch-preset-column-width = [ ];
-          "Mod+F".action.maximize-column = [ ];
-          "Mod+Shift+F".action.fullscreen-window = [ ];
-
-          # Floating (Alt)
-          "Mod+Alt+F".action.toggle-window-floating = [ ];
-          "Mod+Alt+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
 
           # Volume keys
           "XF86AudioRaiseVolume".action.spawn = [
@@ -204,14 +230,6 @@ in
             "toggle"
           ];
 
-          # Screenshot
-          "Print".action.screenshot = [ ];
-          "Mod+Print".action.screenshot-screen = [ ];
-
-          # Quit niri
-          "Mod+Ctrl+Q".action.quit = {
-            # skip-confirmation = true;
-          };
         };
       };
     };
