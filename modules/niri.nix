@@ -222,14 +222,14 @@ in
           "Mod+Ctrl+J".action.focus-workspace-down = [ ];
 
           # Move windows (Shift+Arrow keys)
-          "Mod+Shift+Left".action.move-column-left = [ ];
-          "Mod+Shift+Right".action.move-column-right = [ ];
+          "Mod+Shift+Left".action.move-column-left-or-to-monitor-left = [ ];
+          "Mod+Shift+Right".action.move-column-right-or-to-monitor-right = [ ];
           "Mod+Shift+Up".action.move-window-up-or-to-workspace-up = [ ];
           "Mod+Shift+Down".action.move-window-down-or-to-workspace-down = [ ];
 
           # Move windows (Shift+HJKL)
-          "Mod+Shift+H".action.move-column-left = [ ];
-          "Mod+Shift+L".action.move-column-right = [ ];
+          "Mod+Shift+H".action.move-column-left-or-to-monitor-left = [ ];
+          "Mod+Shift+L".action.move-column-right-or-to-monitor-right = [ ];
           "Mod+Shift+K".action.move-window-up-or-to-workspace-up = [ ];
           "Mod+Shift+J".action.move-window-down-or-to-workspace-down = [ ];
 
