@@ -134,7 +134,7 @@ in
         # Layout
         layout = {
           gaps = lib.mkDefault 8;
-          center-focused-column = lib.mkDefault "on-overflow";
+          center-focused-column = lib.mkDefault "never";
 
           border = {
             enable = lib.mkDefault true;
@@ -173,6 +173,8 @@ in
           "Mod+F".action.maximize-column = [ ];
           "Mod+Shift+F".action.fullscreen-window = [ ];
           "Mod+R".action.switch-preset-column-width = [ ];
+          "Mod+Tab".action.toggle-overview = [ ];
+
           "Print".action.screenshot = [ ];
           "Mod+Print".action.screenshot-screen = [ ];
           "Mod+Ctrl+Q".action.quit = {
@@ -183,15 +185,29 @@ in
           "Mod+Alt+F".action.toggle-window-floating = [ ];
           "Mod+Alt+Shift+F".action.switch-focus-between-floating-and-tiling = [ ];
 
-          # Focus (Arrow keys)
+          # Focus windows (Arrow keys)
           "Mod+Left".action.focus-column-left = [ ];
           "Mod+Right".action.focus-column-right = [ ];
-          "Mod+Up".action.focus-window-up = [ ];
-          "Mod+Down".action.focus-window-down = [ ];
+          "Mod+Up".action.focus-window-or-workspace-up = [ ];
+          "Mod+Down".action.focus-window-or-workspace-down = [ ];
 
-          # Focus workspaces (Ctrl+Arrow keys)
+          # Focus windows (HJKL)
+          "Mod+H".action.focus-column-left = [ ];
+          "Mod+L".action.focus-column-right = [ ];
+          "Mod+K".action.focus-window-or-workspace-up = [ ];
+          "Mod+J".action.focus-window-or-workspace-down = [ ];
+
+          # Focus workspaces/monitors (Ctrl+Arrow keys)
+          "Mod+Ctrl+Left".action.focus-monitor-left = [ ];
+          "Mod+Ctrl+Right".action.focus-monitor-right = [ ];
           "Mod+Ctrl+Up".action.focus-workspace-up = [ ];
           "Mod+Ctrl+Down".action.focus-workspace-down = [ ];
+
+          # Focus workspaces/monitors (Ctrl+HJKL)
+          "Mod+Ctrl+H".action.focus-monitor-left = [ ];
+          "Mod+Ctrl+L".action.focus-monitor-right = [ ];
+          "Mod+Ctrl+K".action.focus-workspace-up = [ ];
+          "Mod+Ctrl+J".action.focus-workspace-down = [ ];
 
           # Move windows (Shift+Arrow keys)
           "Mod+Shift+Left".action.move-column-left = [ ];
@@ -199,9 +215,23 @@ in
           "Mod+Shift+Up".action.move-window-up = [ ];
           "Mod+Shift+Down".action.move-window-down = [ ];
 
+          # Move windows (Shift+HJKL)
+          "Mod+Shift+H".action.move-column-left = [ ];
+          "Mod+Shift+L".action.move-column-right = [ ];
+          "Mod+Shift+K".action.move-window-up = [ ];
+          "Mod+Shift+J".action.move-window-down = [ ];
+
           # Move window to workspace (Ctrl+Shift+Arrow keys)
+          "Mod+Ctrl+Shift+Left".action.move-window-to-monitor-left = [ ];
+          "Mod+Ctrl+Shift+Right".action.move-window-to-monitor-right = [ ];
           "Mod+Ctrl+Shift+Up".action.move-window-to-workspace-up = [ ];
           "Mod+Ctrl+Shift+Down".action.move-window-to-workspace-down = [ ];
+
+          # Move window to workspace (Ctrl+Shift+HJKL)
+          "Mod+Ctrl+Shift+H".action.move-window-to-monitor-left = [ ];
+          "Mod+Ctrl+Shift+L".action.move-window-to-monitor-right = [ ];
+          "Mod+Ctrl+Shift+K".action.move-window-to-workspace-up = [ ];
+          "Mod+Ctrl+Shift+J".action.move-window-to-workspace-down = [ ];
 
           # Workspaces (number keys)
           "Mod+1".action.focus-workspace = 1;

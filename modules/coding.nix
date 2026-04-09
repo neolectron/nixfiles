@@ -42,6 +42,7 @@ in
         vscode
         opencode-wrapper
         neovim
+        tmux
         curl
         jq
         ripgrep

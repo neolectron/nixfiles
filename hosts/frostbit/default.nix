@@ -62,7 +62,6 @@ in
               variant = "qwerty-fr";
             };
             input.focus-follows-mouse.enable = true;
-            # binds."Mod+Tab".action.toggle-overview = [ ];
 
             # White focus ring on active window only (follows corner radius with prefer-no-csd)
             layout.border.enable = false;
