@@ -43,6 +43,8 @@ in
             hm.terminal
             hm.frostbitKeybinds
           ];
+          programs.bash.enable = true; # manage bashrc with hm.
+          programs.direnv.config.global.hide_env_diff = true;
 
           programs.niri.settings = {
             # Monitor layout
