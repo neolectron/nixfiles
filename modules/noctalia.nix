@@ -61,6 +61,9 @@
             ];
             right = [
               {
+                id = "plugin:slowbongo";
+              }
+              {
                 id = "Volume";
                 displayMode = "onhover";
                 middleClickCommand = "pwvucontrol";
@@ -73,6 +76,12 @@
               {
                 id = "Network";
                 displayMode = "onhover";
+              }
+              {
+                id = "plugin:tailscale";
+              }
+              {
+                id = "plugin:port-monitor";
               }
               {
                 id = "Clock";
