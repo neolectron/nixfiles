@@ -47,7 +47,21 @@ in
           programs.direnv.config.global.hide_env_diff = true;
 
           programs.niri.settings = {
-            # Monitor layout
+            prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible
+            input = {
+              focus-follows-mouse = {
+                enable = true;
+                max-scroll-amount = "0%";
+              };
+              mouse = {
+                accel-speed = 0;
+                accel-profile = "adaptive";
+              };
+              keyboard.xkb = {
+                layout = "us_qwerty-fr";
+                variant = "qwerty-fr";
+              };
+            };
             outputs = {
               "DP-1".position = {
                 x = 0;
@@ -58,33 +72,29 @@ in
                 y = 0;
               };
             };
-            prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible
-            input.keyboard.xkb = {
-              layout = "us_qwerty-fr";
-              variant = "qwerty-fr";
-            };
-            input.focus-follows-mouse.enable = true;
-
-            # White focus ring on active window only (follows corner radius with prefer-no-csd)
-            layout.border.enable = false;
-            layout.focus-ring = {
-              enable = true;
-              width = 1;
-              active.color = "#ffffff";
-              inactive.color = "#00000000";
-            };
-            # Subtle shadow on active window only
-            layout.shadow = {
-              enable = true;
-              softness = 20.0;
-              spread = 2.0;
-              offset = {
-                x = 0.0;
-                y = 2.0;
+            layout = {
+              # White focus ring on active window only (follows corner radius with prefer-no-csd)
+              border.enable = false;
+              focus-ring = {
+                enable = true;
+                width = 1;
+                active.color = "#ffffff";
+                inactive.color = "#00000000";
               };
-              color = "#00000040";
-              inactive-color = "#00000000";
+              # Subtle shadow on active window only
+              shadow = {
+                enable = true;
+                softness = 20.0;
+                spread = 2.0;
+                offset = {
+                  x = 0.0;
+                  y = 2.0;
+                };
+                color = "#00000040";
+                inactive-color = "#00000000";
+              };
             };
+
           };
 
           programs.noctalia-shell = {
