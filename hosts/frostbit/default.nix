@@ -39,6 +39,7 @@ in
             hm.discord
             hm.spotify
             hm.coding
+            hm.bitwarden
             hm.terminal
             hm.frostbitKeybinds
           ];
