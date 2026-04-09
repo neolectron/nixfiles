@@ -13,6 +13,7 @@ in
 
       nixpkgs.overlays = [ inputs.niri.overlays.niri ];
       programs.niri.enable = true;
+      programs.niri.package = pkgs.niri-unstable;
 
       # Add GTK portal backend for file chooser dialogs (Save As, Open File, etc.)
       # The GNOME backend installed by niri delegates FileChooser to Nautilus,
@@ -57,6 +58,17 @@ in
   flake.modules.homeManager.niri =
     { pkgs, lib, ... }:
     {
+      # Cursor theme (must match niri cursor settings so compositor and apps agree)
+      home.pointerCursor = {
+        name = lib.mkDefault "Adwaita";
+        package = lib.mkDefault pkgs.adwaita-icon-theme;
+        size = lib.mkDefault 24;
+        gtk.enable = true;
+      };
+
+      # Let HM manage GTK settings so cursor theme propagates to GTK apps
+      gtk.enable = true;
+
       programs.niri.settings = {
         # Window rules
         window-rules = [

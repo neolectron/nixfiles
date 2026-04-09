@@ -40,7 +40,6 @@ in
             hm.spotify
             hm.coding
             hm.terminal
-            hm.cursor
             hm.frostbitKeybinds
           ];
 
@@ -83,16 +82,35 @@ in
               color = "#00000040";
               inactive-color = "#00000000";
             };
-
           };
 
-          programs.noctalia-shell.settings = {
-            location.name = "Toulouse";
-            wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
-            notifications.monitors = [ "DP-1" ];
-            osd.monitors = [ "DP-1" ];
-            general.animationSpeed = 1.3;
-            general.scaleRatio = 0.9;
+          programs.noctalia-shell = {
+            settings = {
+              location.name = "Toulouse";
+              wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
+              notifications.monitors = [ "DP-1" ];
+              osd.monitors = [ "DP-1" ];
+              general.animationSpeed = 1.3;
+              general.scaleRatio = 0.9;
+            };
+            plugins = {
+              version = "2";
+              sources = [
+                {
+                  enabled = true;
+                  name = "Official Noctalia Plugins";
+                  url = "https://github.com/noctalia-dev/noctalia-plugins";
+                }
+              ];
+              states = {
+                # activate-linux.enabled = true; # didn't work but funny.
+                model-usage.enabled = true;
+                tailscale.enabled = true;
+                slowbongo.enabled = true;
+                screen-toolkit.enabled = true;
+                port-monitor.enabled = true;
+              };
+            };
           };
         };
       }
