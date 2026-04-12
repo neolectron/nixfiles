@@ -6,16 +6,17 @@
     {
       users.users.${config.flake.username} = {
         isNormalUser = true;
-        description = "Primary user";
+        description = "neolectron";
         extraGroups = [
           "networkmanager"
           "wheel"
         ];
       };
-      nixpkgs.config.allowUnfree = true;
+
       # Networking
       networking.hostName = "frostbit";
       networking.networkmanager.enable = true;
+
       # Timezone & locale
       time.timeZone = "Europe/Paris";
       i18n.defaultLocale = "en_US.UTF-8";
@@ -77,7 +78,8 @@
         efiDeviceHandle = "PLACEHOLDER"; # TODO: replace after UEFI shell discovery
       };
 
-      # Enable flakes
+      # Nix config
+      nixpkgs.config.allowUnfree = true;
       nix.settings.experimental-features = [
         "nix-command"
         "flakes"

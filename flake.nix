@@ -29,7 +29,7 @@
         inputs.flake-parts.flakeModules.modules
         inputs.home-manager.flakeModules.home-manager
       ]
-      ++ (inputs.import-tree ./modules).imports
+      ++ (inputs.import-tree ./flakes).imports
       ++ (inputs.import-tree ./hosts).imports;
     };
 }

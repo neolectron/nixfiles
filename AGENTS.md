@@ -1,22 +1,16 @@
 # nixfiles
 
 NixOS configuration using **flake-parts** + **import-tree**.
-Every `.nix` file under `modules/` and `hosts/` is auto-imported as a flake-parts module.
+Every `.nix` file under `flakes/` and `hosts/` is auto-imported as a flake-parts module.
 Desktop runs the **niri** Wayland compositor with the **Noctalia** shell.
 
 ## Architecture
 
-`modules` are reusable — another person could import these on their own host.
+`flakes` are reusable — another person could import these on their own host.
 `hosts` is user-machine-specific.
-**Never put hardware values** (monitors, disk UUIDs, device workarounds) in `modules`.
+**Never put hardware values** (monitors, disk UUIDs, device workarounds) in `flakes`.
 Entrypoints per hosts: `hosts/<hostname>/configuration.nix` -> system configuration for `<hostname>` host.
-Host file `hosts/<hostname>/default.nix` use any modules from the `modules/` directory and overrides config values.
-
-## Discovery
-
-- `ls modules` — list all reusable modules (one concern per file: audio, graphics, coding, etc.)
-- `ls hosts` — host-specific config (hardware, configurations, module selection)
-- `ls docs` — design docs and references
+Host file `hosts/<hostname>/default.nix` use any flakes from the `flakes/` directory and overrides config values.
 
 ## Commands
 
@@ -30,9 +24,6 @@ nixos-rebuild dry-activate --flake .#frostbit --sudo
 # Evaluate without building (catches Nix-level errors fast)
 nix flake check
 
-# Build the system closure without activating
-nix build .#nixosConfigurations.frostbit.config.system.build.toplevel
-
 # Update all flake inputs / a single input
 nix flake update
 nix flake update <input-name>
@@ -44,7 +35,7 @@ nix flake update <input-name>
 - **arch-linux** — only `search_archwiki` works here. Package install, system diagnostics, and
   other Arch-specific features will fail on NixOS. Use the wiki for Linux concepts and drivers.
 
-## Module Rules
+## Flakes Rules
 
 ### `lib.mkDefault` discipline
 
@@ -67,9 +58,9 @@ Host authors override a default with a plain assignment (priority 100 beats mkDe
 ### The three config scopes cannot see each other
 
 Flake-parts `config`, NixOS `config`, and Home Manager `config` are separate.
-A NixOS module cannot read HM values. HM *can* read NixOS config via `osConfig`,
-but this repo bridges scopes through flake-parts options instead.
-The bridge is flake-parts option set in each host's `configuration.nix` and readable from any scope.
+A NixOS module cannot read HM values. HM _can_ read NixOS config via `osConfig`,
+but this repo bridges scopes through `./flakes/flake-options.nix` instead.
+flake-options defines the options used in each host's `configuration.nix` and readable from any scope.
 
 ### Other
 
