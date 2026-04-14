@@ -30,6 +30,7 @@ active SSE/WebSocket connection from a TUI or web client? If so, the session wil
 idle while any client is connected, making the current approach fundamentally broken.
 
 **Investigation steps:**
+
 - Check the OpenCode source for how session status is determined.
 - Look at what "idle" vs "busy" means in the `/session/status` API.
 - Test: close all TUI/web clients, then curl the status endpoint — does it change to idle?
@@ -49,18 +50,19 @@ Several things could kill it:
   pattern. The rest of the codebase uses ESM. Bun might handle this fine, but worth verifying.
 
 **Investigation steps:**
+
 - Add logging to the spawned script (write to `/tmp/opencode-restart.log`).
 - Run the spawned script manually: `bun run /tmp/opencode-restart-<latest>.ts` and observe.
 - Check if `require("fs")` works in Bun's context for the spawned script.
 
 ### 3. Service name mismatch (LIKELY)
 
-The tool restarts `opencode-web.service` but the actual unit discovered on this system is
-`opencode-web.service` — this matches. However, the original WSL setup might have used
+The tool restarts `opencode.service` but the actual unit discovered on this system is
+`opencode.service` — this matches. However, the original WSL setup might have used
 `opencode-shared.service`. Verify the service name is correct.
 
-**Current systemd unit:** `opencode-web.service` (confirmed via `systemctl --user list-units`).
-**Tool uses:** `opencode-web.service` — this matches.
+**Current systemd unit:** `opencode.service` (confirmed via `systemctl --user list-units`).
+**Tool uses:** `opencode.service` — this matches.
 
 ### 4. Bun availability in detached context
 
@@ -70,6 +72,7 @@ in its environment, or if `process.execPath` resolves to something unexpected, t
 could fail silently.
 
 **Investigation steps:**
+
 - Log `process.execPath` in the tool before spawning.
 - Verify the Bun binary exists at that path and is executable.
 
@@ -96,7 +99,7 @@ User calls restart_on_idle
               ├─ Polls: GET http://127.0.0.1:4096/session/status?directory=<dir>
               │  for each directory with active sessions
               │
-              ├─ If all idle → systemctl --user restart opencode-web.service
+              ├─ If all idle → systemctl --user restart opencode.service
               │
               └─ If timeout → notify-send warning
 ```
@@ -105,7 +108,7 @@ User calls restart_on_idle
 
 - **OS:** NixOS (flake-based, rebuilt via `nixos-rebuild switch`)
 - **OpenCode version:** 1.3.10 (`/nix/store/.../opencode-1.3.10/bin/opencode serve`)
-- **Service:** `opencode-web.service` (systemd user unit, `Restart=always`, `RestartSec=2`)
+- **Service:** `opencode.service` (systemd user unit, `Restart=always`, `RestartSec=2`)
 - **Server URL:** `http://127.0.0.1:4096`
 - **DB path:** `~/.local/share/opencode/opencode-stable.db`
 - **Plugin runtime:** Bun (via `.opencode/tools/restart.ts`, OpenCode custom tool)
@@ -114,7 +117,7 @@ User calls restart_on_idle
 ## Files to Read
 
 - `.opencode/tools/restart.ts` — the full tool implementation
-- `~/.config/systemd/user/opencode-web.service` — the systemd unit
+- `~/.config/systemd/user/opencode.service` — the systemd unit
 - `~/.config/opencode/opencode.jsonc` — global OpenCode config
 - `.opencode/package.json` — plugin dependencies
 
@@ -125,7 +128,7 @@ User calls restart_on_idle
    becomes idle" or "watcher crashes".
 
 2. **If session never becomes idle:** The `/session/status` API likely considers any connected
-   client as "busy". The fix would be to check for *active tool calls or streaming* specifically,
+   client as "busy". The fix would be to check for _active tool calls or streaming_ specifically,
    not just connection status. Alternatively, add a grace period: if the session has been "busy"
    but no new messages for N seconds, treat it as idle.
 

@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 
 const SERVER_URL = 'http://127.0.0.1:4096';
-const SERVICE = 'opencode-web.service';
+const SERVICE = 'opencode.service';
 const LOCKFILE = '/tmp/opencode-restart-pending';
 const LOGFILE = '/tmp/opencode-restart.log';
 const WATCHER = path.join(
