@@ -48,4 +48,5 @@ This repo follows the **dendritic pattern**: every `.nix` file (except entry poi
 all configuration scopes it applies to. Lower-level NixOS/HM modules are stored as option
 values in the top-level config and auto-imported via `import-tree`.
 
+Reference: https://dendritic.oeiuwq.com/
 Reference: https://github.com/mightyiam/dendritic

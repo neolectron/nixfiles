@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.modules.homeManager.frostbitKeybinds =
+  config.flake.modules.homeManager.frostbitKeybinds =
     { ... }:
     {
       # it's possible to split default.nix like this.

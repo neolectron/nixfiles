@@ -1,9 +1,5 @@
 { config, ... }:
-let
-  username = config.flake.username;
-in
 {
-  # Home Manager side: Bitwarden password manager + SSH agent
   config.flake.modules.homeManager.bitwarden =
     { pkgs, ... }:
     {
@@ -12,7 +8,7 @@ in
       ];
 
       home.sessionVariables = {
-        SSH_AUTH_SOCK = "/home/${username}/.bitwarden-ssh-agent.sock";
+        SSH_AUTH_SOCK = "/home/${config.flake.username}/.bitwarden-ssh-agent.sock";
       };
     };
 }

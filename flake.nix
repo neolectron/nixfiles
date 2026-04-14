@@ -20,6 +20,11 @@
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    envisaged = {
+      url = "github:utensils/Envisaged";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
