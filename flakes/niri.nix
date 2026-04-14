@@ -147,6 +147,7 @@ in
         layout = {
           gaps = lib.mkDefault 8;
           center-focused-column = lib.mkDefault "never";
+          empty-workspace-above-first = lib.mkDefault true;
 
           border = {
             enable = lib.mkDefault true;
