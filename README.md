@@ -1,7 +1,9 @@
 # nixfiles
 
 Extensible NixOS configuration with simple and modern defaults.
+
 Built with [flake-parts](https://flake.parts/) and [import-tree](https://github.com/vic/import-tree).
+
 Desktop runs the [niri](https://github.com/YaLweT/niri) Wayland compositor with the [Noctalia](https://github.com/noctalia-dev/noctalia-shell) desktop shell.
 
 ## Quick start
@@ -85,16 +87,10 @@ home.pointerCursor.name = "Bibata-Modern-Classic";  # overrides mkDefault "Adwai
 
 No `mkForce`, no `mkOverride 9001` — just assign the value. The host always wins.
 
-## Import this flake in your own (why?)
+## AI much ?
 
-Because `flakes/` is just a directory of flake-parts modules, you can import the whole thing or individual modules:
+Embeded with this repo you'll find an opencode agent tailored to help you with your nix configuration !
 
-```nix
-# In your own flake.nix, add this repo as an input:
-inputs.nixfiles.url = "github:your-name/nixfiles";
+The agent make use nixOS-mcp and nix LSP to provide you with a seamless experience when it comes to writing and debugging your nix configuration.
 
-# Then in your flake-parts config:
-imports = [ inputs.nixfiles.flakeModules.default ];
-# Or pick specific modules:
-imports = [ inputs.nixfiles.flakeModules.niri ];
-```
+Opening opencode to the current directory will automatically load the agent and allow you to ask questions about your configuration, get suggestions for improvements, and even generate new modules based on your needs.

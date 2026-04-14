@@ -9,8 +9,12 @@ Desktop runs the **niri** Wayland compositor with the **Noctalia** shell.
 `flakes` are reusable — another person could import these on their own host.
 `hosts` is user-machine-specific.
 **Never put hardware values** (monitors, disk UUIDs, device workarounds) in `flakes`.
-Entrypoints per hosts: `hosts/<hostname>/configuration.nix` -> system configuration for `<hostname>` host.
-Host file `hosts/<hostname>/default.nix` use any flakes from the `flakes/` directory and overrides config values.
+Each host lives in `hosts/<hostname>/`:
+
+- `default.nix` — entrypoint: sets username, assembles `nixosConfigurations` from flakes + inline config.
+- `hardware-configuration.nix` — hardware-specific module (filesystems, kernel modules, UUIDs).
+- `config/` — optional folder, can be anything really, for splitting host config into multiple files.
+  Host `default.nix` uses any flakes from `flakes/` and overrides config values.
 
 ## Commands
 
@@ -60,7 +64,7 @@ Host authors override a default with a plain assignment (priority 100 beats mkDe
 Flake-parts `config`, NixOS `config`, and Home Manager `config` are separate.
 A NixOS module cannot read HM values. HM _can_ read NixOS config via `osConfig`,
 but this repo bridges scopes through `./flakes/flake-options.nix` instead.
-flake-options defines the options used in each host's `configuration.nix` and readable from any scope.
+flake-options defines the options used in each host's `default.nix` and readable from any scope.
 
 ### Other
 
