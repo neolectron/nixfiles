@@ -112,6 +112,31 @@ in
             };
           }
 
+          # Wine popups/menus/scrollbars — float everything except the main window
+          # Wine apps create separate windows for menus, scrollbars, etc.
+          # Main windows have a real title; popups have "" or "menu".
+          {
+            matches = [
+              { app-id = "\\.exe$"; }
+            ];
+            excludes = [
+              {
+                app-id = "\\.exe$";
+                title = ".+";
+              }
+            ];
+            open-floating = true;
+          }
+          {
+            matches = [
+              {
+                app-id = "\\.exe$";
+                title = "^menu$";
+              }
+            ];
+            open-floating = true;
+          }
+
           # pwvucontrol — floating top-right
           {
             matches = [

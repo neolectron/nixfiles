@@ -53,6 +53,7 @@ in
           commandLineArgs = [ "--ozone-platform=wayland" ];
         })
         uv
+        qdirstat
         htop
         devenv
         docker-compose
