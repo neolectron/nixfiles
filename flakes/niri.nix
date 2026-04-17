@@ -95,6 +95,23 @@ in
             open-floating = true;
           }
 
+          # fix steam popups holy fuck they're annoying
+          {
+            matches = [
+              { app-id = "^steam$"; }
+            ];
+            excludes = [
+              { title = "^Steam$"; }
+            ];
+            open-floating = true;
+            open-focused = false;
+            default-floating-position = {
+              relative-to = "bottom-right";
+              x = 16;
+              y = 16;
+            };
+          }
+
           # pwvucontrol — floating top-right
           {
             matches = [
