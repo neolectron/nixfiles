@@ -14,7 +14,7 @@
         alsa.support32Bit = true;
         pulse.enable = true;
         wireplumber.enable = true;
-        jack.enable = false;
+        jack.enable = true;
       };
     };
 
@@ -22,8 +22,9 @@
   flake.modules.homeManager.sound =
     { pkgs, ... }:
     {
-      home.packages = with pkgs; [
-        pwvucontrol
+      home.packages = [
+        pkgs.pwvucontrol
+        pkgs.crosspipe
       ];
     };
 }

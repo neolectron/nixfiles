@@ -7,7 +7,7 @@
         enable = true;
         remotePlay.openFirewall = true;
         protontricks.enable = true;
-        extraCompatPackages = with pkgs; [ proton-ge-bin ];
+        extraCompatPackages = [ pkgs.proton-ge-bin ];
       };
 
       programs.gamemode.enable = true;

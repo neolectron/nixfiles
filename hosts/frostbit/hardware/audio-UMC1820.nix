@@ -14,7 +14,7 @@
   #   pw-cli list-objects | grep -i "loopback\|Audio/Source\|UMC"
   #   journalctl --user -u pipewire -n 50
   #   journalctl --user -u wireplumber -n 50
-  #   helvum  (visual audio routing patchbay)
+  #   crosspipe  (visual audio routing patchbay)
   #   pavucontrol  (volume levels & device selection)
   #
   # Currently only AUX2 is enabled (main mic input).

@@ -1,10 +1,12 @@
 # nixfiles
 
-Extensible NixOS configuration with simple and modern defaults.
+Extensible Nix configuration with simple and modern defaults.
 
 Built with [flake-parts](https://flake.parts/) and [import-tree](https://github.com/vic/import-tree).
 
-Desktop runs the [niri](https://github.com/YaLweT/niri) Wayland compositor with the [Noctalia](https://github.com/noctalia-dev/noctalia-shell) desktop shell.
+Works on NixOS, any Linux distro, WSL, or macOS.
+
+On linux, the desktop runs the [niri](https://github.com/YaLweT/niri) Wayland compositor with the [Noctalia](https://github.com/noctalia-dev/noctalia-shell) desktop shell.
 
 ## Quick start
 
