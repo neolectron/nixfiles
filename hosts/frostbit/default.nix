@@ -119,6 +119,8 @@ in
             hm.bitwarden
             hm.terminal
             hm.frostbitKeybinds
+            hm.musicProd
+            hm.wine
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;
