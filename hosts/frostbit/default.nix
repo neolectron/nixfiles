@@ -15,6 +15,7 @@ in
       nixos.sound
       nixos.audioInterface
       nixos.coding
+      nixos.terminal
       nixos.graphics
       nixos.gaming
       nixos.wslMount

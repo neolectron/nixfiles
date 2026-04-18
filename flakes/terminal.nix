@@ -1,17 +1,55 @@
 { ... }:
 {
-  # Home Manager side: Kitty terminal emulator
+  flake.modules.nixos.terminal =
+    { pkgs, ... }:
+    {
+      environment.systemPackages = with pkgs; [
+        comma
+        ghostty
+      ];
+    };
+
+  # Home Manager side: terminal emulators, shells, and prompt
   flake.modules.homeManager.terminal =
     { lib, ... }:
     {
-      programs.kitty = {
+      programs.zsh = {
         enable = true;
-        settings = {
-          font_size = lib.mkDefault 12;
-          enable_audio_bell = lib.mkDefault false;
-          confirm_os_window_close = lib.mkDefault 0;
-          window_padding_width = lib.mkDefault 4;
+        enableCompletion = lib.mkDefault true;
+        autosuggestion.enable = lib.mkDefault true;
+        syntaxHighlighting.enable = lib.mkDefault true;
+        history = {
+          size = lib.mkDefault 10000;
+          save = lib.mkDefault 10000;
+          share = lib.mkDefault true;
+          append = lib.mkDefault true;
+          ignoreDups = lib.mkDefault true;
         };
+        shellAliases = lib.mkDefault {
+          ll = "ls -la";
+          la = "ls -a";
+        };
+      };
+
+      programs.starship = {
+        enable = true;
+        enableZshIntegration = lib.mkDefault true;
+        settings = lib.mkDefault {
+          character = {
+            success_symbol = "[➜](bold green)";
+            error_symbol = "[✗](bold red)";
+          };
+          directory = {
+            truncation_length = 3;
+            truncate_to_repo = true;
+          };
+        };
+      };
+
+      programs.zoxide = {
+        enable = true;
+        enableZshIntegration = lib.mkDefault true;
+        options = lib.mkDefault [ "--cmd cd" ];
       };
     };
 }
