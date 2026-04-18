@@ -94,10 +94,21 @@ in
 
           # Nix config
           nixpkgs.config.allowUnfree = true;
-          nix.settings.experimental-features = [
-            "nix-command"
-            "flakes"
-          ];
+          nix.settings = {
+            experimental-features = [
+              "nix-command"
+              "flakes"
+            ];
+            # niri cachix is auto-added by niri-flake.cache.enable (default true)
+            extra-substituters = [
+              "https://noctalia.cachix.org"
+              "https://vicinae.cachix.org"
+            ];
+            extra-trusted-public-keys = [
+              "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+              "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
+            ];
+          };
           system.stateVersion = "25.11";
         }
       )
