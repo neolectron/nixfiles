@@ -68,6 +68,7 @@ in
 
       # Let HM manage GTK settings so cursor theme propagates to GTK apps
       gtk.enable = true;
+      gtk.gtk4.theme = null;
 
       programs.niri.settings = {
         # Window rules
