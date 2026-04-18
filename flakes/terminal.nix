@@ -58,11 +58,10 @@ in
           ll = "ls -la";
           la = "ls -a";
         };
-        # Auto-start tmux in interactive shells (but not if already in tmux or in VS Code)
+        # Auto-start tmux
         initContent = ''
-          # Auto-start tmux if interactive and not already in tmux
           if [[ -o interactive ]] && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
-            tmux attach -t main 2>/dev/null || tmux new -s main
+            exec tmux new-session -A -s main
           fi
         '';
       };
