@@ -130,6 +130,7 @@ in
             hm.bitwarden
             hm.wine
             hm.handy
+            hm.vicinae
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;

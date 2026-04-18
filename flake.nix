@@ -30,6 +30,8 @@
       url = "github:cjpais/Handy";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    vicinae.url = "github:vicinaehq/vicinae";
   };
 
   outputs =

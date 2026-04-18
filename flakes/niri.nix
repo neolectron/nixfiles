@@ -216,13 +216,13 @@ in
         binds = {
           # Launch apps
           "Mod+Return".action.spawn = "kitty";
-          "Mod+Space".action.spawn = [
-            "noctalia-shell"
-            "ipc"
-            "call"
-            "launcher"
-            "toggle"
-          ];
+          "Mod+Space" = {
+            repeat = false;
+            action.spawn = [
+              "vicinae"
+              "toggle"
+            ];
+          };
 
           # Window management
           "Mod+Q".action.close-window = [ ];

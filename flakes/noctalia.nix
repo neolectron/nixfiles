@@ -115,14 +115,6 @@
             randomIntervalSec = lib.mkDefault 1800;
           };
 
-          # ── App Launcher ─────────────────────────────────────
-          appLauncher = {
-            terminalCommand = lib.mkDefault "kitty -e";
-            iconMode = lib.mkDefault "native";
-            overviewLayer = lib.mkDefault true;
-            density = lib.mkDefault "compact";
-          };
-
           # ── Control Center ───────────────────────────────────
           # brightness-card disabled
           controlCenter.cards = [
