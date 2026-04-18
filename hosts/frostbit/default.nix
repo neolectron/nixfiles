@@ -20,6 +20,7 @@ in
       nixos.gaming
       nixos.wslMount
       nixos.envisaged
+      nixos.handy
 
       # ── System-level config ──────────────────────────────
       (
@@ -31,6 +32,7 @@ in
             extraGroups = [
               "networkmanager"
               "wheel"
+              "input"
             ];
           };
 
@@ -111,17 +113,23 @@ in
           home.stateVersion = "25.11";
 
           imports = [
+            # Desktop environment & system integration
             hm.niri
-            hm.noctalia
             hm.sound
+            hm.noctalia
+            hm.frostbitKeybinds
+            # Features
+            hm.terminal
+            hm.coding
+            hm.musicProd
+            # Applications
+            hm.utility-apps
+            hm.google-chrome
             hm.discord
             hm.spotify
-            hm.coding
             hm.bitwarden
-            hm.terminal
-            hm.frostbitKeybinds
-            hm.musicProd
             hm.wine
+            hm.handy
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;

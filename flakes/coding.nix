@@ -27,23 +27,23 @@ in
     }:
     {
       home.packages = with pkgs; [
-        vscode
-        neovim
-        tmux
+        # Utilities
         curl
         jq
+        fzf
         ripgrep
+        fd
+        htop
+        uv
         gh
         nixfmt
         nixd
-        (pkgs.google-chrome.override {
-          commandLineArgs = [ "--ozone-platform=wayland" ];
-        })
-        uv
-        qdirstat
-        htop
+        # Editors
+        vscode
+        neovim
+        # Environment
         devenv
-        docker-compose
+        # docker-compose
       ];
 
       programs.git = {

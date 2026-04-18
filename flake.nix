@@ -25,6 +25,11 @@
       url = "github:utensils/Envisaged";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    handy = {
+      url = "github:cjpais/Handy";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
