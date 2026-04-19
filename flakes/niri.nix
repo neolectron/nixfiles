@@ -215,7 +215,7 @@ in
         # Keybindings
         binds = {
           # Launch apps
-          "Mod+Return".action.spawn = "kitty";
+          "Mod+Return".action.spawn = lib.getExe pkgs.ghostty;
           "Mod+Space" = {
             repeat = false;
             action.spawn = [
@@ -304,19 +304,19 @@ in
 
           # Volume keys
           "XF86AudioRaiseVolume".action.spawn = [
-            "wpctl"
+            (lib.getExe' pkgs.wireplumber "wpctl")
             "set-volume"
             "@DEFAULT_AUDIO_SINK@"
             "0.05+"
           ];
           "XF86AudioLowerVolume".action.spawn = [
-            "wpctl"
+            (lib.getExe' pkgs.wireplumber "wpctl")
             "set-volume"
             "@DEFAULT_AUDIO_SINK@"
             "0.05-"
           ];
           "XF86AudioMute".action.spawn = [
-            "wpctl"
+            (lib.getExe' pkgs.wireplumber "wpctl")
             "set-mute"
             "@DEFAULT_AUDIO_SINK@"
             "toggle"

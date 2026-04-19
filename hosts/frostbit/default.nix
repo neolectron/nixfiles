@@ -9,6 +9,7 @@ in
   config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       # ── System-level modules ──────────────────────────────
+      inputs.nix-index-database.nixosModules.default
       nixos.frostbitHardwareConfiguration
       nixos.niri
       nixos.noctalia
@@ -118,6 +119,9 @@ in
       {
         home-manager.useGlobalPkgs = true;
         home-manager.useUserPackages = true;
+        home-manager.sharedModules = [
+          inputs.nix-index-database.homeModules.nix-index
+        ];
         home-manager.users.${username} = {
           home.username = username;
           home.homeDirectory = "/home/${username}";
@@ -139,12 +143,16 @@ in
             hm.discord
             hm.spotify
             hm.bitwarden
+            hm.curseforge
             hm.wine
             hm.handy
             hm.vicinae
+            hm.chataigne
+            hm.frostbitgames
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;
+          programs.nix-index-database.comma.enable = true;
 
           programs.niri.settings = {
             prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible

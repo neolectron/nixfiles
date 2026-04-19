@@ -7,7 +7,6 @@ in
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        comma
         ghostty
       ];
 
@@ -20,7 +19,7 @@ in
 
   # Home Manager side: terminal emulators, shells, and prompt
   flake.modules.homeManager.terminal =
-    { lib, ... }:
+    { pkgs, lib, ... }:
     {
       programs.tmux = {
         enable = true;
@@ -35,6 +34,9 @@ in
           # Automatically renumber windows when one is closed
           set -g renumber-windows on
 
+          # Destroy session when the terminal is closed or detached
+          set -g destroy-unattached on
+
           # Status bar at the bottom
           set -g status-position bottom
           set -g status-style bg=default,fg=white
@@ -44,7 +46,8 @@ in
 
       programs.zsh = {
         enable = true;
-        enableCompletion = lib.mkDefault true;
+        # Keep completion stack minimal: native zsh completion + carapace bridge.
+        enableCompletion = true;
         autosuggestion.enable = lib.mkDefault true;
         syntaxHighlighting.enable = lib.mkDefault true;
         history = {
@@ -58,12 +61,46 @@ in
           ll = "ls -la";
           la = "ls -a";
         };
-        # Auto-start tmux
-        initContent = ''
+        plugins = [ ];
+        # Auto-start tmux — exec replaces the shell so "exit" closes the terminal
+        initContent = lib.mkOrder 1500 ''
           if [[ -o interactive ]] && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
-            exec tmux new-session -A -s main
+            exec tmux new-session
           fi
         '';
+      };
+
+      # fzf — fuzzy finder with shell integration
+      programs.fzf = {
+        enable = true;
+        enableZshIntegration = lib.mkDefault true;
+      };
+
+
+      programs.fastfetch = {
+        enable = lib.mkDefault true;
+        settings = lib.mkDefault {
+          logo = {
+            source = "nixos_small";
+            padding.right = 2;
+          };
+          modules = [
+            "title"
+            "separator"
+            "os"
+            "host"
+            "kernel"
+            "uptime"
+            "packages"
+            "shell"
+            "terminal"
+            "cpu"
+            "gpu"
+            "memory"
+            "break"
+            "colors"
+          ];
+        };
       };
 
       programs.starship = {

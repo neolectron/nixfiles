@@ -30,10 +30,10 @@ in
         # Utilities
         curl
         jq
-        fzf
         ripgrep
         fd
         htop
+        btop
         uv
         gh
         nixfmt
@@ -51,8 +51,23 @@ in
         settings = {
           user.name = lib.mkDefault config.home.username;
           user.email = lib.mkDefault "jhon-doe@users.noreply.github.com";
+
+          fetch.prune = lib.mkDefault true;
           init.defaultBranch = lib.mkDefault "main";
+
+          rerere.enabled = lib.mkDefault true;
+          merge.conflictstyle = lib.mkDefault "zdiff3";
+
+          pull.rebase = lib.mkDefault true;
+          pull.ff = lib.mkDefault "only";
+
+          push.default = lib.mkDefault "simple";
           push.autoSetupRemote = lib.mkDefault true;
+
+          rebase.autoStash = lib.mkDefault true;
+
+          core.editor = lib.mkDefault "nvim";
+          help.autocorrect = lib.mkDefault "prompt";
         };
       };
 

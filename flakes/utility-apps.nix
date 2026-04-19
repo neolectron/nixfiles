@@ -5,6 +5,8 @@
     {
       home.packages = [
         pkgs.qdirstat
+        pkgs.gparted
+        pkgs.dust
       ];
     };
 }

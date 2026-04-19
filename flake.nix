@@ -8,11 +8,20 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # No nixpkgs.follows — lets us hit their cachix binary caches
     niri.url = "github:sodiboo/niri-flake";
     noctalia.url = "github:noctalia-dev/noctalia-shell";
     vicinae.url = "github:vicinaehq/vicinae";
+    vicinae-extensions = {
+      url = "github:vicinaehq/extensions";
+      inputs.nixpkgs.follows = "vicinae/nixpkgs";
+      inputs.vicinae.follows = "vicinae";
+    };
 
     # No cachix binary caches, but we want to be able to override them with our own nixpkgs
     envisaged = {

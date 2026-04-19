@@ -1,7 +1,11 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.vicinae =
-    { lib, ... }:
+    {
+      lib,
+      pkgs,
+      ...
+    }:
     {
       imports = [
         inputs.vicinae.homeManagerModules.default
@@ -19,6 +23,9 @@
         settings = {
           telemetry.system_info = false;
         };
+        extensions = with inputs.vicinae-extensions.packages.${pkgs.stdenv.hostPlatform.system}; [
+          nix
+        ];
       };
     };
 }
