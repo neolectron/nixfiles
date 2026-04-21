@@ -40,7 +40,6 @@ in
         nixd
         # Editors
         vscode
-        neovim
         # Environment
         devenv
         # docker-compose

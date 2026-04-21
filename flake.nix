@@ -32,6 +32,12 @@
       url = "github:cjpais/Handy";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Nixvim - Neovim configuration framework
+    # Note: Not using follows as recommended by nixvim docs for compatibility
+    nixvim = {
+      url = "github:nix-community/nixvim";
+    };
   };
 
   outputs =

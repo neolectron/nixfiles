@@ -76,7 +76,6 @@ in
         enableZshIntegration = lib.mkDefault true;
       };
 
-
       programs.fastfetch = {
         enable = lib.mkDefault true;
         settings = lib.mkDefault {
@@ -123,5 +122,10 @@ in
         enableZshIntegration = lib.mkDefault true;
         options = lib.mkDefault [ "--cmd cd" ];
       };
+
+      # Ghostty: disable smooth scrolling to fix neovim/tmux rendering artifacts
+      xdg.configFile."ghostty/config".text = lib.mkDefault ''
+        scroll-smooth = false
+      '';
     };
 }
