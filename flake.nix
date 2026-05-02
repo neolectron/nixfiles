@@ -38,6 +38,11 @@
     nixvim = {
       url = "github:nix-community/nixvim";
     };
+
+    _0fetch = {
+      url = "github:peachey2k2/0fetch";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

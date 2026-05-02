@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "_0fetch": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775736081,
+        "narHash": "sha256-K5QOFeBYxRC/ksSIcyQZZgZJfHt2vvCCYm/HPiIGY4Y=",
+        "owner": "peachey2k2",
+        "repo": "0fetch",
+        "rev": "bdaff78768bf312c5946a9f160b4c230f7f4ec14",
+        "type": "github"
+      },
+      "original": {
+        "owner": "peachey2k2",
+        "repo": "0fetch",
+        "type": "github"
+      }
+    },
     "bun2nix": {
       "inputs": {
         "flake-parts": "flake-parts_2",
@@ -353,11 +373,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1775036866,
-        "narHash": "sha256-ZojAnPuCdy657PbTq5V0Y+AHKhZAIwSIT2cb8UgAz/U=",
+        "lastModified": 1776548001,
+        "narHash": "sha256-ZSK0NL4a1BwVbbTBoSnWgbJy9HeZFXLYQizjb2DPF24=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "6201e203d09599479a3b3450ed24fa81537ebc4e",
+        "rev": "b12141ef619e0a9c1c84dc8c684040326f27cdcc",
         "type": "github"
       },
       "original": {
@@ -529,6 +549,7 @@
     },
     "root": {
       "inputs": {
+        "_0fetch": "_0fetch",
         "envisaged": "envisaged",
         "flake-parts": "flake-parts",
         "handy": "handy",

@@ -84,6 +84,9 @@
                 id = "plugin:port-monitor";
               }
               {
+                id = "KeepAwake";
+              }
+              {
                 id = "Clock";
                 formatHorizontal = "HH:mm:ss";
                 formatVertical = "HH mm";

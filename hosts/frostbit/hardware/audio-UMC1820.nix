@@ -64,6 +64,24 @@
             {
               name = libpipewire-module-loopback
               args = {
+                node.description = "AUX3 microphone"
+                capture.props = {
+                  node.name         = capture.UMC1820_AUX3
+                  audio.position    = [ AUX3 ]
+                  stream.dont-remix = true
+                  target.object     = "alsa_input.usb-BEHRINGER_UMC1820_BAB9273B-00.multichannel-input"
+                  node.passive      = true
+                }
+                playback.props = {
+                  node.name         = UMC1820_Mic_AUX3
+                  media.class       = "Audio/Source"
+                  audio.position    = [ MONO ]
+                }
+              }
+            }
+            {
+              name = libpipewire-module-loopback
+              args = {
                 node.description = "headphones"
                 capture.props = {
                   node.name      = headphones_input

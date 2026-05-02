@@ -6,6 +6,7 @@ let
 in
 {
   config.flake.username = "neolectron";
+  config.flake.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
   config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       # ── System-level modules ──────────────────────────────
@@ -22,6 +23,8 @@ in
       nixos.wslMount
       nixos.envisaged
       nixos.handy
+      nixos.mediaStack
+      nixos.obs
 
       # ── System-level config ──────────────────────────────
       (
@@ -40,6 +43,7 @@ in
           # Networking
           networking.hostName = "frostbit";
           networking.networkmanager.enable = true;
+          networking.firewall.allowedTCPPorts = [ 4096 ]; # OpenCode LAN access
 
           # Timezone & locale
           time.timeZone = "Europe/Paris";
@@ -72,7 +76,15 @@ in
 
           # Boot
           boot.tmp.cleanOnBoot = true; # Clean /tmp on reboot (prevents stale lockfiles/sockets)
-          boot.kernelPackages = pkgs.linuxPackages_latest;
+
+          # Kernel pin: using 6.19 instead of linuxPackages_latest.
+          # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
+          # that breaks transmit — NIC link shows UP but no packets go out,
+          # causing total DNS/network failure.
+          # Upstream bug: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141544
+          # TODO: switch back to linuxPackages_latest once the r8169 fix lands
+          #        (likely 7.0.x or 7.1). Test by removing the pin and rebuilding.
+          boot.kernelPackages = pkgs.linuxPackages_6_19;
           boot.supportedFilesystems = [ "ntfs" ];
           boot.loader.systemd-boot.enable = true;
           boot.loader.efi.canTouchEfiVariables = true;
@@ -119,6 +131,7 @@ in
       {
         home-manager.useGlobalPkgs = true;
         home-manager.useUserPackages = true;
+        home-manager.backupFileExtension = "backup";
         home-manager.sharedModules = [
           inputs.nix-index-database.homeModules.nix-index
         ];
@@ -137,7 +150,9 @@ in
             hm.terminal
             hm.coding
             hm.musicProd
+            hm.nixvim
             # Applications
+            hm.obs
             hm.utility-apps
             hm.google-chrome
             hm.discord
@@ -213,6 +228,7 @@ in
               osd.monitors = [ "DP-1" ];
               general.animationSpeed = 1.3;
               general.scaleRatio = 0.9;
+              systemMonitor.enableDgpuMonitoring = true;
             };
             plugins = {
               version = "2";

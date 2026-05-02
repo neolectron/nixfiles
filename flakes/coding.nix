@@ -40,6 +40,7 @@ in
         nixd
         # Editors
         vscode
+        nodejs # needed by VSCode extensions (oxc, etc.)
         # Environment
         devenv
         # docker-compose
