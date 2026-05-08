@@ -33,7 +33,8 @@ in
         ripgrep
         fd
         htop
-        btop
+        # btop-rocm is the amd one, btop-cuda is the nvidia one
+        btop-rocm
         uv
         gh
         nixfmt

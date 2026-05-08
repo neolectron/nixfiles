@@ -1,0 +1,156 @@
+// ============================================================================
+// SYSTEM CONTROL INTERFACES
+// Discovered from this system's config + documentation
+// ============================================================================
+
+{
+  // ============================================================================
+  // NIRI COMPOSITOR (niri msg)
+  // ============================================================================
+  // Socket: $NIRI_SOCKET (usually $XDG_RUNTIME_DIR/niri.socket)
+  // CLI: niri msg [--json] <command>
+
+  // --- Introspection ---
+  "niri-outputs": "niri msg --json outputs",
+  "niri-workspaces": "niri msg --json workspaces",
+  "niri-windows": "niri msg --json windows",
+  "niri-focused-window": "niri msg --json FocusedWindow",
+  "niri-version": "niri msg --json version",
+
+  // --- Actions: Focus ---
+  "niri-focus-workspace": "niri msg --json action focus-workspace <index>",
+  "niri-focus-window": "niri msg --json action focus-window <id>",
+  "niri-focus-monitor-left": "niri msg --json action focus-monitor-left",
+  "niri-focus-monitor-right": "niri msg --json action focus-monitor-right",
+
+  // --- Actions: Move ---
+  "niri-move-column-left": "niri msg --json action move-column-left-or-to-monitor-left",
+  "niri-move-column-right": "niri msg --json action move-column-right-or-to-monitor-right",
+  "niri-move-window-up": "niri msg --json action move-window-up-or-to-workspace-up",
+  "niri-move-window-down": "niri msg --json action move-window-down-or-to-workspace-down",
+  "niri-move-to-workspace": "niri msg --json action move-window-to-workspace <index>",
+  "niri-move-to-monitor-left": "niri msg --json action move-window-to-monitor-left",
+  "niri-move-to-monitor-right": "niri msg --json action move-window-to-monitor-right",
+
+  // --- Actions: Window ---
+  "niri-close-window": "niri msg --json action close-window",
+  "niri-maximize-column": "niri msg --json action maximize-column",
+  "niri-fullscreen": "niri msg --json action fullscreen-window",
+  "niri-toggle-floating": "niri msg --json action toggle-window-floating",
+  "niri-toggle-overview": "niri msg --json action toggle-overview",
+
+  // --- Actions: Spawn ---
+  "niri-spawn": "niri msg --json action spawn -- <command>",
+  "niri-spawn-sh": "niri msg --json action spawn-sh -- '<shell-command>'",
+
+  // --- Actions: System ---
+  "niri-screenshot": "niri msg --json action screenshot",
+  "niri-screenshot-screen": "niri msg --json action screenshot-screen",
+  "niri-load-config": "niri msg --json action load-config-file",
+  "niri-quit": "niri msg --json action quit",
+
+  // --- Events ---
+  "niri-event-stream": "niri msg --json event-stream",
+
+  // --- Output Config ---
+  "niri-output-scale": "niri msg --json action set-output-scale <output> <scale>",
+  "niri-output-mode": "niri msg --json action set-output-mode <output> <width>x<height>@<hz>",
+
+  // ============================================================================
+  // NOCTALIA SHELL (qs -c noctalia-shell ipc call)
+  // ============================================================================
+  // CLI: qs -c noctalia-shell ipc call <target> <method> [args]
+  // Or: noctlalia-shell ipc call <target> <method> [args]
+  // List all: qs -c noctalia-shell ipc show
+
+  // --- Core ---
+  "noctalia-launcher-toggle": "qs -c noctalia-shell ipc call launcher toggle",
+  "noctalia-controlcenter-toggle": "qs -c noctalia-shell ipc call controlCenter toggle",
+  "noctalia-settings-toggle": "qs -c noctalia-shell ipc call settings toggle",
+  "noctalia-lock-screen": "qs -c noctalia-shell ipc call lock toggle",
+
+  // --- System: Power ---
+  "noctalia-suspend": "qs -c noctalia-shell ipc call system suspend",
+  "noctalia-hibernate": "qs -c noctalia-shell ipc call system hibernate",
+  "noctalia-reboot": "qs -c noctalia-shell ipc call system reboot",
+  "noctalia-poweroff": "qs -c noctalia-shell ipc call system poweroff",
+
+  // --- System: Audio ---
+  "noctalia-volume-up": "qs -c noctalia-shell ipc call volume increase",
+  "noctalia-volume-down": "qs -c noctalia-shell ipc call volume decrease",
+  "noctalia-volume-set": "qs -c noctalia-shell ipc call volume set <0-100>",
+  "noctalia-mute": "qs -c noctalia-shell ipc call volume mute",
+  "noctalia-mic-up": "qs -c noctalia-shell ipc call microphone increase",
+  "noctalia-mic-down": "qs -c noctalia-shell ipc call microphone decrease",
+  "noctalia-mic-mute": "qs -c noctalia-shell ipc call microphone toggleMute",
+
+  // --- System: Brightness ---
+  "noctalia-brightness-up": "qs -c noctalia-shell ipc call brightness increase",
+  "noctalia-brightness-down": "qs -c noctalia-shell ipc call brightness decrease",
+
+  // --- System: Network ---
+  "noctalia-wifi-toggle": "qs -c noctalia-shell ipc call network toggleWifi",
+  "noctalia-bluetooth-toggle": "qs -c noctalia-shell ipc call network toggleBluetooth",
+
+  // --- Idle ---
+  "noctalia-idle-inhibitor-toggle": "qs -c noctalia-shell ipc call idleInhibitor toggle",
+  "noctalia-lock-toggle": "qs -c noctalia-shell ipc call lock toggle",
+
+  // --- Media ---
+  "noctalia-media-play": "qs -c noctalia-shell ipc call media play",
+  "noctalia-media-pause": "qs -c noctalia-shell ipc call media pause",
+  "noctalia-media-next": "qs -c noctalia-shell ipc call media next",
+  "noctalia-media-prev": "qs -c noctalia-shell ipc call media previous",
+
+  // --- Notifications ---
+  "noctalia-notifications-toggle": "qs -c noctalia-shell ipc call notifications toggle",
+
+  // --- Plugin Control ---
+  "noctalia-plugin-toggle": "qs -c noctalia-shell ipc call plugin toggle <plugin-id>",
+  "noctalia-plugin-openSettings": "qs -c noctalia-shell ipc call plugin openSettings <plugin-id>",
+  "noctalia-plugin-openPanel": "qs -c noctalia-shell ipc call plugin openPanel <plugin-id>",
+  "noctalia-plugin-closePanel": "qs -c noctalia-shell ipc call plugin closePanel <plugin-id>",
+  "noctalia-plugin-togglePanel": "qs -c noctalia-shell ipc call plugin togglePanel <plugin-id>",
+
+  // --- Your Installed Plugins (from config) ---
+  //   plugin:slowbongo    - Music visualizer
+  //   plugin:tailscale  - Tailscale status
+  //   plugin:port-monitor - Port monitoring
+
+  // ============================================================================
+  // NIRI KEYBINDINGS (defined in config)
+  // ============================================================================
+  // Mod=Super/Win
+  //   Mod+Return           → spawn Ghostty
+  //   Mod+Space           → spawn Vicinae (app launcher)
+  //   Mod+Q               → close window
+  //   Mod+F               → maximize column
+  //   Mod+Shift+F         → fullscreen
+  //   Mod+R               → switch column width
+  //   Mod+Tab            → toggle overview
+  //   Mod+Alt+F          → toggle floating
+  //   Mod+Alt+Shift+F    → switch floating/tiling
+  //   Mod+H/J/K/L        → focus left/down/up/right
+  //   Mod+Shift+H/J/K/L  → move window
+  //   Mod+Ctrl+H/J/K/L    → focus monitor/workspace
+  //   Mod+1-5            → focus workspace
+  //   Mod+Shift+1-5      → move to workspace
+  //   Print              → screenshot
+  //   Mod+Print          → screenshot (screen)
+  //   Mod+Ctrl+Q         → quit
+  // Media keys          → volume control (wpctl)
+  // Mod+Shift+C         → toggle idle inhibitor (from your keybinds)
+
+  // ============================================================================
+  // SYSTEMD USER SERVICES (on this machine)
+  // ============================================================================
+  // List: systemctl --user list-units --type=service
+  //   niri.service              - Compositor
+  //   noctalia-shell.service    - Desktop shell (if separate)
+  //   pipewire.service         - Audio/Video
+  //   wireplumber.service     - Media session
+  //   opencode.service      - Assistant
+  //   handy.service         - Speech-to-text
+  //   vicinae.service       - App launcher
+  //   dbus-broker.service  - D-Bus
+}

@@ -84,6 +84,12 @@
                 id = "plugin:port-monitor";
               }
               {
+                id = "CustomButton";
+                icon = "linux";
+                tooltip = "Toggle Activate Linux Watermark";
+                leftClickExec = "qs -c noctalia-shell ipc call plugin toggle activate-linux";
+              }
+              {
                 id = "KeepAwake";
               }
               {

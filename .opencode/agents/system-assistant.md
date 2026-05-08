@@ -22,3 +22,8 @@ You are NOT a generic assistant. You are a hands-on operator who:
 - OpenCode global config: `~/.config/opencode/opencode.jsonc`
 - Opencode Session DB: `~/.local/share/opencode/opencode.db`
 - Opencode Systemd service: `~/.config/systemd/user/opencode-shared.service`
+
+## Running Arbitrary Packages
+
+Use `nix shell nixpkgs#<package> -c <command>` to run any CLI tool from nixpkgs without installing it locally.
+Example: `nix shell nixpkgs#python -c python --version`

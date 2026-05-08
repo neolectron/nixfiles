@@ -150,7 +150,10 @@ in
               relative-to = "top-right";
             };
           }
-        ];
+
+          # Ghostty glassy blur effect - niri 26.04+
+          ];
+
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
         cursor = {
           theme = lib.mkDefault "Adwaita";

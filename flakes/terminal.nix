@@ -111,12 +111,18 @@ in
         options = lib.mkDefault [ "--cmd cd" ];
       };
 
-      # Ghostty: use discrete scrolling to avoid neovim/tmux rendering artifacts
-      # scroll-smooth was removed in Ghostty 1.3, replaced by mouse-scroll-multiplier.
-      # "precision:0" disables smooth/pixel-level scrolling, "discrete:3" keeps normal line steps.
-      xdg.configFile."ghostty/config".text = lib.mkDefault ''
-        mouse-scroll-multiplier = precision:0,discrete:3
-      '';
+      # Ghostty: glassy transparency with blur for Noctalia integration.
+      # - background-opacity: 0.9 gives subtle transparency (1.0 = fully opaque)
+      # - background-blur: 10 creates frosted glass effect (1-20, 0 = off)
+      programs.ghostty = {
+        enable = true;
+        settings = lib.mkDefault {
+          mouse-scroll-multiplier = "precision:0,discrete:3";
+          confirm-close-surface = "false";
+          background-opacity = "0.9";
+          background-blur = "10";
+        };
+      };
 
       # Create a desktop entry for "terminal-as-file-manager"
       # This replaces qdirstat as the handler for inode/directory

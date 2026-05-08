@@ -81,10 +81,9 @@ in
           # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
           # that breaks transmit — NIC link shows UP but no packets go out,
           # causing total DNS/network failure.
-          # Upstream bug: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141544
-          # TODO: switch back to linuxPackages_latest once the r8169 fix lands
-          #        (likely 7.0.x or 7.1). Test by removing the pin and rebuilding.
-          boot.kernelPackages = pkgs.linuxPackages_6_19;
+          # The r8169 fix landed in kernel 7.0.x.
+          # Switch back to latest kernel.
+          boot.kernelPackages = pkgs.linuxPackages_latest;
           boot.supportedFilesystems = [ "ntfs" ];
           boot.loader.systemd-boot.enable = true;
           boot.loader.efi.canTouchEfiVariables = true;
@@ -105,23 +104,31 @@ in
           wslMount.enable = true;
           wslMount.path = "/mnt/windows/Users/manu/AppData/Local/Packages/22955VineelSai.ArchWSL_qz230bc1wsk9j/LocalState/ext4.vhdx";
 
-          # Nix config
+# Nix config
           nixpkgs.config.allowUnfree = true;
           nix.settings = {
             experimental-features = [
               "nix-command"
               "flakes"
             ];
+            # Use all available cores for building
+            max-jobs = "auto";
             # niri cachix is auto-added by niri-flake.cache.enable (default true)
             extra-substituters = [
+              "https://cache.nixos.org"
               "https://noctalia.cachix.org"
               "https://vicinae.cachix.org"
             ];
             extra-trusted-public-keys = [
+              "cache.nixos.org-1:6NCHdP59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
               "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
               "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
             ];
           };
+          # Extra nix config - enable parallel builds
+          nix.extraOptions = ''
+            builders = @12
+          '';
           system.stateVersion = "25.11";
         }
       )
