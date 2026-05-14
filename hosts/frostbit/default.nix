@@ -22,6 +22,7 @@ in
       nixos.gaming
       nixos.wslMount
       nixos.envisaged
+      nixos.gparted
       nixos.handy
       nixos.mediaStack
       nixos.obs
@@ -30,6 +31,8 @@ in
       (
         { pkgs, ... }:
         {
+          nixpkgs.overlays = [ inputs.opencode.overlays.default ];
+
           users.users.${config.flake.username} = {
             isNormalUser = true;
             description = "neolectron";

@@ -38,16 +38,13 @@
         ];
       };
 
-      # Windows data drive (Crucial MX500 1.8TB SATA — "Data")
+      # Data drive (Crucial MX500 1.8TB SATA — reformatted ext4)
       fileSystems."/mnt/data" = {
-        device = "/dev/disk/by-uuid/1EA237D2A237ACE1";
-        fsType = "ntfs-3g";
+        device = "/dev/disk/by-uuid/c919f4e4-7751-4adf-a443-6709557a3618";
+        fsType = "ext4";
         options = [
-          "rw"
-          "uid=1000"
-          "gid=100"
-          "dmask=022"
-          "fmask=133"
+          "defaults"
+          "noatime"
           "nofail"
         ];
       };

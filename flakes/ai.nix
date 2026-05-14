@@ -8,7 +8,7 @@
   };
 
   config.flake.modules.homeManager.coding =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
       # Get hostname from flake option
       hostname = config.flake.opencode.hostname;

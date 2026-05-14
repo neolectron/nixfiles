@@ -5,9 +5,10 @@
     {
       home.packages = with pkgs; [
         qdirstat
-        gparted
         dust
         nemo
+        vlc
+        zip
       ];
     };
 }
