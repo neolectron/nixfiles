@@ -48,6 +48,25 @@ in
           networking.networkmanager.enable = true;
           networking.firewall.allowedTCPPorts = [ 4096 ]; # OpenCode LAN access
 
+          # Prevent USB ethernet adapter from stealing the default route.
+          # The enp3s0f0u10 interface gets an IP via DHCP but has no actual
+          # internet gateway, causing IPv4 traffic to black-hole.
+          networking.networkmanager.ensureProfiles.profiles."usb-ethernet-no-default" = {
+            connection = {
+              id = "usb-ethernet-no-default";
+              type = "ethernet";
+              interface-name = "enp3s0f0u10";
+              autoconnect-priority = "100";
+            };
+            ipv4 = {
+              method = "auto";
+              never-default = "true";
+            };
+            ipv6 = {
+              method = "auto";
+            };
+          };
+
           # Timezone & locale
           time.timeZone = "Europe/Paris";
           i18n.defaultLocale = "en_US.UTF-8";
@@ -80,6 +99,9 @@ in
           # Boot
           boot.tmp.cleanOnBoot = true; # Clean /tmp on reboot (prevents stale lockfiles/sockets)
 
+          # ZSA Moonlander / Oryx flashing support
+          hardware.keyboard.zsa.enable = true;
+
           # Kernel pin: using 6.19 instead of linuxPackages_latest.
           # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
           # that breaks transmit — NIC link shows UP but no packets go out,
@@ -109,6 +131,9 @@ in
 
 # Nix config
           nixpkgs.config.allowUnfree = true;
+          nixpkgs.config.permittedInsecurePackages = [
+            "electron-39.8.10"
+          ];
           nix.settings = {
             experimental-features = [
               "nix-command"
@@ -128,10 +153,7 @@ in
               "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
             ];
           };
-          # Extra nix config - enable parallel builds
-          nix.extraOptions = ''
-            builders = @12
-          '';
+          # Build parallelism is already handled by max-jobs = auto and cores = 0 (use all cores)
           system.stateVersion = "25.11";
         }
       )
@@ -166,6 +188,7 @@ in
             hm.utility-apps
             hm.google-chrome
             hm.discord
+            hm.gologin
             hm.spotify
             hm.bitwarden
             hm.curseforge

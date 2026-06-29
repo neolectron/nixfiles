@@ -7,5 +7,12 @@
       home.packages = with pkgs; [
         spotify
       ];
+
+      xdg.mimeApps = {
+        enable = true;
+        defaultApplications = {
+          "x-scheme-handler/spotify" = "spotify.desktop";
+        };
+      };
     };
 }

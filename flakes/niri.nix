@@ -15,10 +15,15 @@ in
       programs.niri.enable = true;
       programs.niri.package = pkgs.niri-unstable;
 
-      # Add GTK portal backend for file chooser dialogs (Save As, Open File, etc.)
-      # The GNOME backend installed by niri delegates FileChooser to Nautilus,
-      # which isn't installed. The GTK backend provides a standalone file picker.
-      xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+      # Add portal backends:
+      # - GTK: file chooser dialogs (Save As, Open File, etc.)
+      #   The GNOME backend installed by niri delegates FileChooser to Nautilus,
+      #   which isn't installed. The GTK backend provides a standalone file picker.
+      # - wlr: screen capture / screencast for wlroots-based compositors (niri)
+      xdg.portal.extraPortals = [
+        pkgs.xdg-desktop-portal-gtk
+        pkgs.xdg-desktop-portal-wlr
+      ];
 
       # Override niri's default portal preferences to force GTK for FileChooser.
       # The GNOME backend claims FileChooser but delegates to Nautilus at runtime;
@@ -34,6 +39,8 @@ in
         "org.freedesktop.impl.portal.Access" = [ "gtk" ];
         "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
         "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+        "org.freedesktop.impl.portal.ScreenCast" = [ "wlr" ];
+        "org.freedesktop.impl.portal.Screenshot" = [ "wlr" ];
       };
 
       # Electron apps on Wayland

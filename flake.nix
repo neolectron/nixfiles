@@ -14,8 +14,9 @@
     };
 
     # OpenCode - auto-updates every hour from GitHub releases
+    # Switched from dan-online/opencode-nix (archived) to selfhost-it/opencode-cli-nix
     opencode = {
-      url = "github:dan-online/opencode-nix";
+      url = "github:selfhost-it/opencode-cli-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
