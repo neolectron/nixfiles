@@ -5,7 +5,21 @@ in
 {
   # NixOS side: enable niri compositor + greetd auto-login
   flake.modules.nixos.niri =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
+    let
+      portalConfig = {
+        default = [
+          "gnome"
+          "gtk"
+        ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Access" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+        "org.freedesktop.impl.portal.ScreenCast" = [ "gnome" ];
+        "org.freedesktop.impl.portal.Screenshot" = [ "gnome" ];
+      };
+    in
     {
       imports = [
         inputs.niri.nixosModules.niri
@@ -15,33 +29,16 @@ in
       programs.niri.enable = true;
       programs.niri.package = pkgs.niri-unstable;
 
-      # Add portal backends:
-      # - GTK: file chooser dialogs (Save As, Open File, etc.)
-      #   The GNOME backend installed by niri delegates FileChooser to Nautilus,
-      #   which isn't installed. The GTK backend provides a standalone file picker.
-      # - wlr: screen capture / screencast for wlroots-based compositors (niri)
       xdg.portal.extraPortals = [
         pkgs.xdg-desktop-portal-gtk
-        pkgs.xdg-desktop-portal-wlr
       ];
 
-      # Override niri's default portal preferences to force GTK for FileChooser.
-      # The GNOME backend claims FileChooser but delegates to Nautilus at runtime;
-      # when Nautilus is missing, the call fails without falling back to GTK.
-      # This writes to /etc/xdg/xdg-desktop-portal/niri-portals.conf, which takes
-      # priority over the niri-portals.conf shipped by the niri package.
-      xdg.portal.config.niri = {
-        default = [
-          "gnome"
-          "gtk"
-        ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-        "org.freedesktop.impl.portal.Access" = [ "gtk" ];
-        "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
-        "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
-        "org.freedesktop.impl.portal.ScreenCast" = [ "wlr" ];
-        "org.freedesktop.impl.portal.Screenshot" = [ "wlr" ];
+      xdg.portal.config = {
+        niri = portalConfig;
+        gnome = portalConfig;
       };
+
+      systemd.user.services.xdg-desktop-portal.serviceConfig.Environment = "XDG_CURRENT_DESKTOP=gnome";
 
       # Electron apps on Wayland
       environment.sessionVariables.NIXOS_OZONE_WL = "1";
@@ -159,7 +156,7 @@ in
           }
 
           # Ghostty glassy blur effect - niri 26.04+
-          ];
+        ];
 
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
         cursor = {
@@ -186,7 +183,7 @@ in
             layout = lib.mkDefault "us";
           };
           mouse = {
-            accel-speed = lib.mkDefault 1;
+            accel-speed = lib.mkDefault 0.6;
             accel-profile = lib.mkDefault "flat";
           };
           focus-follows-mouse.enable = lib.mkDefault false;

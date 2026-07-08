@@ -1,7 +1,12 @@
 { ... }:
 {
   flake.modules.homeManager.gologin =
-    { config, lib, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       gologinApp = "${config.home.homeDirectory}/Downloads/Gologin-4.3.1";
     in
@@ -28,11 +33,5 @@
         "x-scheme-handler/gologin" = [ "gologin.desktop" ];
       };
 
-      xdg.portal.enable = true;
-      xdg.portal.extraPortals = [
-        pkgs.xdg-desktop-portal-gtk
-        pkgs.xdg-desktop-portal-wlr
-      ];
-      xdg.portal.xdgOpenUsePortal = true;
     };
 }

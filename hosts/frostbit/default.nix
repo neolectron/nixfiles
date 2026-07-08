@@ -31,8 +31,6 @@ in
       (
         { pkgs, ... }:
         {
-          nixpkgs.overlays = [ inputs.opencode.overlays.default ];
-
           users.users.${config.flake.username} = {
             isNormalUser = true;
             description = "neolectron";
@@ -101,6 +99,11 @@ in
 
           # ZSA Moonlander / Oryx flashing support
           hardware.keyboard.zsa.enable = true;
+
+          # Gaming mouse configuration (Logitech G502 HERO)
+          # Enables ratbagd as a system service so ratbagctl works without sudo.
+          services.ratbagd.enable = true;
+          environment.systemPackages = [ pkgs.piper ];
 
           # Kernel pin: using 6.19 instead of linuxPackages_latest.
           # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
@@ -210,8 +213,7 @@ in
                 max-scroll-amount = "0%";
               };
               mouse = {
-                accel-speed = 0;
-                accel-profile = "adaptive";
+                accel-profile = "flat";
               };
               keyboard.xkb = {
                 layout = "us_qwerty-fr";

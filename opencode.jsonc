@@ -20,5 +20,49 @@
         "restart_*": "allow"
       }
     }
+  },
+  "references": {
+    "librephoenix": {
+      "repository": "librephoenix/nixos-config",
+      "description": "Reference for niri + Home Manager setup patterns and module organization"
+    },
+    "vimjoyer-flake-parts": {
+      "repository": "vimjoyer/flake-parts-wrapped-template",
+      "description": "Reference for flake-parts project structure and module wrapping conventions"
+    },
+    "vimjoyer-nixconf": {
+      "repository": "vimjoyer/nixconf",
+      "description": "Reference for personal NixOS config patterns from vimjoyer"
+    },
+    "christopher2k": {
+      "repository": "Christopher2K/NixConfig",
+      "description": "Reference for NixOS desktop/hardware configuration patterns"
+    },
+    "goxore": {
+      "repository": "Goxore/nixconf",
+      "description": "Reference for NixOS configuration structure from Goxore"
+    },
+    "khitbosky": {
+      "repository": "Khitbosky/nixos-dots",
+      "description": "Reference for NixOS dotfiles setup patterns"
+    },
+    "m3tam3re": {
+      "repository": "https://code.m3ta.dev/m3tam3re/nixpkgs.git",
+      "branch": "master",
+      "description": "Reference for nixpkgs-based config from m3tam3re (self-hosted forge)"
+    },
+    "quasigodxyz": {
+      "repository": "https://tangled.org/quasigod.xyz/nixconfig",
+      "description": "Reference for NixOS config from quasigod.xyz (tangled forge)"
+    },
+    "vincent-hd": {
+      "repository": "https://github.com/Vincent-HD/.nixfiles.git",
+      "branch": "master",
+      "description": "Reference for NixOS nixfiles layout and module structure"
+    },
+    "old-nixfiles": {
+      "repository": "neolectron/old-nixfiles",
+      "description": "Your previous nixfiles repo — check old setups and module patterns before they were refactored"
+    }
   }
 }

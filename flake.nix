@@ -13,16 +13,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # OpenCode - auto-updates every hour from GitHub releases
-    # Switched from dan-online/opencode-nix (archived) to selfhost-it/opencode-cli-nix
-    opencode = {
-      url = "github:selfhost-it/opencode-cli-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # No nixpkgs.follows — lets us hit their cachix binary caches
     niri.url = "github:sodiboo/niri-flake";
-    noctalia.url = "github:noctalia-dev/noctalia-shell";
+    noctalia.url = "github:noctalia-dev/noctalia-shell/f0469d2d6f9b1ca873932dcef6583f9d6a2eee28";
     vicinae.url = "github:vicinaehq/vicinae";
     vicinae-extensions = {
       url = "github:vicinaehq/extensions";
