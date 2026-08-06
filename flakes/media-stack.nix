@@ -10,7 +10,8 @@ in
   #   Prowlarr:    http://localhost:9696  — add nyaa.si and other indexers here
   #   Sonarr:      http://localhost:8989  — manage TV shows / anime
   #   Radarr:      http://localhost:7878  — manage movies
-  #   qBittorrent: http://localhost:8080  — torrent client (VueTorrent UI)
+  #   qBittorrent: http://localhost:8080  — native torrent client UI
+  #   VueTorrent:  http://localhost:8082  — alternative qBittorrent UI
   #   Bazarr:      http://localhost:6765  — automatic subtitles (FR + EN)
   #
   # Setup order:
@@ -87,6 +88,10 @@ in
 
       # Allow all media services to access ~/Videos/Library
       # (systemd sets ProtectHome=yes by default, blocking /home entirely)
+      systemd.tmpfiles.rules = [
+        "d /home/${username}/Videos/Library 0775 ${username} media -"
+        "d /home/${username}/Videos/Library/downloads 0775 ${username} media -"
+      ];
       systemd.services.qbittorrent.serviceConfig = {
         ProtectHome = lib.mkForce "tmpfs";
         BindPaths = [ "/home/${username}/Videos/Library" ];
@@ -140,7 +145,7 @@ in
       };
 
       # ── nginx: reverse proxy serving both VueTorrent static files and qBittorrent API ────
-      # Access: http://localhost/          → VueTorrent (default)
+      # Access: http://localhost:8082/     → VueTorrent
       #        http://localhost/api/*  → qBittorrent API
       #        http://localhost:8080    → Native qBittorrent UI
       services.nginx = {
@@ -148,9 +153,15 @@ in
         recommendedProxySettings = true;
         virtualHosts = {
           "localhost" = {
+            listen = [
+              {
+                addr = "127.0.0.1";
+                port = 8082;
+              }
+            ];
             # Serve VueTorrent static frontend at root
             locations."/" = {
-              root = "${pkgs.vuetorrent}/share/vuetorrent";
+              root = "${pkgs.vuetorrent}/share/vuetorrent/public";
             };
             # Proxy API calls to qBittorrent so VueTorrent can communicate with backend
             locations."/api/" = {
