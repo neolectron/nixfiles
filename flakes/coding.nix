@@ -47,6 +47,15 @@ in
         # docker-compose
       ];
 
+      # Register vscode:// URI scheme so browsers/portal open VS Code auth redirects
+      # instead of showing the useless "find in app store" dialog.
+      xdg.mimeApps = {
+        enable = true;
+        defaultApplications = {
+          "x-scheme-handler/vscode" = [ "code-url-handler.desktop" ];
+        };
+      };
+
       programs.git = {
         enable = true;
         settings = {
