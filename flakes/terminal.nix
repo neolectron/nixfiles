@@ -15,6 +15,7 @@ in
 
       environment.systemPackages = with pkgs; [
         ghostty
+        p7zip
       ];
 
       # Make zsh the default shell system-wide
