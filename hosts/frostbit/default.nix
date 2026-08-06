@@ -50,6 +50,14 @@ in
           networking.networkmanager.enable = true;
           networking.firewall.allowedTCPPorts = [ 4096 ]; # OpenCode LAN access
 
+          # Provides the Tailscale daemon and CLI, and configures the forwarding
+          # required for this machine to act as an exit node.
+          services.tailscale = {
+            enable = true;
+            useRoutingFeatures = "server";
+          };
+          boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 1;
+
           # Prevent USB ethernet adapter from stealing the default route.
           # The enp3s0f0u10 interface gets an IP via DHCP but has no actual
           # internet gateway, causing IPv4 traffic to black-hole.
