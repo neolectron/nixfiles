@@ -32,6 +32,27 @@ nixos-rebuild dry-activate --flake .#yourHostName --sudo
 nix flake check
 ```
 
+## Autonomous lab VM
+
+`frostbit-lab` is a persistent QEMU version of the desktop configuration. It is
+for long-running Codex tasks: the guest has passwordless root, a writable Nix
+store, a shared copy of this checkout at `/workspace/nixfiles`, and a Niri
+desktop. Its QEMU control socket is exposed through the `codex-lab-mcp` MCP
+server, so Codex can boot it, inspect its framebuffer, type, click, reset, and
+save or restore snapshots.
+
+Start a new Codex task from this checkout after the configuration reloads. The
+`codex_lab` tools then start the VM on demand. The guest disk is persistent in
+`/tmp/codex-lab-vm`.
+
+For a manual smoke test:
+
+```bash
+nix run .#codex-lab-mcp
+```
+
+It speaks MCP over standard input/output, so normally Codex starts it itself.
+
 ## How this repo works
 
 **Key idea:**

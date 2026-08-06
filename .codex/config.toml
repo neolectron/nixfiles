@@ -39,3 +39,8 @@ service_tier = "fast"
 
 [features]
 fast_mode = true
+
+[mcp_servers.codex_lab]
+command = "nix"
+args = ["run", ".#codex-lab-mcp"]
+enabled = true

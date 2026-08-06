@@ -5,6 +5,8 @@ let
   username = config.flake.username;
 in
 {
+  imports = [ ./lab-vm.nix ];
+
   config.flake.username = "neolectron";
   config.flake.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
   config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
