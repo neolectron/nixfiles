@@ -12,6 +12,7 @@ in
       # ── System-level modules ──────────────────────────────
       inputs.nix-index-database.nixosModules.default
       nixos.frostbitHardwareConfiguration
+      nixos.codexDesktop
       nixos.niri
       nixos.noctalia
       nixos.sound
@@ -200,6 +201,7 @@ in
             hm.vicinae
             hm.chataigne
             hm.frostbitgames
+            hm.codexDesktop
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;

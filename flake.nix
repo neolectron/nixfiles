@@ -39,6 +39,11 @@
       url = "github:nix-community/nixvim";
     };
 
+    codex-desktop-linux = {
+      url = "github:ilysenko/codex-desktop-linux";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     _0fetch = {
       url = "github:peachey2k2/0fetch";
       inputs.nixpkgs.follows = "nixpkgs";
