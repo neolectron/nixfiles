@@ -23,6 +23,7 @@ in
       nixos.terminal
       nixos.graphics
       nixos.gaming
+      nixos.sunshine
       nixos.wslMount
       nixos.envisaged
       nixos.gparted
