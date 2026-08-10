@@ -9,9 +9,8 @@
         pi-coding-agent
         qdirstat
         dust
-        kdePackages.dolphin
         libation
-        nemo
+        # nemo
         vlc
         wl-clipboard
         zip
