@@ -12,10 +12,17 @@ in
           "gnome"
           "gtk"
         ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-        "org.freedesktop.impl.portal.OpenURI" = [ "gtk" ];
+        # Use KDE's file chooser so portal-aware apps integrate with Dolphin.
+        "org.freedesktop.impl.portal.FileChooser" = [ "kde" ];
+        "org.freedesktop.impl.portal.OpenURI" = [
+          "kde"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.Access" = [ "gtk" ];
-        "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+        "org.freedesktop.impl.portal.Notification" = [
+          "kde"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
         "org.freedesktop.impl.portal.ScreenCast" = [ "gnome" ];
         "org.freedesktop.impl.portal.Screenshot" = [ "gnome" ];
@@ -32,6 +39,7 @@ in
 
       xdg.portal.extraPortals = [
         pkgs.xdg-desktop-portal-gtk
+        pkgs.kdePackages.xdg-desktop-portal-kde
       ];
 
       xdg.portal.config = {
