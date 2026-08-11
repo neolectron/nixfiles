@@ -18,6 +18,9 @@
 
       programs.gamemode.enable = true;
 
-      environment.systemPackages = [ pkgs.dolphin-emu ];
+      environment.systemPackages = [
+        pkgs.dolphin-emu
+        pkgs.mgba
+      ];
     };
 }
