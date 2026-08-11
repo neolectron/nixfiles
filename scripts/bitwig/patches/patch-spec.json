@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "reference_version": "6.0.6",
+  "reference_sha256": "60900e12204de26e2973011122ca375eaacc94268cb0f9a848de7a0f421bc32b",
+  "classes": [
+    "deW",
+    "deR",
+    "deV",
+    "deT",
+    "deU",
+    "dfc",
+    "dfd",
+    "mvZ"
+  ],
+  "roles": [
+    {
+      "role": "license_parser",
+      "owner": "deW",
+      "method": "ffA",
+      "descriptor": "([B)LdeR;"
+    },
+    {
+      "role": "trial_descriptor",
+      "owner": "deR",
+      "method": "kG",
+      "descriptor": "()LdeV;"
+    },
+    {
+      "role": "license_eligibility",
+      "owner": "mvZ",
+      "method": "ffA",
+      "descriptor": "(Ll2U;)Z"
+    }
+  ]
+}
