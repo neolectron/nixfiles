@@ -4,7 +4,6 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        bitwig-studio
         obsidian
         pi-coding-agent
         qdirstat

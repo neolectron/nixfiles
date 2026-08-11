@@ -3,3 +3,4 @@ result
 .direnv
 *.local.md
 my-wsl-opencode
+__pycache__
