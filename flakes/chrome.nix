@@ -5,6 +5,13 @@
     {
       home.packages = [ pkgs.google-chrome ];
 
+      xdg.mimeApps = {
+        enable = true;
+        defaultApplications = {
+          "application/pdf" = [ "google-chrome.desktop" ];
+        };
+      };
+
       # Register spotify:// protocol handler so Chrome allows external app launches
       xdg.configFile."google-chrome/policies/managed/spotify-protocol.json".text =
         builtins.toJSON {
