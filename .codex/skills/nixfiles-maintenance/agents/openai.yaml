@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nixfiles Maintenance"
+  short_description: "Safely update and report NixOS maintenance"
+  default_prompt: "Use $nixfiles-maintenance to safely maintain this NixOS host and report the result."
