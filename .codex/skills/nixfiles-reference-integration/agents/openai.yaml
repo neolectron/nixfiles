@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nixfiles Reference Integration"
+  short_description: "Compare, integrate, test, and commit Nix ideas"
+  default_prompt: "Use $nixfiles-reference-integration to compare reference Nixfiles and integrate selected ideas."
