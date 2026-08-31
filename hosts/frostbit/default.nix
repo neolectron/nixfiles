@@ -193,6 +193,7 @@ in
             hm.sound
             hm.noctalia
             hm.frostbitKeybinds
+            hm.dolphin
             # Features
             hm.terminal
             hm.coding
@@ -212,6 +213,7 @@ in
             hm.vicinae
             hm.chataigne
             hm.frostbitgames
+            hm.chatgpt
             hm.codexDesktop
           ];
           programs.bash.enable = true; # manage bashrc with hm.

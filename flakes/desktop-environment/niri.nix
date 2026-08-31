@@ -33,9 +33,8 @@ in
         inputs.niri.nixosModules.niri
       ];
 
-      nixpkgs.overlays = [ inputs.niri.overlays.niri ];
       programs.niri.enable = true;
-      programs.niri.package = pkgs.niri-unstable;
+      programs.niri.package = pkgs.niri;
 
       xdg.portal.extraPortals = [
         pkgs.xdg-desktop-portal-gtk
@@ -218,9 +217,8 @@ in
           focus-ring.enable = lib.mkDefault false;
 
           preset-column-widths = [
-            { proportion = 1.0 / 3.0; }
             { proportion = 1.0 / 2.0; }
-            { proportion = 2.0 / 3.0; }
+            { proportion = 1.0; }
           ];
 
           default-column-width = {
@@ -242,7 +240,8 @@ in
 
           # Window management
           "Mod+Q".action.close-window = [ ];
-          "Mod+F".action.maximize-column = [ ];
+          # Toggle the focused column between the 50% and 100% presets.
+          "Mod+F".action.switch-preset-column-width = [ ];
           "Mod+Shift+F".action.fullscreen-window = [ ];
           "Mod+R".action.switch-preset-column-width = [ ];
           "Mod+Tab".action.toggle-overview = [ ];
@@ -280,6 +279,14 @@ in
           "Mod+Ctrl+L".action.focus-monitor-right = [ ];
           "Mod+Ctrl+K".action.focus-workspace-up = [ ];
           "Mod+Ctrl+J".action.focus-workspace-down = [ ];
+
+          # Remote display recovery: bring the other monitor's active workspace here.
+          # This is the closest Niri equivalent to swapping monitor contents.
+          "Mod+Ctrl+Shift+S".action.spawn = [
+            "sh"
+            "-c"
+            "niri msg action focus-monitor-previous && niri msg action move-workspace-to-monitor-next"
+          ];
 
           # Move windows (Shift+Arrow keys)
           "Mod+Shift+Left".action.move-column-left-or-to-monitor-left = [ ];
