@@ -13,6 +13,44 @@ in
   # ── Home Manager: OBS Studio with plugins ─────────────────
   flake.modules.homeManager.obs =
     { pkgs, lib, ... }:
+    let
+      # Nixpkgs has Aitum's standalone Multistream plugin, but not the
+      # combined Stream Suite release yet. Package the upstream Linux build
+      # in the layout Home Manager's OBS wrapper expects.
+      aitum-stream-suite = pkgs.stdenvNoCC.mkDerivation rec {
+        pname = "obs-aitum-stream-suite";
+        version = "1.2.1";
+
+        src = pkgs.fetchurl {
+          url = "https://github.com/Aitum/obs-aitum-stream-suite/releases/download/${version}/aitum-stream-suite-linux-gnu.deb";
+          hash = "sha256-IlCLY4hNuxI1GC/ODiOdAMYTYmrQrMQBGDlmBZuY+ew=";
+        };
+
+        nativeBuildInputs = [
+          pkgs.autoPatchelfHook
+          pkgs.dpkg
+        ];
+        dontWrapQtApps = true;
+        buildInputs = [
+          pkgs.curl
+          pkgs.obs-studio
+          pkgs.qt6.qtbase
+        ];
+
+        unpackPhase = "dpkg-deb --extract $src .";
+        installPhase = ''
+          mkdir -p $out/lib/obs-plugins
+          mv usr/lib/x86_64-linux-gnu/obs-plugins/* $out/lib/obs-plugins/
+          cp -r usr/share $out/
+        '';
+
+        meta = {
+          description = "Aitum Stream Suite plugin for OBS Studio";
+          homepage = "https://aitum.tv/stream-suite";
+          platforms = lib.platforms.linux;
+        };
+      };
+    in
     {
       programs.obs-studio = {
         enable = true;
@@ -49,6 +87,9 @@ in
 
           # Advanced scene switcher
           advanced-scene-switcher
+
+          # Multi-output and vertical-streaming tools
+          aitum-stream-suite
         ];
       };
 

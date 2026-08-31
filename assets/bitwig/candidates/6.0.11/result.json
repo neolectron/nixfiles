@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "tested_at": "2026-08-18",
+  "provenance": "standalone bitwig.jar supplied by hackathon judges",
+  "candidate_version_by_hash": "6.0.11",
+  "candidate_sha256": "3971ce118701ed3a60603ae5cec134b52dcaf88178c0e1d1a6b040be85acf229",
+  "reference_version": "6.0.6",
+  "reference_sha256": "60900e12204de26e2973011122ca375eaacc94268cb0f9a848de7a0f421bc32b",
+  "patch_spec_changed": false,
+  "resolver_status": "success",
+  "resolved_map_sha256": "40ac30803daeb3bc31ea10890195562768e6b8be3c78999eae51f076e5216c0c",
+  "generated_jar_sha256": "b71be9c1f8d733ae3869a68447188b3499dae1700e7fca6115a5c035d0d59946",
+  "matches_previously_launched_generated_jar": true,
+  "coverage_note": "The supplied candidate is byte-identical to the previously tested official 6.0.11 JAR, so this validates blind provenance and standalone-JAR handling but not a new version mapping."
+}

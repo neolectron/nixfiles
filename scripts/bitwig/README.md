@@ -60,3 +60,19 @@ The Java programs are build internals invoked by
 classpath, inputs, and output locations. See
 `docs/bitwig-version-agnostic-generation-demo.md` for the algorithm,
 validation matrix, hashes, rejection behavior, and installed mapping paths.
+
+## Standalone candidate JARs
+
+A candidate does not need to arrive as a full Linux package for the resolver
+and transformer stages. Place a supplied JAR at:
+
+```text
+assets/bitwig/candidates/<version>/bitwig.jar
+```
+
+Candidate binaries are intentionally ignored by Git. The reviewable,
+path-independent outputs can be retained beside them as
+`resolved-symbol-map.json` and `result.json`. A full Bitwig delivery is needed
+only for the final application launch; byte identity with a generated JAR that
+already passed that launch test is independently checkable with SHA-256 or
+`cmp`.

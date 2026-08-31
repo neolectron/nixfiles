@@ -31,6 +31,7 @@
     handy = {
       url = "github:cjpais/Handy";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.bun2nix.inputs.systems.url = "github:nix-systems/x86_64-linux";
     };
 
     # Nixvim - Neovim configuration framework
