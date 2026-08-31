@@ -33,6 +33,16 @@ nix flake update
 nix flake update <input-name>
 ```
 
+## Commit Messages
+
+Commit subjects created for this repository, whether by a person or an agent,
+must use Conventional Commits:
+`<type>[optional scope][!]: <imperative description>`.
+
+Use a lowercase, specific type such as `feat`, `fix`, `docs`, `refactor`,
+`test`, `build`, `ci`, `chore`, or `perf`. Avoid vague subjects such as
+`WIP`, `update`, or `changes`.
+
 ## MCP Tools
 
 - **nixos** — use to look up NixOS/Home Manager option types and defaults before setting them.

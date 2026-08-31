@@ -1,0 +1,52 @@
+{
+  "base_keymap": "VSCode",
+  "auto_update": false,
+  "format_on_save": "on",
+  "formatter": "language_server",
+  "remove_trailing_whitespace_on_save": true,
+  "ensure_final_newline_on_save": true,
+  "hard_tabs": false,
+  "soft_wrap": "none",
+  "show_wrap_guides": true,
+  "wrap_guides": [80, 120],
+  "minimap": {
+    "show": "never"
+  },
+  "project_panel": {
+    "dock": "right",
+    "auto_reveal_entries": true,
+    "git_status": true
+  },
+  "git_panel": {
+    "group_by": "staging",
+    "tree_view": true
+  },
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.jj",
+    "**/.direnv",
+    "**/node_modules",
+    "**/result",
+    "**/build",
+    "**/dist"
+  ],
+  "languages": {
+    "Nix": {
+      "formatter": {
+        "external": {
+          "command": "nixfmt",
+          "arguments": []
+        }
+      },
+      "format_on_save": "on"
+    },
+    "JSON": {
+      "formatter": "language_server",
+      "format_on_save": "on"
+    },
+    "YAML": {
+      "formatter": "language_server",
+      "format_on_save": "on"
+    }
+  }
+}

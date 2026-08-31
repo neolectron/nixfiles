@@ -144,7 +144,7 @@ in
           wslMount.enable = true;
           wslMount.path = "/mnt/windows/Users/manu/AppData/Local/Packages/22955VineelSai.ArchWSL_qz230bc1wsk9j/LocalState/ext4.vhdx";
 
-# Nix config
+          # Nix config
           nixpkgs.config.allowUnfree = true;
           nixpkgs.config.permittedInsecurePackages = [
             "electron-39.8.10"
@@ -197,6 +197,7 @@ in
             # Features
             hm.terminal
             hm.coding
+            hm.zed
             hm.musicProd
             hm.nixvim
             # Applications
