@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: update-flake-inputs [options]
+
+Update direct flake inputs while rejecting selections that cannot run.
+
+Options:
+  --list                 List direct inputs and their update policy.
+  --only <name[,name]>   Update only the named direct inputs; may be repeated.
+  --include-manual       Allow inputs intentionally pinned to an exact revision.
+  --dry-run              Print the update command without changing flake.lock.
+  -h, --help             Show this help.
+
+Inputs with an exact source revision are manual by default. This keeps an
+intentional pin, such as noctalia, out of routine updates.
+EOF
+}
+
+die() {
+  printf 'update-flake-inputs: %s\n' "$*" >&2
+  exit 2
+}
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run inside a Git checkout"
+cd "$repo_root"
+
+command -v jq >/dev/null || die "jq is required to read flake.lock"
+
+list=false
+dry_run=false
+include_manual=false
+declare -a requested=()
+
+while (($# > 0)); do
+  case "$1" in
+    --list)
+      list=true
+      ;;
+    --dry-run)
+      dry_run=true
+      ;;
+    --include-manual)
+      include_manual=true
+      ;;
+    --only)
+      (($# > 1)) || die "--only requires an input name"
+      IFS=',' read -r -a names <<< "$2"
+      requested+=("${names[@]}")
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+mapfile -t direct_inputs < <(jq -r '.nodes.root.inputs | keys[]' flake.lock)
+((${#direct_inputs[@]} > 0)) || die "flake.lock has no direct inputs"
+
+# Exact source revisions are deliberate compatibility pins. Keep this list
+# explicit and review it when changing flake.nix.
+manual_inputs=(noctalia)
+
+is_manual() {
+  local input
+  for input in "${manual_inputs[@]}"; do
+    [[ "$input" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+if "$list"; then
+  for input in "${direct_inputs[@]}"; do
+    policy=automatic
+    is_manual "$input" && policy=manual
+    printf '%-24s %s\n' "$input" "$policy"
+  done
+  exit 0
+fi
+
+if ((${#requested[@]} == 0)); then
+  requested=("${direct_inputs[@]}")
+fi
+
+declare -A direct_input_set=()
+for input in "${direct_inputs[@]}"; do
+  direct_input_set["$input"]=1
+done
+
+declare -A seen=()
+declare -a runnable=()
+for input in "${requested[@]}"; do
+  [[ -n "$input" ]] || continue
+  [[ -v "direct_input_set[$input]" ]] || die "unknown direct input: $input (use --list)"
+  [[ -v "seen[$input]" ]] && continue
+  seen["$input"]=1
+
+  if is_manual "$input" && ! "$include_manual"; then
+    printf 'skipping manual input: %s\n' "$input" >&2
+    continue
+  fi
+
+  runnable+=("$input")
+done
+
+((${#runnable[@]} > 0)) || die "none of the selected inputs are runnable; use --list or --include-manual"
+
+printf 'updating: %s\n' "${runnable[*]}"
+if "$dry_run"; then
+  printf 'nix flake update'
+  printf ' %q' "${runnable[@]}"
+  printf '\n'
+  exit 0
+fi
+
+nix flake update "${runnable[@]}"
