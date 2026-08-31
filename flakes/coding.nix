@@ -37,6 +37,7 @@ in
         btop-rocm
         uv
         gh
+        jujutsu
         nixfmt
         nixd
         # Editors
