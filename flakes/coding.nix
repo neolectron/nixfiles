@@ -1,4 +1,4 @@
-{ config, ... }:
+{ inputs, config, ... }:
 let
   username = config.flake.username;
 in
@@ -26,27 +26,30 @@ in
       ...
     }:
     {
-      home.packages = with pkgs; [
-        # Utilities
-        curl
-        jq
-        ripgrep
-        fd
-        htop
-        # btop-rocm is the amd one, btop-cuda is the nvidia one
-        btop-rocm
-        uv
-        gh
-        jujutsu
-        nixfmt
-        nixd
-        # Editors
-        (vscode.fhsWithPackages (vscodePackages: [ vscodePackages.stdenv.cc.cc.lib ]))
-        nodejs # needed by VSCode extensions (oxc, etc.)
-        # Environment
-        devenv
-        # docker-compose
-      ];
+      home.packages =
+        with pkgs;
+        [
+          # Utilities
+          curl
+          jq
+          ripgrep
+          fd
+          htop
+          # btop-rocm is the amd one, btop-cuda is the nvidia one
+          btop-rocm
+          uv
+          gh
+          jujutsu
+          nixfmt
+          nixd
+          # Editors
+          (vscode.fhsWithPackages (vscodePackages: [ vscodePackages.stdenv.cc.cc.lib ]))
+          nodejs # needed by VSCode extensions (oxc, etc.)
+          # Environment
+          devenv
+          # docker-compose
+        ]
+        ++ [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.codeburn ];
 
       # Register vscode:// URI scheme so browsers/portal open VS Code auth redirects
       # instead of showing the useless "find in app store" dialog.
