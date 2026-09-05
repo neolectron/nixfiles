@@ -74,15 +74,12 @@ in
           la = "ls -a";
         };
         plugins = [ ];
-      # Run 0fetch in every interactive shell, then auto-start tmux
-      initContent = lib.mkOrder 1500 ''
-        if [[ -o interactive ]]; then
-          ${pkgs.lib.getExe pkgs._0fetch}
-        fi
-        if [[ -o interactive ]] && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
-          exec tmux new-session
-        fi
-      '';
+        # Run 0fetch in every interactive shell.
+        initContent = lib.mkOrder 1500 ''
+          if [[ -o interactive ]]; then
+            ${pkgs.lib.getExe pkgs._0fetch}
+          fi
+        '';
       };
 
       # fzf — fuzzy finder with shell integration
@@ -133,8 +130,15 @@ in
         exec = "${lib.getExe pkgs.ghostty} --working-directory=%f";
         terminal = false;
         type = "Application";
-        mimeType = [ "inode/directory" "inode/mount-point" ];
-        categories = [ "System" "FileTools" "FileManager" ];
+        mimeType = [
+          "inode/directory"
+          "inode/mount-point"
+        ];
+        categories = [
+          "System"
+          "FileTools"
+          "FileManager"
+        ];
         icon = "utilities-terminal";
         noDisplay = true;
       };
