@@ -1,0 +1,52 @@
+{
+  "updates": [
+    {
+      "name": "codeburn",
+      "type": "nix-update",
+      "description": "CodeBurn tagged source, npm artifact, and dependency closure",
+      "systems": ["x86_64-linux"],
+      "command": [
+        "nix",
+        "run",
+        "github:Mic92/nix-update",
+        "--",
+        "--flake",
+        "codeburn",
+        "--use-update-script"
+      ]
+    },
+    {
+      "name": "flake-inputs",
+      "type": "flake-inputs",
+      "description": "Update direct flake inputs using the repository policy",
+      "systems": ["x86_64-linux"],
+      "command": ["./scripts/update-flake-inputs"]
+    }
+  ],
+  "validations": {
+    "fast": [
+      {
+        "name": "flake check",
+        "command": ["nix", "flake", "check", "--no-build"],
+        "systems": ["x86_64-linux"]
+      },
+      {
+        "name": "CodeBurn evaluation",
+        "command": ["nix", "eval", ".#codeburn.drvPath", "--raw"],
+        "systems": ["x86_64-linux"]
+      }
+    ],
+    "full": [
+      {
+        "name": "frostbit system build",
+        "command": [
+          "nix",
+          "build",
+          ".#nixosConfigurations.frostbit.config.system.build.toplevel",
+          "--no-link"
+        ],
+        "systems": ["x86_64-linux"]
+      }
+    ]
+  }
+}
