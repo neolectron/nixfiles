@@ -16,5 +16,7 @@ jobs:
           nix settings --add trusted-public-keys niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964=
       - name: Check flake evaluates
         run: nix flake check --no-build
+      - name: Run update registry checks
+        run: nix build .#checks.x86_64-linux.update-pins --no-link
       - name: Build NixOS configuration
         run: nix build .#nixosConfigurations.frostbit.config.system.build.toplevel
