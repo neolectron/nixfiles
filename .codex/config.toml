@@ -34,9 +34,6 @@ Follow every applicable `AGENTS.md`. Keep reusable configuration under
 directory when the repository can derive it from the configured username.
 """
 
-model = "gpt-5.6-terra"
-service_tier = "fast"
-
 [features]
 fast_mode = true
 
