@@ -146,6 +146,29 @@ in
 
           # Nix config
           nixpkgs.config.allowUnfree = true;
+          nixpkgs.overlays = [
+            (final: prev: {
+              # nixpkgs currently trails Microsoft's stable channel by several
+              # releases. Keep VS Code current without moving the whole system
+              # off nixos-unstable.
+              vscode = prev.vscode.overrideAttrs (oldAttrs: rec {
+                version = "1.136.0";
+                src = final.fetchurl {
+                  name = "VSCode_${version}_linux-x64.tar.gz";
+                  url = "https://update.code.visualstudio.com/${version}/linux-x64/stable";
+                  hash = "sha256-Q0Hqp+A9H8JKOsnWT8fjSMkoOtwHq1ws+haNj5VwdPc=";
+                };
+                passthru = oldAttrs.passthru // {
+                  vscodeVersion = version;
+                };
+                meta = oldAttrs.meta // {
+                  changelog = "https://code.visualstudio.com/updates/v${
+                    builtins.replaceStrings [ "." ] [ "_" ] (prev.lib.versions.majorMinor version)
+                  }";
+                };
+              });
+            })
+          ];
           nixpkgs.config.permittedInsecurePackages = [
             "electron-39.8.10"
           ];

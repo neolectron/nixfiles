@@ -41,7 +41,7 @@ in
         nixfmt
         nixd
         # Editors
-        vscode
+        (vscode.fhsWithPackages (vscodePackages: [ vscodePackages.stdenv.cc.cc.lib ]))
         nodejs # needed by VSCode extensions (oxc, etc.)
         # Environment
         devenv
