@@ -57,9 +57,9 @@
       imports = [
         inputs.flake-parts.flakeModules.modules
         inputs.home-manager.flakeModules.home-manager
-      ]
-      ++ (inputs.import-tree ./flakes).imports
-      ++ (inputs.import-tree ./flakes/desktop-environment).imports
-      ++ (inputs.import-tree ./hosts).imports;
+        (inputs.import-tree ./flakes)
+        (inputs.import-tree ./flakes/desktop-environment)
+        (inputs.import-tree ./hosts)
+      ];
     };
 }
