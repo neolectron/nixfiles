@@ -17,7 +17,18 @@ in
           i18n.defaultLocale = "en_US.UTF-8";
 
           nixpkgs.config.allowUnfree = true;
-          nix.settings.experimental-features = [ "nix-command" "flakes" ];
+          nix.settings.experimental-features = [
+            "nix-command"
+            "flakes"
+          ];
+
+          # Keep the base configuration valid before build-vm applies its
+          # virtualisation-specific filesystem and bootloader overrides.
+          fileSystems."/" = {
+            device = "/dev/disk/by-label/nixos";
+            fsType = "ext4";
+          };
+          boot.loader.grub.device = "/dev/disk/by-id/virtio-root";
 
           # This machine is intended to be driven entirely by the lab MCP server.
           users.users.${username} = {
@@ -28,6 +39,7 @@ in
           security.sudo.wheelNeedsPassword = false;
 
           programs.niri.enable = true;
+          programs.niri.package = pkgs.niri;
           services.greetd = {
             enable = true;
             settings.default_session = {
