@@ -31,6 +31,7 @@ in
     {
       home.packages = with pkgs; [
         _0fetch
+        eza
       ];
 
       programs.tmux = {
@@ -70,8 +71,8 @@ in
           ignoreDups = lib.mkDefault true;
         };
         shellAliases = lib.mkDefault {
-          ll = "ls -la";
-          la = "ls -a";
+          ll = "eza -la";
+          la = "eza -a";
         };
         plugins = [ ];
         # Run 0fetch in every interactive shell.
