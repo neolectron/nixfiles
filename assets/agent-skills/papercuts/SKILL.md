@@ -1,6 +1,6 @@
 ---
 name: papercuts
-description: Short-lived action inbox for concrete, fixable workflow friction. Use only when a specific next action exists.
+description: Expiring action inbox for concrete, fixable workflow friction. Use only when a specific next action exists.
 ---
 
 # Papercuts
@@ -8,7 +8,7 @@ description: Short-lived action inbox for concrete, fixable workflow friction. U
 Record friction only when it has an exact target and a concrete next action. A papercut is not a backlog or a diary.
 
 ```bash
-papercuts add --where <target> --fix "<next action>" [--ttl 24h|3d] "<observed evidence>"
+papercuts add --where <target> --fix "<next action>" [--ttl 24h|30d|365d] "<observed evidence>"
 ```
 
 If the fix is not clear, do not record it. Fix it immediately, promote it to a real task, or let it disappear.
@@ -16,7 +16,7 @@ If the fix is not clear, do not record it. Fix it immediately, promote it to a r
 ## Commands
 
 ```bash
-papercuts add --where <target> --fix "<next action>" [--ttl 24h|3d] "<observed evidence>"
+papercuts add --where <target> --fix "<next action>" [--ttl 24h|30d|365d] "<observed evidence>"
 papercuts list [--format md|json]
 papercuts close <id-prefix>
 ```
@@ -35,7 +35,7 @@ Each entry must name:
 
 ## Lifecycle
 
-- Default TTL is 3 days; maximum TTL is 7 days.
+- Default TTL is 30 days; maximum TTL is 365 days.
 - Use a 24-hour TTL for a blocker that must be promoted quickly.
 - `list`, `add`, and `close` remove expired entries automatically.
 - Repeated entries are deduplicated and show an occurrence count.
