@@ -7,8 +7,8 @@ const path = require("node:path");
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const DEFAULT_TTL_MS = 3 * DAY_MS;
-const MAX_TTL_MS = 7 * DAY_MS;
+const DEFAULT_TTL_MS = 30 * DAY_MS;
+const MAX_TTL_MS = 365 * DAY_MS;
 const LOCK_TIMEOUT_MS = 5 * 1000;
 const LOCK_STALE_MS = 30 * 1000;
 const LOCK_RETRY_MS = 25;
@@ -65,11 +65,11 @@ const requiredText = (value: string | null, name: string): string => {
 const parseTtl = (value: string | null): number => {
   if (value === null) return DEFAULT_TTL_MS;
   const match = /^(\d+)(h|d)$/.exec(value.trim());
-  if (!match) throw new Error("--ttl must look like 24h or 3d");
+  if (!match) throw new Error("--ttl must look like <hours>h or <days>d");
   const amount = Number(match[1]);
   const ttlMs = amount * (match[2] === "d" ? DAY_MS : HOUR_MS);
   if (ttlMs < HOUR_MS || ttlMs > MAX_TTL_MS) {
-    throw new Error("--ttl must be between 1h and 7d");
+    throw new Error("--ttl must be between 1h and 365d");
   }
   return ttlMs;
 };
@@ -283,14 +283,14 @@ const formatRemaining = (milliseconds: number): string => {
 };
 
 const printHelp = (): void => {
-  process.stdout.write(`papercuts — short-lived action inbox
+  process.stdout.write(`papercuts — expiring action inbox
 
 Usage:
-  papercuts add --where <target> --fix <action> [--ttl 24h|3d] <evidence>
+  papercuts add --where <target> --fix <action> [--ttl 24h|30d|365d] <evidence>
   papercuts list [--format md|json]
   papercuts close <id>
 
-Entries expire automatically. Default TTL is 3d; maximum is 7d.
+Entries expire automatically. Default TTL is 30d; maximum is 365d.
 `);
 };
 
@@ -307,7 +307,7 @@ const run = (): void => {
     const fix = takeOption(args, "--fix");
     const ttl = takeOption(args, "--ttl");
     if (args.length !== 1) {
-      throw new Error("Usage: papercuts add --where <target> --fix <action> [--ttl 24h|3d] <evidence>");
+      throw new Error("Usage: papercuts add --where <target> --fix <action> [--ttl 24h|30d|365d] <evidence>");
     }
     const result = api.record({ where: requiredText(where, "--where"), why: args[0], fix: requiredText(fix, "--fix"), ttlMs: parseTtl(ttl) });
     process.stdout.write(`${JSON.stringify(result)}\n`);
