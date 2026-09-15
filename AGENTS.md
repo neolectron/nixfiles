@@ -79,3 +79,19 @@ flake-options defines the options used in each host's `default.nix` and readable
 ### Other
 
 - Never hardcode home directories — derive from `"/home/${username}"`.
+
+<!-- papercuts:start -->
+
+## Papercuts
+
+At the start of every task, run `papercuts list --format md`. When recurring or
+concrete, fixable process/tooling friction requires a workaround, record it
+before continuing:
+
+    papercuts add --where <target> --fix "<next action>" [--ttl 24h|3d] "<observed evidence>"
+
+Do not log one-off mistakes, known baseline failures, or ownerless external
+limitations. After fixing the issue or promoting it to a real task, run
+`papercuts close <id-prefix>`.
+
+<!-- papercuts:end -->

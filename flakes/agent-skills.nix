@@ -22,6 +22,10 @@ in
     }:
     let
       skillSource = ../assets/agent-skills;
+      papercutsSource = pkgs.writeText "papercuts.ts" (
+        builtins.readFile ../assets/papercuts/papercuts.ts
+      );
+      sharedAgentInstructions = ../assets/agent-instructions/AGENTS.md;
 
       deploySkills =
         targetDirectory:
@@ -169,6 +173,14 @@ in
           '';
         };
 
+      papercuts = pkgs.writeShellApplication {
+        name = "papercuts";
+        runtimeInputs = [ pkgs.nodejs_24 ];
+        text = ''
+          exec node --experimental-strip-types ${papercutsSource} "$@"
+        '';
+      };
+
       antislop = mkTracker {
         command = "antislop";
         recordName = "antislop";
@@ -176,12 +188,6 @@ in
         terminalCommand = "supersede";
       };
 
-      papercuts = mkTracker {
-        command = "papercuts";
-        recordName = "papercuts";
-        globalFile = ".papercuts.jsonl";
-        terminalCommand = "unresolvable";
-      };
     in
     {
       home.packages = [
@@ -198,6 +204,9 @@ in
         // deploySkills ".codex/skills"
         // deploySkills ".config/opencode/skills"
         // {
+          ".agents/AGENTS.md".source = sharedAgentInstructions;
+          ".codex/AGENTS.md".source = sharedAgentInstructions;
+          ".config/opencode/AGENTS.md".source = sharedAgentInstructions;
           ".copilot/skills".source =
             config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.agents/skills";
         };
