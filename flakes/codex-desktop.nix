@@ -102,7 +102,8 @@ in
     }:
     let
       opencodexPackage = pkgs.callPackage ../packages/opencodex/default.nix { };
-      codexExec = lib.getExe pkgs.codex;
+      codexPackage = pkgs.callPackage ../packages/codex/default.nix { };
+      codexExec = lib.getExe codexPackage;
       opencodeAuthPath = "${config.home.homeDirectory}/.local/share/opencode/auth.json";
       codexOpenCodeGoEnv = pkgs.writeShellScript "codex-opencode-go-env" ''
         if [ -r "${opencodeAuthPath}" ]; then
