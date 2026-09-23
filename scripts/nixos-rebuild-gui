@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (( $# == 0 )); then
-  echo "Usage: scripts/nixos-rebuild-gui <nixos-rebuild arguments...>" >&2
+if (( $# != 3 )) || [[ "$2" != "--flake" ]] || [[ "$3" != ".#frostbit" ]]; then
+  echo "Usage: scripts/nixos-rebuild-gui <dry-activate|switch> --flake .#frostbit" >&2
   echo "First:   scripts/nixos-rebuild-gui dry-activate --flake .#frostbit" >&2
   echo "Then:    scripts/nixos-rebuild-gui switch --flake .#frostbit" >&2
   exit 2
@@ -17,11 +17,20 @@ case "$1" in
     ;;
 esac
 
+action="$1"
+installed_helper="/run/current-system/sw/bin/nixfiles-rebuild-root"
+
+if [[ -x "$installed_helper" ]]; then
+  exec /run/wrappers/bin/pkexec "$(readlink -f "$installed_helper")" "$action"
+fi
+
+# Bootstrap a system that does not have the dedicated Polkit action yet.
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 caller_user="$(id -un)"
 privileged_path="/etc/profiles/per-user/${caller_user}/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin"
 
-# Polkit sanitizes PATH, but some Nix evaluations invoke tools from the user profile.
 exec /run/wrappers/bin/pkexec \
   /run/current-system/sw/bin/env \
   "PATH=${privileged_path}" \
-  /run/current-system/sw/bin/nixos-rebuild "$@"
+  /run/current-system/sw/bin/nixos-rebuild "$action" \
+  --flake "path:${repo_root}#frostbit"

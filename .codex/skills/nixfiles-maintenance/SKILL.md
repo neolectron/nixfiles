@@ -47,11 +47,14 @@ remain hardware-agnostic, and host-specific values remain under `hosts/`.
    scripts/nixos-rebuild-gui switch --flake .#frostbit
    ```
 
-   Run `switch` only after `dry-activate` passes. Do not use `--sudo`, request
-   or handle the user's password, pipe credentials through stdin, or call
-   `pkexec` directly. The helper preserves the tool paths that Nix evaluation
-   may need. If the authorization dialog cannot be displayed, stop before the
-   switch and report the exact helper command for the user to run.
+   Run `switch` only after `dry-activate` passes. The dedicated Polkit action
+   remembers authorization for five minutes, so the immediately following
+   switch should reuse it. Do not use `--sudo`, request or handle the user's
+   password, pipe credentials through stdin, or call `pkexec` directly. Do not
+   store the password in a keyring or retain authorization for generic
+   `pkexec`; retention must remain scoped to the fixed frostbit rebuild helper.
+   If the authorization dialog cannot be displayed, stop before the switch and
+   report the exact helper command for the user to run.
 5. Re-run the relevant checks after each maintenance fix.
 
 ## Commit and report

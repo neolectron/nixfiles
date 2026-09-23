@@ -58,13 +58,17 @@ requirements below are mandatory for every agent.
 
 3. Run `scripts/nixos-rebuild-gui dry-activate --flake .#frostbit` and inspect
    the result. The helper opens the desktop authorization dialog, so the user
-   enters the password in the GUI rather than an agent terminal.
+   enters the password in the GUI rather than an agent terminal. Its dedicated
+   Polkit action remembers that authorization for five minutes, so the
+   following switch normally needs no second password entry.
 4. Only after the dry activation succeeds, run
    `scripts/nixos-rebuild-gui switch --flake .#frostbit`.
 5. Never pass `--sudo`, type a password, ask the user to send a password, or
    pipe credentials through stdin. Do not call `pkexec` directly: its sanitized
    environment omits tools needed by some Nix evaluations; the helper supplies
-   the required system and per-user tool paths.
+   the required tool paths. Do not add password storage to a keyring or enable
+   retained authorization for generic `pkexec`; the short-lived authorization
+   must remain scoped to the fixed frostbit rebuild helper.
 
 If an agent cannot display the authorization dialog, it must leave the switch
 unapplied and give the user the exact helper command. It must not fall back to
