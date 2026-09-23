@@ -105,4 +105,5 @@ Qt wrapper and the real binary.
 
 ## Rebuild / apply
 
-    nixos-rebuild switch --flake .#frostbit --sudo
+    scripts/nixos-rebuild-gui dry-activate --flake .#frostbit
+    scripts/nixos-rebuild-gui switch --flake .#frostbit

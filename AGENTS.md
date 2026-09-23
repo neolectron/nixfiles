@@ -19,11 +19,11 @@ Each host lives in `hosts/<hostname>/`:
 ## Commands
 
 ```bash
-# Build and apply (the primary workflow)
-nixos-rebuild switch --flake .#frostbit --sudo
-
 # Dry run — build but don't activate
-nixos-rebuild dry-activate --flake .#frostbit --sudo
+scripts/nixos-rebuild-gui dry-activate --flake .#frostbit
+
+# Apply only after the dry run passes
+scripts/nixos-rebuild-gui switch --flake .#frostbit
 
 # Evaluate without building (catches Nix-level errors fast)
 nix flake check
@@ -32,6 +32,43 @@ nix flake check
 nix flake update
 nix flake update <input-name>
 ```
+
+## Install and update workflow
+
+For every package install, package update, flake-input update, or NixOS/Home
+Manager configuration change:
+
+Load and follow `.codex/skills/nixfiles-maintenance/SKILL.md`; the abbreviated
+requirements below are mandatory for every agent.
+
+1. Run `nix flake check`.
+2. This repository uses NixOS-integrated Home Manager and has no standalone
+   `homeConfigurations` output. Never run `home-manager switch`. Build and
+   activate the integrated user's activation package instead:
+
+   ```bash
+   temporary_directory="$(mktemp -d /tmp/nixfiles-home-activation.XXXXXX)"
+   temporary_link="$temporary_directory/result"
+   nix build --out-link "$temporary_link" \
+     .#nixosConfigurations.frostbit.config.home-manager.users.neolectron.home.activationPackage
+   "$temporary_link/activate"
+   unlink "$temporary_link"
+   rmdir "$temporary_directory"
+   ```
+
+3. Run `scripts/nixos-rebuild-gui dry-activate --flake .#frostbit` and inspect
+   the result. The helper opens the desktop authorization dialog, so the user
+   enters the password in the GUI rather than an agent terminal.
+4. Only after the dry activation succeeds, run
+   `scripts/nixos-rebuild-gui switch --flake .#frostbit`.
+5. Never pass `--sudo`, type a password, ask the user to send a password, or
+   pipe credentials through stdin. Do not call `pkexec` directly: its sanitized
+   environment omits tools needed by some Nix evaluations; the helper supplies
+   the required system and per-user tool paths.
+
+If an agent cannot display the authorization dialog, it must leave the switch
+unapplied and give the user the exact helper command. It must not fall back to
+an embedded password prompt.
 
 ## Commit Messages
 

@@ -126,7 +126,8 @@ changes.
 From this repository, build and activate the host configuration:
 
 ```bash
-nixos-rebuild switch --flake .#frostbit --sudo
+scripts/nixos-rebuild-gui dry-activate --flake .#frostbit
+scripts/nixos-rebuild-gui switch --flake .#frostbit
 ```
 
 This builds the generated 6.0.11 JAR and installs `bitwig-studio` normally.

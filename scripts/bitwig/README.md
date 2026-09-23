@@ -37,7 +37,8 @@ scripts/bitwig/
 The full download → resolve → generate → install path is declarative:
 
 ```bash
-nixos-rebuild switch --flake .#frostbit --sudo
+scripts/nixos-rebuild-gui dry-activate --flake .#frostbit
+scripts/nixos-rebuild-gui switch --flake .#frostbit
 ```
 
 The read-only startup-anchor CLI can also be run independently:

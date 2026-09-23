@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# == 0 )); then
+  echo "Usage: scripts/nixos-rebuild-gui <nixos-rebuild arguments...>" >&2
+  echo "First:   scripts/nixos-rebuild-gui dry-activate --flake .#frostbit" >&2
+  echo "Then:    scripts/nixos-rebuild-gui switch --flake .#frostbit" >&2
+  exit 2
+fi
+
+case "$1" in
+  dry-activate|switch)
+    ;;
+  *)
+    echo "The GUI-authorized workflow supports only dry-activate and switch." >&2
+    exit 2
+    ;;
+esac
+
+caller_user="$(id -un)"
+privileged_path="/etc/profiles/per-user/${caller_user}/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin"
+
+# Polkit sanitizes PATH, but some Nix evaluations invoke tools from the user profile.
+exec /run/wrappers/bin/pkexec \
+  /run/current-system/sw/bin/env \
+  "PATH=${privileged_path}" \
+  /run/current-system/sw/bin/nixos-rebuild "$@"
