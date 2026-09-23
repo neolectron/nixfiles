@@ -1,6 +1,6 @@
 ---
 name: nixfiles-maintenance
-description: Safely maintain this repository's frostbit NixOS host and its NixOS-integrated Home Manager setup. Use for flake-input updates, Nix warning migrations, Home Manager activation reports, NixOS rebuilds, deferred-major-update reports, or weekly system-maintenance runs.
+description: Safely maintain this repository's frostbit NixOS host and its NixOS-integrated Home Manager setup. Use for package installs or updates, flake-input updates, Nix warning migrations, Home Manager activation reports, NixOS rebuilds, deferred-major-update reports, or weekly system-maintenance runs.
 ---
 
 # Nixfiles maintenance
@@ -39,8 +39,19 @@ remain hardware-agnostic, and host-specific values remain under `hosts/`.
    Before activation, compare the old and new Home Manager generations. Report
    every added managed path and added `home-path` package/store item; list
    changed and removed paths separately. Remove the temporary output link.
-4. Run `nixos-rebuild dry-activate --flake .#frostbit --sudo`, then switch only
-   after validation passes. Inspect both outputs for warnings.
+4. Run the repository helper so authorization happens in the user's desktop
+   GUI, never through an agent terminal:
+
+   ```bash
+   scripts/nixos-rebuild-gui dry-activate --flake .#frostbit
+   scripts/nixos-rebuild-gui switch --flake .#frostbit
+   ```
+
+   Run `switch` only after `dry-activate` passes. Do not use `--sudo`, request
+   or handle the user's password, pipe credentials through stdin, or call
+   `pkexec` directly. The helper preserves the tool paths that Nix evaluation
+   may need. If the authorization dialog cannot be displayed, stop before the
+   switch and report the exact helper command for the user to run.
 5. Re-run the relevant checks after each maintenance fix.
 
 ## Commit and report

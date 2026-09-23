@@ -22,15 +22,21 @@ You can use the nix and home-manager modules on any Linux distro running Nix on 
 
 git clone git@github.com:neolectron/nixfiles.git
 
-# Build and switch (primary workflow)
-nixos-rebuild switch --flake .#yourHostName --sudo
-
 # Dry run — build without activating
-nixos-rebuild dry-activate --flake .#yourHostName --sudo
+scripts/nixos-rebuild-gui dry-activate --flake .#yourHostName
+
+# Build and switch after the dry run passes
+scripts/nixos-rebuild-gui switch --flake .#yourHostName
 
 # Catch Nix errors fast, before building
 nix flake check
 ```
+
+The rebuild helper opens the desktop authorization dialog instead of asking
+for a password in the terminal. Run the dry activation before every switch.
+This repository uses NixOS-integrated Home Manager, so apply Home Manager
+through the host rebuild or its integrated activation package, not with a
+standalone `home-manager switch`.
 
 ## Autonomous lab VM
 
