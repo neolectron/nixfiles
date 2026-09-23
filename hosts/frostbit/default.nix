@@ -14,6 +14,7 @@ in
       # ── System-level modules ──────────────────────────────
       inputs.nix-index-database.nixosModules.default
       nixos.frostbitHardwareConfiguration
+      nixos.frostbitRebuildAuthorization
       nixos.codexDesktop
       nixos.niri
       nixos.noctalia
