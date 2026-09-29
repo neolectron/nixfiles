@@ -4,6 +4,13 @@ NixOS configuration using **flake-parts** + **import-tree**.
 Every `.nix` file under `flakes/` and `hosts/` is auto-imported as a flake-parts module.
 Desktop runs the **niri** Wayland compositor with the **Noctalia** shell.
 
+## Git workflow
+
+Work directly on `main` for this repository. Do not create feature branches,
+linked worktrees, or pull requests unless the user explicitly requests one.
+Preserve existing uncommitted changes and stage only the changes made for the
+current task.
+
 ## Architecture
 
 `flakes` are reusable — another person could import these on their own host.

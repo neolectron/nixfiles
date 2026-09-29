@@ -27,8 +27,9 @@ Follow `AGENTS.md` and preserve the repository's flake/host boundaries.
 Treat a user reply containing selected numbers as authorization to implement
 only those ideas.
 
-1. Require a clean worktree and index first. If existing work is present, stop
-   instead of mixing it with the feature.
+1. Work on `main` as required by `AGENTS.md`. Inspect existing worktree and
+   index changes first; preserve them and stage only this integration's changes.
+   Do not create a branch, linked worktree, or pull request unless requested.
 2. Inspect the selected upstream code and create a narrow adaptation that fits
    this repository; do not copy machine-specific configuration.
 3. Run all relevant available checks: formatting, syntax/JSON checks, focused

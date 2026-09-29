@@ -91,6 +91,24 @@ in
         pkgs = pkgs;
         lib = lib;
       };
+
+      # The Linux Computer Use backend reads accessibility trees over AT-SPI,
+      # moves the pointer through uinput, and uses ydotool for keyboard input
+      # when Niri has no RemoteDesktop keyboard portal.
+      assertions = [
+        {
+          assertion = lib.versionAtLeast pkgs.ydotool.version "1.0.3";
+          message = "Codex Linux Computer Use requires ydotool 1.0.3 or newer.";
+        }
+      ];
+      services.gnome.at-spi2-core.enable = true;
+      hardware.uinput.enable = true;
+      programs.ydotool.enable = true;
+      environment.sessionVariables.YDOTOOL_SOCKET = lib.mkDefault "/run/ydotoold/socket";
+      users.users.${username}.extraGroups = [
+        "uinput"
+        "ydotool"
+      ];
     };
 
   flake.modules.homeManager.codexDesktop =
@@ -122,6 +140,20 @@ in
           exec ${codexExec} "$@"
         ''
       );
+
+      codexDesktopComputerUsePackage =
+        inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop-computer-use-ui;
+      codexComputerUseLinux = pkgs.writeShellScriptBin "codex-computer-use-linux" ''
+        export YDOTOOL_SOCKET="''${YDOTOOL_SOCKET:-/run/ydotoold/socket}"
+        for plugin in unified-computer-use computer-use; do
+          backend="${codexDesktopComputerUsePackage}/opt/codex-desktop/resources/plugins/openai-bundled/plugins/$plugin/bin/codex-computer-use-linux"
+          if [ -x "$backend" ]; then
+            exec "$backend" "$@"
+          fi
+        done
+        echo "Codex Linux Computer Use backend is missing from the desktop package" >&2
+        exit 1
+      '';
     in
     {
       imports = [
@@ -130,16 +162,21 @@ in
 
       programs.codexDesktopLinux = {
         enable = true;
+        computerUseUi.enable = true;
         cliPackage = codex;
       };
 
+      dconf.settings."org/gnome/desktop/interface".toolkit-accessibility = true;
+
       home.packages = [
         codex
+        codexComputerUseLinux
         opencodexPackage
         pkgs.jq
         pkgs.context7-mcp
         pkgs.github-mcp-server
-      ] ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.mcp-nixos ];
+      ]
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.mcp-nixos ];
 
       home.file.".codex/.keep".text = "";
       home.file.".opencodex/.keep".text = "";
