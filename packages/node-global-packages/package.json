@@ -1,0 +1,11 @@
+{
+  "name": "node-global-packages",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "cf": "1.0.0-beta.5"
+  }
+}
