@@ -131,14 +131,24 @@ in
         fi
       '';
 
+      codexWrapper = pkgs.writeShellScriptBin "codex" ''
+        set -euo pipefail
+
+        . ${codexOpenCodeGoEnv}
+
+        exec ${codexExec} "$@"
+      '';
+
+      # The desktop resolves codex-code-mode-host as a sibling of CODEX_CLI_PATH.
+      # Merge the wrapper with the underlying package so both binaries share a bin/.
       codex = pkgs.lib.hiPrio (
-        pkgs.writeShellScriptBin "codex" ''
-          set -euo pipefail
-
-          . ${codexOpenCodeGoEnv}
-
-          exec ${codexExec} "$@"
-        ''
+        pkgs.symlinkJoin {
+          name = "codex";
+          paths = [
+            codexWrapper
+            codexPackage
+          ];
+        }
       );
 
       codexDesktopComputerUsePackage =
