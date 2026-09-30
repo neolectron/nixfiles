@@ -11,7 +11,7 @@
         hash = "sha256-QrXWc/NKKa3YC9IRrMJYp/UtUtbx9bTYVS+nZwH50kQ=";
       };
 
-      appimageContents = pkgs.appimageTools.extractType2 {
+      appimageContents = pkgs.appimageTools.extract {
         inherit
           pname
           version

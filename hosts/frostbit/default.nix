@@ -9,6 +9,7 @@ in
 
   config.flake.username = "neolectron";
   config.flake.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
+  config.flake.opencode.database = "opencode-v2-frostbit.db";
   config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       # ── System-level modules ──────────────────────────────
@@ -241,6 +242,7 @@ in
             hm.chatgpt
             hm.codexDesktop
             hm.agentSkills
+            hm.humanlayer
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;

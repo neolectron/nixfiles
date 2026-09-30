@@ -19,5 +19,6 @@
           '';
         }
       }/bin/update-flake-inputs";
+      meta.description = "Update flake inputs";
     };
 }

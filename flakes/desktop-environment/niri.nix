@@ -72,6 +72,7 @@ in
     {
       # Cursor theme (must match niri cursor settings so compositor and apps agree)
       home.pointerCursor = {
+        enable = true;
         name = lib.mkDefault "Adwaita";
         package = lib.mkDefault pkgs.adwaita-icon-theme;
         size = lib.mkDefault 24;

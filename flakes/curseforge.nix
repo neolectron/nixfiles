@@ -11,7 +11,7 @@
         sha256 = "02dxs44633n8rin39c07i5dxx81dy2bylwdjd165cxcdch84x69d";
       };
 
-      extracted = pkgs.appimageTools.extractType2 {
+      extracted = pkgs.appimageTools.extract {
         pname = "curseforge";
         inherit version src;
       };

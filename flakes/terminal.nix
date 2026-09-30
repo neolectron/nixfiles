@@ -9,7 +9,7 @@ in
     {
       nixpkgs.overlays = [
         (final: prev: {
-          _0fetch = inputs._0fetch.packages.${final.system}.default;
+          _0fetch = inputs._0fetch.packages.${final.stdenv.hostPlatform.system}.default;
         })
       ];
 
@@ -70,6 +70,8 @@ in
           append = lib.mkDefault true;
           ignoreDups = lib.mkDefault true;
         };
+        # Search command history by the text already typed on the line.
+        historySubstringSearch.enable = lib.mkDefault true;
         shellAliases = lib.mkDefault {
           ll = "eza -la";
           la = "eza -a";
