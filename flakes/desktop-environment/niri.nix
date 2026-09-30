@@ -69,6 +69,38 @@ in
   # Home Manager side: niri keybindings, layout, and startup
   flake.modules.homeManager.niri =
     { pkgs, lib, ... }:
+    let
+      # Chrome can set an extension popup's title after it opens, too late for
+      # an open-floating window rule to match it.
+      floatBitwardenPopups = pkgs.writeShellApplication {
+        name = "niri-float-bitwarden-popups";
+        runtimeInputs = [
+          pkgs.niri
+          pkgs.jq
+        ];
+        text = ''
+          niri msg -j event-stream | jq --unbuffered -r '
+            if .WindowsChanged then
+              .WindowsChanged.windows[]
+            elif .WindowOpenedOrChanged then
+              .WindowOpenedOrChanged.window
+            else
+              empty
+            end
+            | select(
+                .title == "Bitwarden"
+                and (.app_id == "google-chrome" or ((.app_id // "") | startswith("chrome-")))
+                and (.is_floating | not)
+              )
+            | .id
+          ' | while IFS= read -r id; do
+            if ! niri msg action move-window-to-floating --id "$id"; then
+              echo "Could not float Bitwarden popup window $id" >&2
+            fi
+          done
+        '';
+      };
+    in
     {
       # Cursor theme (must match niri cursor settings so compositor and apps agree)
       home.pointerCursor = {
@@ -179,6 +211,7 @@ in
         # Spawn noctalia-shell and other startup apps
         spawn-at-startup = [
           { command = [ "noctalia-shell" ]; }
+          { command = [ (lib.getExe floatBitwardenPopups) ]; }
         ];
 
         # Environment
