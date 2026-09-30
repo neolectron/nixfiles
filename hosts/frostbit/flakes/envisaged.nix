@@ -2,7 +2,7 @@
 {
   # Expose an overlay that adds `envisaged` to pkgs
   flake.overlays.envisaged = final: prev: {
-    envisaged = inputs.envisaged.packages.${prev.system}.cli;
+    envisaged = inputs.envisaged.packages.${prev.stdenv.hostPlatform.system}.cli;
   };
 
   # Module that applies the overlay and installs envisaged

@@ -44,12 +44,15 @@ in
           nixd
           # Editors
           (vscode.fhsWithPackages (vscodePackages: [ vscodePackages.stdenv.cc.cc.lib ]))
-          nodejs # needed by VSCode extensions (oxc, etc.)
+          nodejs_24 # default runtime; repository shells may select their own Node.js
           # Environment
           devenv
           # docker-compose
         ]
-        ++ [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.codeburn ];
+        ++ [
+          inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.node-global-packages
+          inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.codeburn
+        ];
 
       # Register vscode:// URI scheme so browsers/portal open VS Code auth redirects
       # instead of showing the useless "find in app store" dialog.

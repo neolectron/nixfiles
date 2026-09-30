@@ -97,6 +97,12 @@ Use a lowercase, specific type such as `feat`, `fix`, `docs`, `refactor`,
 - **arch-linux** — only `search_archwiki` works here. Package install, system diagnostics, and
   other Arch-specific features will fail on NixOS. Use the wiki for Linux concepts and drivers.
 
+## Cloudflare CLI
+
+Use the globally installed `cf` CLI for Cloudflare work. Check `cf --help` and use
+`cf cli search` to discover current commands instead of assuming Wrangler syntax.
+Some Worker operations may still delegate to Wrangler during the `cf` beta.
+
 ## Flakes Rules
 
 ### `lib.mkDefault` discipline
