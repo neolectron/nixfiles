@@ -59,6 +59,8 @@ in
             enable = true;
             useRoutingFeatures = "server";
           };
+          # Spotifast's Spotify OAuth callback needs localhost:8989.
+          services.sonarr.settings.server.port = 8990;
           boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 1;
 
           # Prevent USB ethernet adapter from stealing the default route.
