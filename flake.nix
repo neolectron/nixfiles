@@ -33,6 +33,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.bun2nix.inputs.systems.url = "github:nix-systems/x86_64-linux";
     };
+    spotifast.url = "github:crmne/spotifast";
 
     # Nixvim - Neovim configuration framework
     # Note: Not using follows as recommended by nixvim docs for compatibility

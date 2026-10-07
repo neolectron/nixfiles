@@ -32,6 +32,7 @@ in
       nixos.handy
       nixos.mediaStack
       nixos.obs
+      nixos.spotifast
 
       # ── System-level config ──────────────────────────────
       (
