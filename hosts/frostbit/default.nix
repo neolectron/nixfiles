@@ -19,6 +19,7 @@ in
       nixos.codexDesktop
       nixos.niri
       nixos.noctalia
+      nixos.plasmaSystemMonitor
       nixos.sound
       nixos.audioInterface
       nixos.coding
