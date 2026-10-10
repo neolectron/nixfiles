@@ -83,7 +83,7 @@ in
         user = lib.mkDefault username;
         group = lib.mkDefault "media";
         openFirewall = lib.mkDefault true; # port 6765
-        listenPort = lib.mkDefault 6765;
+        settings.general.port = lib.mkDefault 6765;
       };
 
       # Allow all media services to access ~/Videos/Library

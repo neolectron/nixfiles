@@ -5,11 +5,11 @@
     let
       chatgpt-unwrapped = pkgs.stdenvNoCC.mkDerivation {
         pname = "chatgpt";
-        version = "26.928.20755";
+        version = "26.928.31416";
 
         src = pkgs.fetchurl {
-          url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_26.928.20755_amd64.deb";
-          hash = "sha256-RYbcGmyGmJgsqFn4aqoWg18zgyoJ4kBC36dVcapg2NE=";
+          url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_26.928.31416_amd64.deb";
+          hash = "sha256-xGNyfx7V3O14M4yOKmXYib0VMnb/Nz/XdpjMua8y0YE=";
         };
 
         nativeBuildInputs = [ pkgs.dpkg ];
@@ -23,38 +23,39 @@
       chatgpt = pkgs.buildFHSEnv {
         name = "chatgpt-desktop";
         runScript = "${chatgpt-unwrapped}/libexec/chatgpt/ChatGPT";
-        targetPkgs = pkgs: with pkgs; [
-          alsa-lib
-          atk
-          at-spi2-atk
-          cairo
-          cups
-          dbus
-          expat
-          fontconfig
-          freetype
-          gdk-pixbuf
-          glib
-          gtk3
-          libdrm
-          libglvnd
-          libnotify
-          libpulseaudio
-          libuuid
-          libx11
-          libxcb
-          libxcomposite
-          libxdamage
-          libxext
-          libxfixes
-          libxkbcommon
-          libxrandr
-          mesa
-          nspr
-          nss
-          pango
-          systemdLibs
-        ];
+        targetPkgs =
+          pkgs: with pkgs; [
+            alsa-lib
+            atk
+            at-spi2-atk
+            cairo
+            cups
+            dbus
+            expat
+            fontconfig
+            freetype
+            gdk-pixbuf
+            glib
+            gtk3
+            libdrm
+            libglvnd
+            libnotify
+            libpulseaudio
+            libuuid
+            libx11
+            libxcb
+            libxcomposite
+            libxdamage
+            libxext
+            libxfixes
+            libxkbcommon
+            libxrandr
+            mesa
+            nspr
+            nss
+            pango
+            systemdLibs
+          ];
       };
     in
     {
@@ -65,7 +66,10 @@
         comment = "ChatGPT desktop app with Codex";
         exec = "chatgpt-desktop %U";
         terminal = false;
-        categories = [ "Utility" "Development" ];
+        categories = [
+          "Utility"
+          "Development"
+        ];
       };
     };
 }
