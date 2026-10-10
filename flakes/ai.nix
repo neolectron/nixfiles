@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  inputs,
+  config,
+  lib,
+  ...
+}:
 {
   # Option to configure opencode server hostname
   options.flake.opencode.hostname = lib.mkOption {
@@ -18,7 +23,7 @@
       # Get hostname from flake option
       hostname = config.flake.opencode.hostname;
 
-      opencode-v2 = pkgs.callPackage ../packages/opencode-v2 { };
+      opencode-v2 = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.opencode-v2;
       opencode-bin = "${opencode-v2}/bin/opencode";
       opencode-db = config.flake.opencode.database;
 

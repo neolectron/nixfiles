@@ -119,7 +119,7 @@ in
       ...
     }:
     let
-      opencodexPackage = pkgs.callPackage ../packages/opencodex/default.nix { };
+      opencodexPackage = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.opencodex;
       codexPackage = pkgs.callPackage ../packages/codex/default.nix { };
       codexExec = lib.getExe codexPackage;
       opencodeAuthPath = "${config.home.homeDirectory}/.local/share/opencode/auth.json";

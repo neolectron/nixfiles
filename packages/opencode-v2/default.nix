@@ -1,9 +1,11 @@
 {
+  bun,
   fetchurl,
   lib,
   makeBinaryWrapper,
   ripgrep,
   stdenvNoCC,
+  updateScriptZod,
   wayland,
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
@@ -39,6 +41,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       --prefix PATH : ${lib.makeBinPath [ ripgrep ]} \
       --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ wayland ]}
   '';
+
+  passthru.updateScript = [
+    (lib.getExe bun)
+    ./update.ts
+    "${updateScriptZod}/index.js"
+  ];
 
   meta = {
     description = "OpenCode 2 AI coding agent";

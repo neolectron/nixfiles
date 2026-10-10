@@ -34,6 +34,8 @@ in
       nixos.mediaStack
       nixos.obs
       nixos.spotifast
+      nixos.wifiAudioStreaming
+      nixos.androidPhone
 
       # ── System-level config ──────────────────────────────
       (
@@ -247,6 +249,8 @@ in
             hm.codexDesktop
             hm.agentSkills
             hm.humanlayer
+            hm.wifiAudioStreaming
+            hm.androidPhone
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;

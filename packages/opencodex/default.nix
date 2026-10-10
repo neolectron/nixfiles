@@ -4,6 +4,7 @@
   fetchurl,
   bun,
   makeWrapper,
+  updateScriptZod,
 }:
 
 let
@@ -72,6 +73,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     runHook postInstall
   '';
+
+  passthru.updateScript = [
+    (lib.getExe bun)
+    ./update.ts
+    "${updateScriptZod}/index.js"
+  ];
 
   meta = {
     description = "Universal provider proxy for OpenAI Codex and Claude Code";
