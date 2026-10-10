@@ -19,12 +19,14 @@ type ValidationEntry = {
 };
 
 type UpdateConfig = {
+  denylist?: string[];
   updates: UpdateEntry[];
   validations?: Record<string, ValidationEntry[]>;
 };
 
 type Options = {
   dryRun: boolean;
+  includeDenylisted: boolean;
   list: boolean;
   only: Set<string> | null;
   skip: Set<string>;
@@ -48,6 +50,7 @@ Options:
   --dry-run              Print selected commands without running them.
   --only <a,b>           Run only the named entries; may be repeated.
   --skip <a,b>           Skip the named entries; may be repeated.
+  --include-denylisted   Allow entries listed in scripts/update-pins.json denylist.
   --validate <name>      Run a validation set after successful updates.
   --list                 List configured updates and validation sets.
   -h, --help             Show this help.
@@ -74,6 +77,7 @@ function parseOptions(argv: string[]): Options | "help" {
       "dry-run": { type: "boolean", default: false },
       only: { type: "string", multiple: true },
       skip: { type: "string", multiple: true },
+      "include-denylisted": { type: "boolean", default: false },
       validate: { type: "string" },
       list: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -88,6 +92,7 @@ function parseOptions(argv: string[]): Options | "help" {
   const skip = stringValues(values.skip).flatMap(parseNameList);
   return {
     dryRun: values["dry-run"] === true,
+    includeDenylisted: values["include-denylisted"] === true,
     list: values.list === true,
     only: only.length > 0 ? new Set(only) : null,
     skip: new Set(skip),
@@ -127,6 +132,7 @@ function formatCommand(command: Command): string {
 }
 
 function selectedEntries(config: UpdateConfig, options: Options, system: string): Result[] {
+  const denylist = new Set(config.denylist ?? []);
   return config.updates.flatMap((entry) => {
     const unsupported = unsupportedSystem(entry, system);
     if (options.only !== null && !options.only.has(entry.name)) {
@@ -141,14 +147,19 @@ function selectedEntries(config: UpdateConfig, options: Options, system: string)
     if (unsupported !== null) {
       return [{ name: entry.name, status: "skipped", reason: unsupported }];
     }
+    if (denylist.has(entry.name) && !options.includeDenylisted) {
+      return [{ name: entry.name, status: "skipped", reason: "denylisted" }];
+    }
     return [];
   });
 }
 
 function runnableEntries(config: UpdateConfig, options: Options, system: string): UpdateEntry[] {
+  const denylist = new Set(config.denylist ?? []);
   return config.updates.filter((entry) => {
     if (options.only !== null && !options.only.has(entry.name)) return false;
     if (options.skip.has(entry.name) || entry.enabled === false) return false;
+    if (denylist.has(entry.name) && !options.includeDenylisted) return false;
     return unsupportedSystem(entry, system) === null;
   });
 }
@@ -176,12 +187,17 @@ async function runCommand(
 }
 
 function printList(config: UpdateConfig): void {
+  const denylist = new Set(config.denylist ?? []);
   console.log("Updates:");
   for (const entry of config.updates) {
     const systems = entry.systems === undefined ? "all systems" : entry.systems.join(", ");
-    const state = entry.enabled === false ? ", disabled" : "";
+    const markers = [
+      entry.type,
+      entry.enabled === false ? "disabled" : null,
+      denylist.has(entry.name) ? "denylisted" : null,
+    ].filter((value): value is string => value !== null);
     console.log(
-      `- ${entry.name} (${entry.type}${state}, ${systems}): ${entry.description ?? formatCommand(entry.command)}`,
+      `- ${entry.name} (${markers.join(", ")}, ${systems}): ${entry.description ?? formatCommand(entry.command)}`,
     );
   }
 
@@ -229,6 +245,11 @@ async function main(): Promise<void> {
     process.exitCode = 2;
     return;
   }
+  if (options.validate !== null && config.validations?.[options.validate] === undefined) {
+    await Bun.write(Bun.stderr, `Unknown validation set: ${options.validate}\n`);
+    process.exitCode = 2;
+    return;
+  }
 
   if (options.list) {
     printList(config);
@@ -255,12 +276,7 @@ async function main(): Promise<void> {
 
   const failed = results.some((result) => result.status === "failed");
   if (!failed && options.validate !== null) {
-    const validations = config.validations?.[options.validate];
-    if (validations === undefined) {
-      await Bun.write(Bun.stderr, `Unknown validation set: ${options.validate}\n`);
-      process.exitCode = 2;
-      return;
-    }
+    const validations = config.validations?.[options.validate] ?? [];
     for (const entry of validations) {
       const unsupported = unsupportedSystem(entry, system);
       if (unsupported !== null) {

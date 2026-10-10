@@ -6,6 +6,7 @@
   fetchurl,
   makeWrapper,
   nodejs_24,
+  updateScriptZod,
 }:
 
 buildNpmPackage (finalAttrs: {
@@ -48,6 +49,7 @@ buildNpmPackage (finalAttrs: {
   passthru.updateScript = [
     (lib.getExe bun)
     ./update.ts
+    "${updateScriptZod}/index.js"
   ];
 
   meta = {

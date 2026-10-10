@@ -1,4 +1,5 @@
 {
+  "denylist": ["opencodex"],
   "updates": [
     {
       "name": "codeburn",
@@ -12,6 +13,51 @@
         "--",
         "--flake",
         "codeburn",
+        "--use-update-script"
+      ]
+    },
+    {
+      "name": "opencode-v2",
+      "type": "nix-update",
+      "description": "OpenCode V2 current-platform npm binary",
+      "systems": ["x86_64-linux"],
+      "command": [
+        "nix",
+        "run",
+        "github:Mic92/nix-update",
+        "--",
+        "--flake",
+        "opencode-v2",
+        "--use-update-script"
+      ]
+    },
+    {
+      "name": "opencodex",
+      "type": "nix-update",
+      "description": "OpenCodex release, lockfile, and Bun dependency closure",
+      "systems": ["x86_64-linux"],
+      "command": [
+        "nix",
+        "run",
+        "github:Mic92/nix-update",
+        "--",
+        "--flake",
+        "opencodex",
+        "--use-update-script"
+      ]
+    },
+    {
+      "name": "wifi-audio-streaming",
+      "type": "nix-update",
+      "description": "WiFi Audio Streaming AppImage release",
+      "systems": ["x86_64-linux"],
+      "command": [
+        "nix",
+        "run",
+        "github:Mic92/nix-update",
+        "--",
+        "--flake",
+        "wifi-audio-streaming",
         "--use-update-script"
       ]
     },
@@ -33,6 +79,21 @@
       {
         "name": "CodeBurn evaluation",
         "command": ["nix", "eval", ".#codeburn.drvPath", "--raw"],
+        "systems": ["x86_64-linux"]
+      },
+      {
+        "name": "OpenCode V2 evaluation",
+        "command": ["nix", "eval", ".#opencode-v2.drvPath", "--raw"],
+        "systems": ["x86_64-linux"]
+      },
+      {
+        "name": "OpenCodex evaluation",
+        "command": ["nix", "eval", ".#opencodex.drvPath", "--raw"],
+        "systems": ["x86_64-linux"]
+      },
+      {
+        "name": "WiFi Audio Streaming evaluation",
+        "command": ["nix", "eval", ".#wifi-audio-streaming.drvPath", "--raw"],
         "systems": ["x86_64-linux"]
       }
     ],

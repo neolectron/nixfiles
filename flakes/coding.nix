@@ -52,6 +52,7 @@ in
         ++ [
           inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.node-global-packages
           inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.codeburn
+          inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.vtask
         ];
 
       # Register vscode:// URI scheme so browsers/portal open VS Code auth redirects

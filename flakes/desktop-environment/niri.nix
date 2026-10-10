@@ -196,6 +196,23 @@ in
             };
           }
 
+          # WiFi Audio Streaming has a narrow utility window; keep it close to
+          # the tray instead of stretching it into a tiled column.
+          {
+            matches = [
+              {
+                app-id = "^MainKt$";
+                title = "^WiFi Audio Streaming$";
+              }
+            ];
+            open-floating = true;
+            default-floating-position = {
+              x = 16;
+              y = 16;
+              relative-to = "top-right";
+            };
+          }
+
           # Ghostty glassy blur effect - niri 26.04+
         ];
 
