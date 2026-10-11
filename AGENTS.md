@@ -81,6 +81,15 @@ If an agent cannot display the authorization dialog, it must leave the switch
 unapplied and give the user the exact helper command. It must not fall back to
 an embedded password prompt.
 
+After desktop runtime or graphics updates, verify the live session as well:
+check Noctalia's bar layers with `niri msg --json layers`, open Vicinae with
+`vicinae toggle`, and inspect fresh logs for EGL/OpenGL initialization failures.
+A running Vicinae daemon alone is insufficient; it can crash when its window opens.
+Noctalia follows the host nixpkgs so its glibc can load the host Mesa driver.
+Vicinae uses its cached upstream package with Mesa from the same package set,
+selected with `__EGL_VENDOR_LIBRARY_FILENAMES`: following the host currently
+mismatches upstream's GCC 15 build with Numen's GCC 16 library.
+
 ## Commit Messages
 
 Commit subjects created for this repository, whether by a person or an agent,

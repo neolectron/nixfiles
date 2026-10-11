@@ -13,9 +13,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # No nixpkgs.follows — lets us hit their cachix binary caches
+    # Niri is built with the host packages by its NixOS module.
     niri.url = "github:sodiboo/niri-flake";
-    noctalia.url = "github:noctalia-dev/noctalia-shell/f0469d2d6f9b1ca873932dcef6583f9d6a2eee28";
+    # Noctalia loads the host Mesa driver into its process; its glibc must match.
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell/f0469d2d6f9b1ca873932dcef6583f9d6a2eee28";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Keep Vicinae's cached toolchain; its module supplies a matching Mesa.
     vicinae.url = "github:vicinaehq/vicinae";
     vicinae-extensions = {
       url = "github:vicinaehq/extensions";
