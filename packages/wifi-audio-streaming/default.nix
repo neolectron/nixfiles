@@ -45,6 +45,12 @@ in
 appimageTools.wrapType2 (
   finalAttrs
   // {
+    # The bundled Java AWT runtime uses X11. Its GTK tray helper crashes when
+    # GTK selects Wayland independently of AWT.
+    profile = ''
+      export GDK_BACKEND=x11
+    '';
+
     extraPkgs = pkgs: [
       pkgs.libsecret
       pkgs.libpulseaudio
