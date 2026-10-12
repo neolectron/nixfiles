@@ -247,6 +247,7 @@ in
             hm.frostbitgames
             hm.chatgpt
             hm.codexDesktop
+            hm.keepAwake
             hm.agentSkills
             hm.humanlayer
             hm.wifiAudioStreaming

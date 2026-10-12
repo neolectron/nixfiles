@@ -1,0 +1,8 @@
+# Example only. This file is not loaded by Codex or Home Manager.
+# Replace command with the absolute built package path, then obtain explicit
+# approval before adding/enabling this entry in a live client configuration.
+[mcp_servers.keep_awake]
+command = "/replace/with/built/package/bin/keep-awake-mcp"
+enabled = false
+startup_timeout_sec = 10
+tool_timeout_sec = 10
