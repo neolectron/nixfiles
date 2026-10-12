@@ -1,0 +1,13 @@
+{
+  "name": "nixfiles-tools",
+  "private": true,
+  "packageManager": "pnpm@12.11.2",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "build": "pnpm --filter @nixfiles/streamdeck build",
+    "typecheck": "pnpm --filter @nixfiles/streamdeck typecheck",
+    "test": "pnpm --filter @nixfiles/streamdeck test",
+    "streamdeck": "pnpm --filter @nixfiles/streamdeck cli",
+    "streamdeck:demo": "pnpm streamdeck hello --mock --demo"
+  }
+}

@@ -1,0 +1,7 @@
+# INACTIVE TEMPLATE. Confirm lsusb VID:PID and obtain security approval first.
+# Keep only the line for the confirmed device. No broad input-device rule,
+# world-writable mode, persistent group access, or USB-device permission.
+# Stream Deck + (0fd9:0084):
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="uaccess"
+# Stream Deck + XL (0fd9:00c6), only if this is the purchased model:
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", TAG+="uaccess"
