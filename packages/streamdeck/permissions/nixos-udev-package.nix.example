@@ -1,0 +1,16 @@
+# INACTIVE EXAMPLE. Parent coordinates host integration after security approval.
+# Confirm lsusb first. This example is ONLY for Stream Deck +, 0fd9:0084.
+{ pkgs, ... }:
+{
+  # uaccess must be tagged BEFORE systemd's 73-seat-late.rules.
+  # extraRules creates 99-local.rules on this NixOS version, which is too late.
+  services.udev.packages = [
+    (pkgs.writeTextFile {
+      name = "streamdeck-user-udev";
+      destination = "/lib/udev/rules.d/50-streamdeck-user.rules";
+      text = ''
+        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="uaccess"
+      '';
+    })
+  ];
+}

@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+  # This existing Nix derivation owns its npm lockfile; do not migrate it.
+  - '!packages/node-global-packages'
+
+engineStrict: true
+strictDepBuilds: true
+allowBuilds:
+  # Native HID driver and tsx's compiler only; no blanket install-script approval.
+  node-hid: true
+  esbuild: true
+  # Optional JPEG accelerator; the small demos use the pure-JS fallback.
+  '@julusian/jpeg-turbo': false

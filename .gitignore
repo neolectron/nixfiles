@@ -4,6 +4,9 @@ result
 *.local.md
 my-wsl-opencode
 __pycache__
+node_modules/
+.pnpm-store/
+packages/streamdeck/dist/
 
 # Locally supplied upstream Bitwig candidates are tested by hash. Keep the
 # proprietary binaries and machine-specific analyzer output out of Git.
