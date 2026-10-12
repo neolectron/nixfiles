@@ -36,9 +36,15 @@ vrais boutons/potards/toucher et affichage HELLO/OK sur la touche physique.
 Les règles de permissions sont des `.example` inactifs. Aucune capture micro,
 API Discord, session OBS, modification audio ou changement de focus n'a été fait.
 
-Coordination avant intégration : le checkout actif contient désormais un
+État du premier commit, avant intégration : le checkout actif contient désormais un
 package TypeScript `packages/keep-awake-mcp` avec son propre package-lock npm.
 Il entre dans le motif `packages/*` du futur monorepo ; le parent doit décider
 sa migration/exception et régénérer le lockfile pnpm après assemblage. Ne pas
 copier le lockfile ou fusionner ce worktree vers le checkout actif isolément.
 Les fichiers Nix existants et le README racine sont restés inchangés ici.
+
+Mise à jour : l'intégration des deux packages a ensuite été autorisée et
+validée dans ce même worktree. Voir le
+[rapport d'intégration](../../docs/keep-awake-integration.md) pour les 31 tests,
+le build Nix, le smoke réel et les hashes source. Le checkout actif est
+toujours préservé ; aucun merge ou switch global n'a été exécuté.

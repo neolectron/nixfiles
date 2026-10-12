@@ -138,8 +138,11 @@ Les packages Nix existants restent dans `packages/`. La workspace exclut
 dérivation Nix. Les nouvelles actions pourront consommer `DeckEvent` au-dessus
 du transport, avec des adaptateurs distincts et des tests mock. Les dimensions
 et indices viennent des capacités détectées, ce qui permettra les profils.
-Les scripts racine ciblent actuellement ce seul package pour ne pas prendre
-possession des commandes de l'autre chantier.
+Les scripts racine `build`, `typecheck` et `test` ciblent les deux packages
+coordonnés : Stream Deck et `keep-awake-mcp`. Les scripts `streamdeck:*` et
+`keep-awake:*` permettent de tester chaque outil séparément. Le package veille
+conserve son package-lock npm, requis par son build Nix autonome ; la workspace
+pnpm possède désormais une résolution commune pour les deux packages.
 
 Roadmap conservée, sans implémentation ni action réelle :
 

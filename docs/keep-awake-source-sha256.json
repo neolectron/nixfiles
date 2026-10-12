@@ -1,0 +1,23 @@
+{
+  "packages/keep-awake-mcp/.gitignore": "ce414dee4eae6283cd0a71dd2f61a78b77346ddd15a5fcd084c4307145420406",
+  "packages/keep-awake-mcp/README.md": "eb1ba2c4b356f376cdde612587e7041c1c3007a8cdeb3f53bc847ddc95ff1f01",
+  "packages/keep-awake-mcp/codex.toml.example": "ab8dd4fb47516deabfe3810a5b55066a6c870286e25971152cf17d9884ab8c98",
+  "packages/keep-awake-mcp/default.nix": "c3f5d61a45f257c3a86b587d4040eb26ba169a48315f04e9597ff842b039b1d3",
+  "packages/keep-awake-mcp/package-lock.json": "c7211e1a921bc760dc2139342201db221f2adb7ae8721104ee9abba0710cfee1",
+  "packages/keep-awake-mcp/package.json": "adef3f4a030817643d710c699cd937e809e8104b76cf6b420e762e76622418f2",
+  "packages/keep-awake-mcp/src/backend.ts": "3217617bc0928297798ee04b1d0d9e152d7910140f38a59eeb7fd05f56e3d573",
+  "packages/keep-awake-mcp/src/guard.ts": "25c853d3fc093087cf04cd4e6342dc636902a46dd67c13e1e354b14d52532918",
+  "packages/keep-awake-mcp/src/leases.ts": "e75a8d23e352df07750e2dad2c419294b6d0d20ee1f0ab0a7cc79c034b77e0ef",
+  "packages/keep-awake-mcp/src/lifetime.ts": "592f68b49930f695efe3e722201ae24746290c2547419d18e4569ce8885b5dcf",
+  "packages/keep-awake-mcp/src/mcp.ts": "a9e5615581de398827421592a8244565f83f8d724511c43a752a01bc8546ee51",
+  "packages/keep-awake-mcp/src/server.ts": "2734b4276502307526fc793dd9dfe0520ee46711a4b2e93d41afad80065805ec",
+  "packages/keep-awake-mcp/test/backend.test.ts": "5b08a354bf0da155b357afab49435451b057be9d57e84c8826055350976531a3",
+  "packages/keep-awake-mcp/test/guard.test.ts": "1dd317d588ca35b799ba5cf55e72063f0e8ed86d908237bd0b373057e11932ca",
+  "packages/keep-awake-mcp/test/leases.test.ts": "73100e944c114cb11dea0bc77ac9d2593dcee14c638928232dd3da2591b62c7a",
+  "packages/keep-awake-mcp/test/mcp.test.ts": "b07ca35caa5b0e0c8b7268360a6dd85b759519c9d1ff5e871dba3a994ad58713",
+  "packages/keep-awake-mcp/test/smoke.ts": "4a6b11f46f11a37e72268b3e29b0386ee72b321622d7313626a5ac208fad8879",
+  "packages/keep-awake-mcp/tsconfig.json": "f3215d8e258fddf1c7ddda27e45686cc4f8971255edd48ec2d5b5cdbcea90de7",
+  "flakes/keep-awake.nix": "11c9a637cd0f78316aec675a0e64c256035599ecb6cd1e97dd140f1d953d0efb",
+  "hosts/frostbit/default.nix": "453e8fb4980fe4ca1edc47b653b8c3701afcf2f2b9523346f38d712e91d9a38d",
+  "README.md": "57fd5c782aad56031a0cf5c3e54ff1c8e78f22366db9690ad3f25255c9872b5f"
+}

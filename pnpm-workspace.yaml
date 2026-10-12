@@ -11,3 +11,6 @@ allowBuilds:
   esbuild: true
   # Optional JPEG accelerator; the small demos use the pure-JS fallback.
   '@julusian/jpeg-turbo': false
+minimumReleaseAgeExclude:
+  # Preserve the exact pin already validated by the keep-awake worker.
+  - zod@4.6.7
