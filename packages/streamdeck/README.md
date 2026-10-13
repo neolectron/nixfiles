@@ -33,6 +33,8 @@ nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
 pnpm dev                                    # live mixer; restart on source changes
 pnpm dev --mock                             # live mixer with inert USB/audio
+pnpm studio:dev --path /dev/hidraw8          # local editor + real mixer, watch mode
+pnpm studio:dev --mock                      # local editor with inert USB/audio
 pnpm streamdeck list
 pnpm streamdeck:demo                          # finite mock hello
 pnpm streamdeck hello --mock --demo --lcd     # mock key + strip
@@ -59,6 +61,42 @@ USB handle before reconnecting. Mixer flags also work here, for example
 runtime and closes the device after pending writes; images remain displayed.
 With multiple devices, specify the freshly discovered `--path`. A reconnect can
 change hidraw paths, so do not reuse a stale path.
+
+## Local web editor
+
+`pnpm studio:dev` starts the React editor at `http://127.0.0.1:3900` and the same
+Effect engine that owns the hardware and real audio mixer. Select a key, choose
+an installed desktop application or a command/script, then save. Saving updates
+the physical key image and profile without executing the action. A physical press
+or **Tester l’action** uses the same handler. The inspector shows command output,
+errors and an **Arrêter la commande** control while a command runs. A counter is
+also available for an inert test. Command arguments are one per line and remain
+literal; shell syntax requires an explicitly configured shell executable.
+
+The preview mirrors successful RGB writes, including partial LCD updates. Held
+physical keys remain highlighted until release. Dials keep their live app/mute
+assignments; the web page arrows follow the same mixer pagination as LCD swipes,
+and Master stays pinned. Selecting a dial explains its current assignment; this
+first editor does not yet reconfigure dial/touch behavior.
+
+The default profile is `packages/streamdeck/.studio/profile.json`, ignored by Git;
+use `--profile /absolute/path.json` and `--port 3901` to select another profile or
+port. Writes use an adjacent temporary file and atomic rename, with mode `0600`.
+Concurrent stale edits are rejected. A malformed existing profile stops startup
+instead of being replaced. Unconfigured keys keep their old physical images,
+which HID cannot read back; the editor marks them as free until it writes them.
+
+The server binds only to loopback and checks the origin and a custom header on
+mutations. Closing the browser leaves the deck engine running. Commands belong
+to the engine's Effect scope and stop on cancellation or shutdown. `--mock` mocks
+USB and mixer audio; **explicitly testing an app/command still executes it on the
+host**. Use the counter for fully inert tests.
+
+Backend `.ts` sources run directly in Node 24. Vite transforms the browser's React
+and TypeScript modules on demand with HMR; no build script or emitted JS is added.
+The shared [key card](src/ui/key-card.ts) and [volume card](src/ui/volume-card.ts)
+are pure React views. Effect owns HTTP, SSE, validation, persistence, child process
+lifecycle and device state. See the [implementation evidence](../../docs/streamdeck-studio.md).
 
 ## App audio mixer
 
