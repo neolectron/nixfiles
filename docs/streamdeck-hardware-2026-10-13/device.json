@@ -1,0 +1,808 @@
+[
+  {
+    "path": "/dev/hidraw8",
+    "model": "Stream Deck + XL",
+    "controls": [
+      {
+        "id": "button-0",
+        "type": "button",
+        "row": 0,
+        "column": 0,
+        "index": 0,
+        "hidIndex": 0,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 11,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-1",
+        "type": "button",
+        "row": 0,
+        "column": 1,
+        "index": 1,
+        "hidIndex": 1,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 154,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-2",
+        "type": "button",
+        "row": 0,
+        "column": 2,
+        "index": 2,
+        "hidIndex": 2,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 298,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-3",
+        "type": "button",
+        "row": 0,
+        "column": 3,
+        "index": 3,
+        "hidIndex": 3,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 441,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-4",
+        "type": "button",
+        "row": 0,
+        "column": 4,
+        "index": 4,
+        "hidIndex": 4,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 585,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-5",
+        "type": "button",
+        "row": 0,
+        "column": 5,
+        "index": 5,
+        "hidIndex": 5,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 728,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-6",
+        "type": "button",
+        "row": 0,
+        "column": 6,
+        "index": 6,
+        "hidIndex": 6,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 872,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-7",
+        "type": "button",
+        "row": 0,
+        "column": 7,
+        "index": 7,
+        "hidIndex": 7,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1015,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-8",
+        "type": "button",
+        "row": 0,
+        "column": 8,
+        "index": 8,
+        "hidIndex": 8,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1159,
+          "y": 32,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-9",
+        "type": "button",
+        "row": 1,
+        "column": 0,
+        "index": 9,
+        "hidIndex": 9,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 11,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-10",
+        "type": "button",
+        "row": 1,
+        "column": 1,
+        "index": 10,
+        "hidIndex": 10,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 154,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-11",
+        "type": "button",
+        "row": 1,
+        "column": 2,
+        "index": 11,
+        "hidIndex": 11,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 298,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-12",
+        "type": "button",
+        "row": 1,
+        "column": 3,
+        "index": 12,
+        "hidIndex": 12,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 441,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-13",
+        "type": "button",
+        "row": 1,
+        "column": 4,
+        "index": 13,
+        "hidIndex": 13,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 585,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-14",
+        "type": "button",
+        "row": 1,
+        "column": 5,
+        "index": 14,
+        "hidIndex": 14,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 728,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-15",
+        "type": "button",
+        "row": 1,
+        "column": 6,
+        "index": 15,
+        "hidIndex": 15,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 872,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-16",
+        "type": "button",
+        "row": 1,
+        "column": 7,
+        "index": 16,
+        "hidIndex": 16,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1015,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-17",
+        "type": "button",
+        "row": 1,
+        "column": 8,
+        "index": 17,
+        "hidIndex": 17,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1159,
+          "y": 176,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-18",
+        "type": "button",
+        "row": 2,
+        "column": 0,
+        "index": 18,
+        "hidIndex": 18,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 11,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-19",
+        "type": "button",
+        "row": 2,
+        "column": 1,
+        "index": 19,
+        "hidIndex": 19,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 154,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-20",
+        "type": "button",
+        "row": 2,
+        "column": 2,
+        "index": 20,
+        "hidIndex": 20,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 298,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-21",
+        "type": "button",
+        "row": 2,
+        "column": 3,
+        "index": 21,
+        "hidIndex": 21,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 441,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-22",
+        "type": "button",
+        "row": 2,
+        "column": 4,
+        "index": 22,
+        "hidIndex": 22,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 585,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-23",
+        "type": "button",
+        "row": 2,
+        "column": 5,
+        "index": 23,
+        "hidIndex": 23,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 728,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-24",
+        "type": "button",
+        "row": 2,
+        "column": 6,
+        "index": 24,
+        "hidIndex": 24,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 872,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-25",
+        "type": "button",
+        "row": 2,
+        "column": 7,
+        "index": 25,
+        "hidIndex": 25,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1015,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-26",
+        "type": "button",
+        "row": 2,
+        "column": 8,
+        "index": 26,
+        "hidIndex": 26,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1159,
+          "y": 318,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-27",
+        "type": "button",
+        "row": 3,
+        "column": 0,
+        "index": 27,
+        "hidIndex": 27,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 11,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-28",
+        "type": "button",
+        "row": 3,
+        "column": 1,
+        "index": 28,
+        "hidIndex": 28,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 154,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-29",
+        "type": "button",
+        "row": 3,
+        "column": 2,
+        "index": 29,
+        "hidIndex": 29,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 298,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-30",
+        "type": "button",
+        "row": 3,
+        "column": 3,
+        "index": 30,
+        "hidIndex": 30,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 441,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-31",
+        "type": "button",
+        "row": 3,
+        "column": 4,
+        "index": 31,
+        "hidIndex": 31,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 585,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-32",
+        "type": "button",
+        "row": 3,
+        "column": 5,
+        "index": 32,
+        "hidIndex": 32,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 728,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-33",
+        "type": "button",
+        "row": 3,
+        "column": 6,
+        "index": 33,
+        "hidIndex": 33,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 872,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-34",
+        "type": "button",
+        "row": 3,
+        "column": 7,
+        "index": 34,
+        "hidIndex": 34,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1015,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": "button-35",
+        "type": "button",
+        "row": 3,
+        "column": 8,
+        "index": 35,
+        "hidIndex": 35,
+        "feedbackType": "lcd",
+        "pixelSize": {
+          "width": 112,
+          "height": 112
+        },
+        "bounds": {
+          "x": 1159,
+          "y": 462,
+          "width": 112,
+          "height": 112
+        }
+      },
+      {
+        "id": 0,
+        "type": "lcd-segment",
+        "row": 4,
+        "column": 0,
+        "columnSpan": 9,
+        "rowSpan": 1,
+        "index": 0,
+        "pixelSize": {
+          "width": 1200,
+          "height": 100
+        },
+        "bounds": {
+          "x": 40,
+          "y": 674,
+          "width": 1200,
+          "height": 100
+        },
+        "drawRegions": true
+      },
+      {
+        "id": "encoder-0",
+        "type": "encoder",
+        "row": 5,
+        "column": 0,
+        "index": 0,
+        "hidIndex": 0,
+        "bounds": {
+          "x": 44,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      },
+      {
+        "id": "encoder-1",
+        "type": "encoder",
+        "row": 5,
+        "column": 2,
+        "index": 1,
+        "hidIndex": 1,
+        "bounds": {
+          "x": 260,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      },
+      {
+        "id": "encoder-2",
+        "type": "encoder",
+        "row": 5,
+        "column": 3,
+        "index": 2,
+        "hidIndex": 2,
+        "bounds": {
+          "x": 476,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      },
+      {
+        "id": "encoder-3",
+        "type": "encoder",
+        "row": 5,
+        "column": 5,
+        "index": 3,
+        "hidIndex": 3,
+        "bounds": {
+          "x": 692,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      },
+      {
+        "id": "encoder-4",
+        "type": "encoder",
+        "row": 5,
+        "column": 6,
+        "index": 4,
+        "hidIndex": 4,
+        "bounds": {
+          "x": 908,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      },
+      {
+        "id": "encoder-5",
+        "type": "encoder",
+        "row": 5,
+        "column": 8,
+        "index": 5,
+        "hidIndex": 5,
+        "bounds": {
+          "x": 1124,
+          "y": 969,
+          "width": 112,
+          "height": 112
+        },
+        "hasLed": false,
+        "ledRingSteps": 0
+      }
+    ]
+  }
+]

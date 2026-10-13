@@ -1,5 +1,5 @@
 # INACTIVE EXAMPLE. Parent coordinates host integration after security approval.
-# Confirm lsusb first. This example is ONLY for Stream Deck +, 0fd9:0084.
+# Confirmed on 2026-10-13: Stream Deck + XL, USB 0fd9:00c6.
 { pkgs, ... }:
 {
   # uaccess must be tagged BEFORE systemd's 73-seat-late.rules.
@@ -9,7 +9,7 @@
       name = "streamdeck-user-udev";
       destination = "/lib/udev/rules.d/50-streamdeck-user.rules";
       text = ''
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="uaccess"
+        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", TAG+="uaccess"
       '';
     })
   ];
