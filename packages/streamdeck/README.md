@@ -43,19 +43,24 @@ change hidraw paths, so do not reuse a stale path.
 ## App audio mixer
 
 The [Effect mixer script](src/scripts/audio-mixer.ts) lists playback applications
-above the dials, with a percentage and gauge. Turn the dial to change that app's
+above the left dials, with a percentage and gauge. Turn the dial to change that app's
 output volume (two percentage points per tick by default); click it to toggle
 playback mute. Red feedback says `MUTED`. Swipe the LCD left/right for more apps
-when they exceed the available dials. Existing apps retain their slots as others
+when they exceed the available app dials (five on the + XL). Existing apps retain their slots as others
 appear/disappear; new apps fill empty slots. Long names use the first 12 characters.
 
 The [Audio service](src/audio.ts) controls the existing PipeWire-Pulse interface
 through `pactl`, available in the standalone Nix shell. It groups playback streams
 by app identity and changes all streams belonging to that app. Channel balance
 and relative stream levels are preserved; turning a muted app does not unmute it.
+The rightmost dial is always `MASTER`, on every page. It changes the default
+output's volume and toggles its mute on click. It follows changes to the default
+output, preserving that output's channel balance. Pending gestures for an output
+that was replaced or is no longer default are discarded instead of affecting the
+new output. Master control also works when no application has a playback stream.
 Normal volume is bounded to 0–100%; an already amplified stream can be reduced,
 but is never further amplified. Startup only reads audio and draws the strip.
-The script does not control capture streams, the microphone, or the master sink.
+The script does not control capture streams or the microphone.
 Discord's knob controls its playback audio, not its own microphone mute button.
 
 App discovery includes paused streams that still exist in PipeWire. Apps without
@@ -65,7 +70,8 @@ shows amber `AUDIO OFFLINE`; routing resumes on a successful poll. USB disconnec
 is terminal: restart the CLI with the current device path after reconnecting.
 
 `Audio.Audio` is a separate Effect service (`list`, `change(appKey, { delta,
-toggles })`), provided by `Audio.layer` plus Node platform services. The HID
+toggles })`, `master`, `changeMaster(outputSnapshot, change)`), provided by
+`Audio.layer` plus Node platform services. The HID
 library remains independent of audio. The CLI's `--mock` provides both mocks and
 cannot run a real audio command. Process spawning, timeout, cleanup, state,
 serialization, polling and CLI parsing use Effect APIs.

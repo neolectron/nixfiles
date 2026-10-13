@@ -25,9 +25,18 @@ export interface Application {
   readonly paused: boolean;
 }
 export interface Change { readonly delta: number; readonly toggles: number }
+export interface Master {
+  readonly name: string;
+  readonly serial: string;
+  readonly channels: ReadonlyArray<number>;
+  readonly volume: number;
+  readonly muted: boolean;
+}
 export class Audio extends Context.Service<Audio, {
   readonly list: Effect.Effect<ReadonlyArray<Application>, AudioError>;
   readonly change: (key: string, change: Change) => Effect.Effect<void, AudioError>;
+  readonly master: Effect.Effect<Master | undefined, AudioError>;
+  readonly changeMaster: (target: Master, change: Change) => Effect.Effect<void, AudioError>;
 }>()('@nixfiles/streamdeck/Audio') {}
 
 /** Testable process boundary; the production runner always uses literal argv. */
@@ -53,6 +62,27 @@ const SinkInputs = Schema.Array(Schema.Struct({
   volume: Schema.Record(Schema.String, Schema.Struct({ value: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) })),
   properties: Schema.Record(Schema.String, Schema.String),
 }));
+const Sinks = Schema.Array(Schema.Struct({
+  name: Schema.String,
+  mute: Schema.Boolean,
+  volume: Schema.Record(Schema.String, Schema.Struct({ value: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) })),
+  properties: Schema.Record(Schema.String, Schema.String),
+}));
+export const decodeSinks = (json: string) => Effect.gen(function*() {
+  const raw = yield* Effect.try({ try: () => JSON.parse(json) as unknown, catch: (cause) => new AudioError({ operation: 'decode', message: 'Invalid sink JSON.', cause }) });
+  const sinks = yield* Schema.decodeUnknownEffect(Sinks)(raw).pipe(Effect.mapError((cause) => new AudioError({ operation: 'decode', message: 'Invalid sink data.', cause })));
+  return sinks.flatMap((sink): Master[] => {
+    const channels = Object.values(sink.volume).map((volume) => volume.value);
+    return channels.length ? [{ name: sink.name, serial: sink.properties['object.serial'] ?? sink.name,
+      channels, volume: Math.max(...channels) / 65536 * 100, muted: sink.mute }] : [];
+  });
+});
+const validateChange = (change: Change) => Number.isFinite(change.delta) && Number.isSafeInteger(change.toggles) && change.toggles >= 0
+  ? Effect.void : Effect.fail(new AudioError({ operation: 'change', message: 'Invalid audio change.' }));
+const changedChannels = (channels: ReadonlyArray<number>, volume: number, delta: number) => {
+  const target = delta > 0 ? Math.min(Math.max(100, volume), volume + delta) : Math.max(0, volume + delta);
+  return channels.map((value) => Math.round(volume > 0 ? value * target / volume : target / 100 * 65536));
+};
 const cleanBinary = (binary: string) => binary.split('/').at(-1)!.replace(/^\./, '').replace(/-wrapped$/, '');
 export const decodeInputs = (json: string) => Effect.gen(function*() {
   const raw = yield* Effect.try({ try: () => JSON.parse(json) as unknown, catch: (cause) => new AudioError({ operation: 'decode', message: 'Invalid audio JSON.', cause }) });
@@ -85,19 +115,33 @@ export const serviceLayer = Layer.effect(Audio, Effect.gen(function*() {
   const pactl = yield* Pactl;
   const lock = yield* Semaphore.make(1);
   const read = pactl.run(['--format=json', 'list', 'sink-inputs']).pipe(Effect.flatMap(decodeInputs));
+  const readMaster = Effect.gen(function*() {
+    const name = (yield* pactl.run(['get-default-sink'])).trim();
+    if (!name) return undefined;
+    const sinks = yield* pactl.run(['--format=json', 'list', 'sinks']).pipe(Effect.flatMap(decodeSinks));
+    return sinks.find((sink) => sink.name === name);
+  });
   return Audio.of({
     list: Effect.map(read, group),
+    master: readMaster,
+    changeMaster: (target, change) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
+      yield* validateChange(change);
+      const fresh = yield* readMaster;
+      // A pending gesture must not spill onto a newly selected/recreated output.
+      if (!fresh || fresh.name !== target.name || fresh.serial !== target.serial) return;
+      if (change.delta !== 0) yield* pactl.run(['set-sink-volume', fresh.name, ...changedChannels(fresh.channels, fresh.volume, change.delta).map(String)]);
+      if (change.toggles % 2) yield* pactl.run(['set-sink-mute', fresh.name, fresh.muted ? '0' : '1']);
+    })),
     change: (key, change) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
-      if (!Number.isFinite(change.delta) || !Number.isSafeInteger(change.toggles) || change.toggles < 0) return yield* Effect.fail(new AudioError({ operation: 'change', message: 'Invalid audio change.' }));
+      yield* validateChange(change);
       const app = group(yield* read).find((candidate) => candidate.key === key);
       if (!app) return; // App disappeared; never substitute another knob's new occupant.
-      const target = change.delta > 0 ? Math.min(Math.max(100, app.volume), app.volume + change.delta) : Math.max(0, app.volume + change.delta);
       for (const stream of app.streams) {
         // Revalidate serial and application immediately before using the Pulse index.
         const fresh = (yield* read).find((candidate) => candidate.index === stream.index && candidate.serial === stream.serial && candidate.app === key);
         if (!fresh) continue;
         if (change.delta !== 0) {
-          const channels = fresh.channels.map((volume) => String(Math.round(app.volume > 0 ? volume * target / app.volume : target / 100 * 65536)));
+          const channels = changedChannels(fresh.channels, app.volume, change.delta).map(String);
           yield* pactl.run(['set-sink-input-volume', String(fresh.index), ...channels]);
         }
         if (change.toggles % 2) yield* pactl.run(['set-sink-input-mute', String(fresh.index), app.muted ? '0' : '1']);
@@ -109,11 +153,17 @@ export const layer = serviceLayer.pipe(Layer.provide(pactlLayer));
 
 /** Entirely inert audio fixture for the CLI's --mock mode. */
 export const mockLayer = Layer.effect(Audio, Effect.sync(() => {
+  let master: Master = { name: 'mock-output', serial: 'mock-output-1', channels: [32768, 32768], volume: 50, muted: false };
   let streams: PlaybackStream[] = [
     { index: 1, serial: '1', app: 'discord', name: 'Discord', channels: [65536, 0], muted: false, paused: false },
     { index: 2, serial: '2', app: 'spotify', name: 'Spotify', channels: [32768, 32768], muted: false, paused: false },
   ];
-  return Audio.of({ list: Effect.sync(() => group(streams)), change: (key, change) => Effect.sync(() => {
+  return Audio.of({ list: Effect.sync(() => group(streams)), master: Effect.sync(() => master),
+    changeMaster: (target, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
+      if (target.name !== master.name || target.serial !== master.serial) return;
+      const channels = change.delta ? changedChannels(master.channels, master.volume, change.delta) : master.channels;
+      master = { ...master, channels, volume: Math.max(...channels) / 65536 * 100, muted: change.toggles % 2 ? !master.muted : master.muted };
+    }))), change: (key, change) => Effect.sync(() => {
     const app = group(streams).find((candidate) => candidate.key === key); if (!app) return;
     const target = Math.max(0, Math.min(100, app.volume + change.delta));
     streams = streams.map((stream) => stream.app !== key ? stream : { ...stream,
