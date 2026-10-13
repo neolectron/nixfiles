@@ -1,6 +1,6 @@
 import { Console, Effect, Ref, Semaphore } from 'effect';
 import { Audio, type Application, type Change, type Master } from '../audio.js';
-import { Bindings, Image, StreamDeck, StreamDeckError, type Control, type DialRotate, type Position, type Size } from '../index.js';
+import { Bindings, Image, StreamDeck, StreamDeckError, type Color, type Control, type DialRotate, type Position, type Size } from '../index.js';
 
 export interface MixerOptions { readonly step?: number; readonly refreshMillis?: number; readonly flushMillis?: number }
 export interface MixerState {
@@ -35,7 +35,16 @@ export const slotsFor = (dials: ReadonlyArray<Control>, lcd: Control): ReadonlyA
     return { dial: dial.index, x: left, y: 0, width: right - left, height: lcd.pixelSize!.height };
   });
 };
-const card = (slot: Size, app: Pick<Application, 'name' | 'volume' | 'muted'> & { readonly mixedMute?: boolean } | undefined, online: boolean, titleOverride?: string) => Effect.gen(function*() {
+/** Nominal stays white; amplification starts yellow, reaches orange at 150%, red at 200%. */
+export const volumeColor = (percent: number): Color => {
+  if (percent <= 100) return [255, 255, 255];
+  const yellow: Color = [255, 220, 40]; const orange: Color = [255, 145, 30]; const red: Color = [255, 55, 55];
+  const from = percent < 150 ? yellow : orange; const to = percent < 150 ? orange : red;
+  const amount = Math.min(1, (percent - (percent < 150 ? 100 : 150)) / 50);
+  const blend = (channel: 0 | 1 | 2) => Math.round(from[channel] + (to[channel] - from[channel]) * amount);
+  return [blend(0), blend(1), blend(2)];
+};
+export const card = (slot: Size, app: Pick<Application, 'name' | 'volume' | 'muted'> & { readonly mixedMute?: boolean } | undefined, online: boolean, titleOverride?: string) => Effect.gen(function*() {
   const muted = app?.muted ?? false;
   const color = !online ? [80, 45, 10] as const : !app ? [14, 18, 25] as const : muted ? [95, 24, 28] as const : [18, 45, 62] as const;
   const title = titleOverride ?? (!online ? 'AUDIO' : app ? app.name.slice(0, 12) : 'NO APP');
@@ -43,6 +52,7 @@ const card = (slot: Size, app: Pick<Application, 'name' | 'volume' | 'muted'> & 
   const topHeight = Math.floor(slot.height / 2);
   const top = yield* Image.label({ width: slot.width, height: topHeight }, title, { background: color });
   const bottom = yield* Image.label({ width: slot.width, height: slot.height - topHeight }, status, { background: color,
+    foreground: app && online && !muted && !app.mixedMute ? volumeColor(app.volume) : [255, 255, 255],
     ...(app && !muted ? { level: Math.min(100, app.volume) } : {}) });
   const data = new Uint8Array(slot.width * slot.height * 3);
   data.set(top.data); data.set(bottom.data, top.data.length);
@@ -75,7 +85,7 @@ export const startMixer = (options: MixerOptions = {}) => Effect.gen(function*()
       const isMaster = slot.dial === masterSlot.dial;
       const app = isMaster ? next.master : next.apps.find((app) => app.key === next.assignments[next.page * appSlots.length + i]);
       const online = isMaster ? next.masterOnline : next.online;
-      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute]);
+      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume)]);
       if (cache.get(i) === stamp) continue;
       yield* deck.lcd(lcd.index).drawRegion(slot, yield* card(slot, app, online, isMaster ? 'MASTER' : undefined));
       cache.set(i, stamp);

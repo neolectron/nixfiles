@@ -1,6 +1,12 @@
 import { Context, Data, Effect, Layer, Schema, Semaphore, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 
+/** PulseAudio 17 / PipeWire-Pulse: 100% = 0x10000; largest valid volume = UINT32_MAX / 2. */
+export const PULSE_VOLUME_NORM = 0x10000;
+export const PULSE_VOLUME_MAX = 0x7fffffff;
+/** Mixer limit requested by Manuel; protocol validation keeps its independent raw bound. */
+export const MAX_VOLUME_PERCENT = 200;
+
 export class AudioError extends Data.TaggedError('AudioError')<{
   readonly operation: string;
   readonly message: string;
@@ -55,17 +61,18 @@ export const pactlLayer = Layer.effect(Pactl, Effect.gen(function*() {
   })).pipe(Effect.timeout('2 seconds'), Effect.mapError((cause) => cause instanceof AudioError ? cause : new AudioError({ operation: 'pactl', message: 'Audio command failed or timed out.', cause }))) });
 }));
 
+const ChannelVolume = Schema.Struct({ value: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(PULSE_VOLUME_MAX)) });
 const SinkInputs = Schema.Array(Schema.Struct({
   index: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   mute: Schema.Boolean,
   corked: Schema.Boolean,
-  volume: Schema.Record(Schema.String, Schema.Struct({ value: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) })),
+  volume: Schema.Record(Schema.String, ChannelVolume),
   properties: Schema.Record(Schema.String, Schema.String),
 }));
 const Sinks = Schema.Array(Schema.Struct({
   name: Schema.String,
   mute: Schema.Boolean,
-  volume: Schema.Record(Schema.String, Schema.Struct({ value: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) })),
+  volume: Schema.Record(Schema.String, ChannelVolume),
   properties: Schema.Record(Schema.String, Schema.String),
 }));
 export const decodeSinks = (json: string) => Effect.gen(function*() {
@@ -74,14 +81,15 @@ export const decodeSinks = (json: string) => Effect.gen(function*() {
   return sinks.flatMap((sink): Master[] => {
     const channels = Object.values(sink.volume).map((volume) => volume.value);
     return channels.length ? [{ name: sink.name, serial: sink.properties['object.serial'] ?? sink.name,
-      channels, volume: Math.max(...channels) / 65536 * 100, muted: sink.mute }] : [];
+      channels, volume: Math.max(...channels) / PULSE_VOLUME_NORM * 100, muted: sink.mute }] : [];
   });
 });
 const validateChange = (change: Change) => Number.isFinite(change.delta) && Number.isSafeInteger(change.toggles) && change.toggles >= 0
   ? Effect.void : Effect.fail(new AudioError({ operation: 'change', message: 'Invalid audio change.' }));
 const changedChannels = (channels: ReadonlyArray<number>, volume: number, delta: number) => {
-  const target = delta > 0 ? Math.min(Math.max(100, volume), volume + delta) : Math.max(0, volume + delta);
-  return channels.map((value) => Math.round(volume > 0 ? value * target / volume : target / 100 * 65536));
+  const target = Math.max(0, Math.min(MAX_VOLUME_PERCENT, volume + delta));
+  return channels.map((value) => Math.max(0, Math.min(PULSE_VOLUME_MAX,
+    Math.round(volume > 0 ? value * target / volume : target / 100 * PULSE_VOLUME_NORM))));
 };
 const cleanBinary = (binary: string) => binary.split('/').at(-1)!.replace(/^\./, '').replace(/-wrapped$/, '');
 export const decodeInputs = (json: string) => Effect.gen(function*() {
@@ -105,7 +113,7 @@ export const group = (streams: ReadonlyArray<PlaybackStream>): ReadonlyArray<App
   const groups = new Map<string, PlaybackStream[]>();
   for (const stream of streams) groups.set(stream.app, [...(groups.get(stream.app) ?? []), stream]);
   return [...groups].map(([key, members]) => ({ key, name: members[0]!.name, streams: members,
-    volume: Math.max(...members.flatMap((stream) => stream.channels)) / 65536 * 100,
+    volume: Math.max(...members.flatMap((stream) => stream.channels)) / PULSE_VOLUME_NORM * 100,
     muted: members.every((stream) => stream.muted), mixedMute: members.some((stream) => stream.muted) && !members.every((stream) => stream.muted),
     paused: members.every((stream) => stream.paused),
   })).sort((a, b) => a.name.localeCompare(b.name));
@@ -162,13 +170,12 @@ export const mockLayer = Layer.effect(Audio, Effect.sync(() => {
     changeMaster: (target, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
       if (target.name !== master.name || target.serial !== master.serial) return;
       const channels = change.delta ? changedChannels(master.channels, master.volume, change.delta) : master.channels;
-      master = { ...master, channels, volume: Math.max(...channels) / 65536 * 100, muted: change.toggles % 2 ? !master.muted : master.muted };
-    }))), change: (key, change) => Effect.sync(() => {
+      master = { ...master, channels, volume: Math.max(...channels) / PULSE_VOLUME_NORM * 100, muted: change.toggles % 2 ? !master.muted : master.muted };
+    }))), change: (key, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
     const app = group(streams).find((candidate) => candidate.key === key); if (!app) return;
-    const target = Math.max(0, Math.min(100, app.volume + change.delta));
     streams = streams.map((stream) => stream.app !== key ? stream : { ...stream,
-      channels: change.delta ? stream.channels.map((volume) => Math.round(app.volume ? volume * target / app.volume : target / 100 * 65536)) : stream.channels,
+      channels: change.delta ? changedChannels(stream.channels, app.volume, change.delta) : stream.channels,
       muted: change.toggles % 2 ? !app.muted : stream.muted,
     });
-  }) });
+  }))) });
 }));

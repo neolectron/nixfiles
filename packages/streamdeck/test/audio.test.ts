@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
-import { Audio, AudioError, Pactl, decodeInputs, group, serviceLayer, type Application, type Master } from '../src/audio.js';
+import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.js';
 import { Mock, type Control } from '../src/index.js';
-import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.js';
+import { assign, card, slotsFor, startMixer, volumeColor } from '../src/scripts/audio-mixer.js';
 
 const input = (index: number, binary: string, values: number[], mute = false, serial = String(index)) => ({
   index, mute, corked: false,
@@ -86,7 +86,7 @@ test('disappearing or recycled stream indices never target a different applicati
   assert.deepEqual(f.commands, []);
 });
 
-test('volume clamps at 100%, can rise from silence and does not automatically unmute', async () => {
+test('app volume rises above 100%, rises from silence, and preserves mute', async () => {
   const f = fixture([input(1, 'Spotify', [0, 0], true)]);
   await run(Effect.gen(function*() {
     const audio = yield* Audio;
@@ -94,12 +94,61 @@ test('volume clamps at 100%, can rise from silence and does not automatically un
     assert.equal((yield* audio.list)[0]!.muted, true);
     yield* audio.change('spotify', { delta: 1000, toggles: 0 });
   }), f);
-  assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '1311', '1311'], ['set-sink-input-volume', '1', '65536', '65536']]);
+  assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '1311', '1311'], ['set-sink-input-volume', '1', '131072', '131072']]);
   f.set([input(1, 'Spotify', [98304])]);
   await run(Effect.flatMap(Audio, (audio) => audio.change('spotify', { delta: 2, toggles: 0 })), f);
-  assert.equal(f.commands.at(-1)![2], '98304');
+  assert.equal(f.commands.at(-1)![2], '99615');
   await run(Effect.flatMap(Audio, (audio) => audio.change('spotify', { delta: -10, toggles: 0 })), f);
-  assert.equal(f.commands.at(-1)![2], '91750');
+  assert.equal(f.commands.at(-1)![2], '93061');
+});
+
+test('application and master volumes clamp at 200%, retaining the independent protocol validation', async () => {
+  const f = fixture([input(1, 'Spotify', [65536, 32768])]);
+  await run(Effect.gen(function*() {
+    const audio = yield* Audio;
+    yield* audio.change('spotify', { delta: Number.MAX_VALUE, toggles: 0 });
+    assert.equal((yield* audio.list)[0]!.volume, MAX_VOLUME_PERCENT);
+    const target = yield* audio.master; assert.ok(target);
+    yield* audio.changeMaster(target, { delta: 100, toggles: 0 });
+    assert.equal((yield* audio.master)!.volume, 150);
+    yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 0 });
+    assert.equal((yield* audio.master)!.volume, MAX_VOLUME_PERCENT);
+  }), f);
+  assert.deepEqual(f.commands, [
+    ['set-sink-input-volume', '1', '131072', '65536'],
+    ['set-sink-volume', 'output', '98304', '49152'],
+    ['set-sink-volume', 'output', '131072', '65536'],
+  ]);
+  await assert.rejects(Effect.runPromise(decodeInputs(JSON.stringify([input(1, 'bad', [PULSE_VOLUME_MAX + 1])]))), AudioError);
+  await assert.rejects(Effect.runPromise(decodeSinks(JSON.stringify([{ name: 'bad', mute: false, volume: { mono: { value: PULSE_VOLUME_MAX + 1 } }, properties: {} }]))), AudioError);
+});
+
+test('mock audio supports the same amplification and 200% cap', async () => {
+  await Effect.runPromise(Effect.gen(function*() {
+    const audio = yield* Audio;
+    yield* audio.change('spotify', { delta: 100, toggles: 0 });
+    assert.equal((yield* audio.list).find((app) => app.key === 'spotify')!.volume, 150);
+    yield* audio.change('spotify', { delta: Number.MAX_VALUE, toggles: 0 });
+    assert.equal((yield* audio.list).find((app) => app.key === 'spotify')!.volume, MAX_VOLUME_PERCENT);
+    const target = yield* audio.master; assert.ok(target);
+    yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 1 });
+    assert.equal((yield* audio.master)!.volume, MAX_VOLUME_PERCENT); assert.equal((yield* audio.master)!.muted, true);
+  }).pipe(Effect.provide(mockLayer)));
+});
+
+test('percentage pixels progress through yellow, orange and red above nominal volume', async () => {
+  assert.deepEqual(volumeColor(100), [255, 255, 255]);
+  assert.deepEqual(volumeColor(150), [255, 145, 30]); assert.deepEqual(volumeColor(200), [255, 55, 55]);
+  assert.deepEqual(volumeColor(MAX_VOLUME_PERCENT), volumeColor(200));
+  assert.ok(volumeColor(101)[1] > volumeColor(125)[1]); assert.ok(volumeColor(175)[1] > volumeColor(200)[1]);
+  for (const volume of [100, 101, 150, 200, MAX_VOLUME_PERCENT]) {
+    const image = await Effect.runPromise(card({ width: 168, height: 100 }, { name: 'MASTER', volume, muted: false }, true));
+    const color = volumeColor(volume); let pixels = 0;
+    for (let offset = image.width * 50 * 3; offset < image.data.length; offset += 3) {
+      if (image.data[offset] === color[0] && image.data[offset + 1] === color[1] && image.data[offset + 2] === color[2]) pixels++;
+    }
+    assert.ok(pixels > 0, `percentage foreground at ${volume}%`);
+  }
 });
 
 test('invalid changes fail without playback mutations', async () => {
