@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "engines": {
     "node": ">=24 <25"
@@ -18,6 +21,7 @@
   "dependencies": {
     "@effect/platform-node": "4.0.4",
     "@elgato-stream-deck/node": "7.8.0",
+    "@resvg/resvg-js": "2.6.2",
     "effect": "4.0.4",
     "node-hid": "3.4.0"
   },

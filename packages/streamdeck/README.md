@@ -32,6 +32,7 @@ pnpm streamdeck pages                        # edit scripts/pages.ts
 pnpm streamdeck mixer                        # real app audio mixer
 pnpm streamdeck mixer --step 1               # 1 percentage point per tick
 pnpm streamdeck mixer --mock --duration 2    # inert device AND audio
+pnpm streamdeck preview                      # PNG of mixer states, no USB/audio
 ```
 
 `--mock` does not import native HID. `--demo` requires mock and is finite.
@@ -43,11 +44,18 @@ change hidraw paths, so do not reuse a stale path.
 ## App audio mixer
 
 The [Effect mixer script](src/scripts/audio-mixer.ts) lists playback applications
-above the left dials, with a percentage and gauge. Turn the dial to change that app's
+above the left dials, with a percentage and semicircular gauge. Its cards follow
+the supplied Elgato references: charcoal rounded surfaces, app icons and mixed-case
+names, antialiased sans-serif type, tick marks, pointer and a large value at right.
+The gauge spans 0–200%, with a prominent nominal 100% midpoint and green nominal
+range. The right-hand boost segment follows yellow → orange → red.
+Turn the dial to change that app's
 output volume (two percentage points per tick by default); click it to toggle
-playback mute. Red feedback says `MUTED`. Swipe the LCD left/right for more apps
+playback mute. Muted feedback shows the stored value, a crossed speaker, grey arc
+and `Muted` label. Swipe the LCD left/right for more apps
 when they exceed the available app dials (five on the + XL). Existing apps retain their slots as others
-appear/disappear; new apps fill empty slots. Long names use the first 12 characters.
+appear/disappear; new apps fill empty slots. Long names ellipsize using real font
+measurements to fit each region, including the narrow cards at the strip ends.
 
 The [Audio service](src/audio.ts) controls the existing PipeWire-Pulse interface
 through `pactl`, available in the standalone Nix shell. It groups playback streams
@@ -60,7 +68,7 @@ that was replaced or is no longer default are discarded instead of affecting the
 new output. Master control also works when no application has a playback stream.
 Volume is bounded to **0–200%** for apps and MASTER. Percentage text stays white
 up to 100%, then transitions smoothly from yellow just above 100% to orange at
-150% and red at 200%. The gauge fills at nominal 100%; the colored percentage
+150% and red at 200%. The gauge's green portion covers 0–100%; its colored portion
 shows the amplification above it. External values above 200% are still displayed;
 startup and polling never change them. Dial changes respect the 200% ceiling.
 Startup only reads audio and draws the strip.
@@ -70,7 +78,7 @@ Discord's knob controls its playback audio, not its own microphone mute button.
 App discovery includes paused streams that still exist in PipeWire. Apps without
 a playback stream cannot be shown yet. App changes and external volume changes
 are polled every 500 ms, and dial actions are batched every 40 ms. PipeWire failure
-shows amber `AUDIO OFFLINE`; routing resumes on a successful poll. USB disconnect
+shows an amber icon and `Offline`; routing resumes on a successful poll. USB disconnect
 is terminal: restart the CLI with the current device path after reconnecting.
 
 `Audio.Audio` is a separate Effect service (`list`, `change(appKey, { delta,
@@ -153,6 +161,17 @@ images. `RgbImage` is `{ width, height, data: Uint8Array }`, exactly three RGB b
 per pixel. Compressed PNG/JPEG bytes are not RGB images; decode them in a renderer
 adapter before calling `setImage`. The bundled renderer supports ASCII uppercase
 letters/digits, not arbitrary fonts. The driver handles rotation and compression.
+The mixer uses a separate optional [SVG renderer](src/svg.ts): `yield* Svg.make`
+returns `rgb(svg)`, `png(svg)`, `measure(text, size?, weight?)` and `fit(text, width,
+size?)` Effects. It lazily loads resvg, uses two bundled Liberation Sans fonts and
+does not depend on system font lookup. The exact Elgato font is not claimed.
+The [asset sources and licenses](assets/README.md) are included. HID discovery and
+bitmap hello/playground scripts never load the native SVG renderer.
+
+`pnpm streamdeck preview --output /tmp/mixer.png` writes a 1200×316 PNG of three
+illustrative LCD rows using the production card renderer. It tests no audio or
+hardware. The current design uses arcs for the configured volume; live signal
+metering in dBFS is a separate integration and is not represented by these arcs.
 
 The event union has `_tag` variants `KeyDown`, `KeyUp`, `DialDown`, `DialUp`,
 `DialRotate` (signed `delta`), `TouchTap`, `TouchHold` and `TouchSwipe`.

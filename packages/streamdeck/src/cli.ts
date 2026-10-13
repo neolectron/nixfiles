@@ -6,6 +6,7 @@ import { startHello } from './scripts/hello.js';
 import { playground } from './scripts/playground.js';
 import { pages } from './scripts/pages.js';
 import { mixer } from './scripts/audio-mixer.js';
+import { preview } from './scripts/mixer-preview.js';
 
 const mockFlag = Flag.Boolean('mock').pipe(Flag.withDefault(false), Flag.withDescription('Use an in-memory device; never load native HID.'));
 const demoFlag = Flag.Boolean('demo').pipe(Flag.withDefault(false), Flag.withDescription('Replay a finite mock input sequence. Requires --mock.'));
@@ -77,10 +78,13 @@ const mixerCommand = Command.make('mixer', {
   ...connectionFlags,
   step: Flag.Finite('step').pipe(Flag.withSchema(Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(20))), Flag.withDefault(2), Flag.withDescription('Volume percentage points per dial tick, default 2.')),
 }, (options) => runDevice('mixer', options)).pipe(Command.withDescription('App volume and mute on the left dials; default-output MASTER on the rightmost dial. Swipe for more apps. --mock also mocks audio.'));
+const previewCommand = Command.make('preview', {
+  output: Flag.String('output').pipe(Flag.withDefault('/tmp/streamdeck-mixer-preview.png'), Flag.withDescription('PNG destination, parent directory must exist.')),
+}, ({ output }) => preview(output)).pipe(Command.withDescription('Render mixer appearance and states with illustrative values; no USB or audio connection.'));
 
 const command = Command.make('streamdeck').pipe(
   Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),
-  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand]),
+  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand, previewCommand]),
 );
 
 NodeRuntime.runMain(Command.run(command, { version: '0.1.0' }).pipe(Effect.provide(NodeServices.layer)));

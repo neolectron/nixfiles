@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T20:38:27.758Z",
+  "title": "Design System: Stream Deck audio mixer",
+  "extensions": {
+    "typographyMeta": {
+      "title": {
+        "displayName": "Source name",
+        "purpose": "Measured, mixed-case application or output name."
+      },
+      "value": {
+        "displayName": "Configured volume",
+        "purpose": "Primary right-aligned number, colored above nominal gain."
+      },
+      "state": {
+        "displayName": "State",
+        "purpose": "Muted, Mixed, Offline or No output."
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Mixer card",
+      "kind": "custom",
+      "refersTo": "mixer-card",
+      "description": "Actual production SVG with an illustrative 72% Master value; physical LCD has no browser hover/focus state.",
+      "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"168\" height=\"100\" viewBox=\"0 0 168 100\">\n      <defs><linearGradient id=\"surface\" x2=\"0\" y2=\"1\"><stop stop-color=\"#41414D\"/><stop offset=\"1\" stop-color=\"#35353F\"/></linearGradient><clipPath id=\"card\"><rect x=\"4\" y=\"4\" width=\"160\" height=\"92\" rx=\"7\"/></clipPath></defs>\n      <rect width=\"168\" height=\"100\" fill=\"#0D0D10\"/>\n      <g clip-path=\"url(#card)\"><rect x=\"4\" y=\"4\" width=\"160\" height=\"92\" rx=\"7\" fill=\"url(#surface)\"/>\n      <g transform=\"translate(14 12) scale(.8)\" color=\"#E7E9ED\"><path d=\"M 2 8 H 6 L 11 4 V 20 L 6 16 H 2 Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><path d=\"M 15 8 Q 19 12 15 16 M 18 5 Q 25 12 18 19\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\"/></g>\n      <text x=\"40\" y=\"28\" font-family=\"Liberation Sans\" font-size=\"15\" font-weight=\"700\" fill=\"#F4F4F7\">Master</text>\n      <path d=\"M 22 91 L 19 91\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 23.957739348193854 78.63932022500211 L 21.104569799308393 77.71226924187727\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 29.639320225002102 67.48858990830108 L 27.21226924187726 65.72523415142366\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 38.488589908301066 58.63932022500211 L 36.72523415142365 56.212269241877266\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 49.639320225002095 52.95773934819386 L 48.71226924187725 50.1045697993084\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 61.99999999999999 51 L 61.99999999999999 46\" stroke=\"#B8BAC5\" stroke-width=\"1.8\"/><path d=\"M 74.36067977499789 52.957739348193854 L 75.28773075812273 50.10456979930839\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 85.51141009169892 58.639320225002095 L 87.27476584857634 56.21226924187725\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 94.36067977499789 67.48858990830107 L 96.78773075812273 65.72523415142365\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 100.04226065180615 78.6393202250021 L 102.8954302006916 77.71226924187725\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 102 90.99999999999999 L 105 90.99999999999999\" stroke=\"#727582\" stroke-width=\"1.2\"/><path d=\"M 28 91 A 34 34 0 0 1 96 90.99999999999999\" stroke=\"#24252B\" stroke-width=\"6\" fill=\"none\" stroke-linecap=\"round\"/>\n      <path d=\"M 35 91 A 27 27 0 0 1 89 91 Z\" fill=\"#4E5963\"/>\n      <path d=\"M 28 91 A 34 34 0 0 1 47.52350408678752 60.23588021615534\" stroke=\"#38E51E\" stroke-width=\"5.5\" fill=\"none\" stroke-linecap=\"round\"/>\n      <path d=\"M 54.76175204339376 75.61794010807768 L 50.50395912774303 66.56966958341748\" stroke=\"#F5F5EA\" stroke-width=\"2.4\" stroke-linecap=\"round\"/>\n      <text x=\"153\" y=\"70\" text-anchor=\"end\" font-family=\"Liberation Sans\" font-size=\"30\" font-weight=\"700\" fill=\"rgb(255,255,255)\">72</text>\n      <text x=\"153\" y=\"87\" text-anchor=\"end\" font-family=\"Liberation Sans\" font-size=\"13\" font-weight=\"700\" fill=\"#C5C6CF\">%</text>\n      </g></svg>",
+      "css": ""
+    }
+  ],
+  "narrative": {
+    "northStar": "Elgato touch-strip mixer",
+    "overview": "Operate mode on a physical LCD. The user supplied Elgato photos and explicitly chose their semicircular gauges. Rounded charcoal cards, compact mixed-case names, recognizable source icons and bold right-aligned values carry that style. This guidance applies to the mixer strip, not the bitmap-key demos or a web app.",
+    "keyCharacteristics": [
+      "Physical rotary controls",
+      "Measured mixed-case names",
+      "Semicircular configured-gain gauges",
+      "Persistent rightmost Master"
+    ],
+    "rules": [],
+    "dos": [
+      "Do render the same SVG cards in previews and on hardware.",
+      "Do preserve name casing, font measurement and the independent unit/state role.",
+      "Do keep app routing and audio ownership outside the display renderer."
+    ],
+    "donts": [
+      "Don't add microphone or recording controls from the reference photos implicitly.",
+      "Don't describe the configured-volume arc as a live audio meter."
+    ]
+  }
+}
