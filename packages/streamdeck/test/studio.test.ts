@@ -49,6 +49,14 @@ it.live('saved bindings persist without execution; physical and web actions shar
     const up = (yield* input)[0];
     assert.strictEqual(up.keys[0]!.pressed, false);
     assert.strictEqual(up.inputSequence, down.inputSequence + 1);
+    yield* mock.emit({ _tag: 'DialDown', dial: 0 });
+    const dialDown = (yield* input)[0];
+    assert.strictEqual(dialDown.dials[0]!.pressed, true);
+    assert.strictEqual(dialDown.keys[0]!.pressed, false);
+    yield* mock.emit({ _tag: 'DialUp', dial: 0 });
+    const dialUp = (yield* input)[0];
+    assert.strictEqual(dialUp.dials[0]!.pressed, false);
+    assert.strictEqual(dialUp.inputSequence, dialDown.inputSequence + 1);
     yield* Effect.repeat(studio.snapshot, { until: (view) => view.keys[0]!.count === 5, schedule: Schedule.spaced(1) });
     yield* studio.actions.press(0);
     const after = yield* studio.snapshot;

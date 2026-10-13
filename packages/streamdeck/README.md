@@ -74,7 +74,7 @@ also available for an inert test. Command arguments are one per line and remain
 literal; shell syntax requires an explicitly configured shell executable.
 
 The preview mirrors successful RGB writes, including partial LCD updates. Held
-physical keys remain highlighted until release. Dials keep their live app/mute
+physical keys and pressed dials remain highlighted until release. Dials keep their live app/mute
 assignments; the web page arrows follow the same mixer pagination as LCD swipes,
 and Master stays pinned. Selecting a dial explains its current assignment; this
 first editor does not yet reconfigure dial/touch behavior.
