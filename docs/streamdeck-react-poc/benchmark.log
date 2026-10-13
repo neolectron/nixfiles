@@ -1,0 +1,2 @@
+{"kind":"renderer-benchmark","renderer":"svg","samples":40,"width":216,"height":100,"includesUsb":false,"initMillis":8.226,"p50Millis":2.584,"p95Millis":4.661,"maxMillis":4.731}
+{"kind":"renderer-benchmark","renderer":"react","samples":40,"width":216,"height":100,"includesUsb":false,"initMillis":48.169,"p50Millis":3.112,"p95Millis":4.782,"maxMillis":6.216}

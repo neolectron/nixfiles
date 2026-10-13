@@ -44,6 +44,9 @@ pnpm streamdeck mixer                        # real app audio mixer
 pnpm streamdeck mixer --step 1               # 1 percentage point per tick
 pnpm streamdeck mixer --mock --duration 2    # inert device AND audio
 pnpm streamdeck preview                      # PNG of mixer states, no USB/audio
+pnpm dev --renderer react                   # React HTML/CSS + Takumi native renderer
+pnpm dev --renderer react --mock-audio       # real LCD, eight simulated apps; no pactl
+pnpm streamdeck benchmark                    # warm card rendering timings, no USB/audio
 ```
 
 `pnpm dev` uses Node's `--watch` with preserved console output. Changes to loaded
@@ -189,6 +192,23 @@ size?)` Effects. It lazily loads resvg, uses two bundled Liberation Sans fonts a
 does not depend on system font lookup. The exact Elgato font is not claimed.
 The [asset sources and licenses](assets/README.md) are included. HID discovery and
 bitmap hello/playground scripts never load the native SVG renderer.
+
+`--renderer react` uses [React cards](src/react-mixer.ts) and the
+[Effect Takumi adapter](src/takumi.ts). Write normal React elements with HTML,
+inline CSS and SVG; the adapter returns RGB or PNG from `rgb(element, size)` or
+`png(element, size)` Effects. It bundles the same fonts and icons as the SVG
+renderer. Opaque backgrounds are required for RGB output: alpha is discarded.
+Effect owns state, event routing and resource lifetimes. These are stateless
+React views rendered with `renderToStaticMarkup`; there is no retained React
+root, `useState`/`useEffect` runtime, DOM or browser event handling here. The `.ts`
+views use `createElement` so Node keeps running them directly without a loader.
+Only changed cards are rendered and uploaded. SVG remains the default.
+
+See the [React/Takumi trial](../../docs/streamdeck-react-poc/README.md) for the
+upstream reconciler test, limitations, timings and preview. `--mock-audio`
+provides eight independent fake applications and a fake Master, allowing two
+pages to be exercised even when few real apps emit audio. Without `--mock`,
+the LCD and input events are real; fake volumes never execute `pactl`.
 
 `pnpm streamdeck preview --output /tmp/mixer.png` writes a 1200×316 PNG of three
 illustrative LCD rows using the production card renderer. It tests no audio or

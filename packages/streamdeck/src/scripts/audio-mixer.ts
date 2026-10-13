@@ -4,9 +4,10 @@ import * as Bindings from '../bindings.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import { StreamDeckError } from '../errors.ts';
 import type { Control, DialRotate, Position, Size } from '../model.ts';
-import * as Display from '../mixer-display.ts';
+import * as Display from '../mixer-renderer.ts';
+import { volumeColor } from '../volume-gauge.ts';
 
-export interface MixerOptions { readonly step?: number; readonly refreshMillis?: number; readonly flushMillis?: number }
+export interface MixerOptions { readonly step?: number; readonly refreshMillis?: number; readonly flushMillis?: number; readonly renderer?: Display.RendererKind }
 export interface MixerState {
   readonly apps: ReadonlyArray<Application>;
   readonly assignments: ReadonlyArray<string | null>;
@@ -49,7 +50,7 @@ export const startMixer = (options: MixerOptions = {}) => Effect.gen(function*()
   if (![step, pollMillis, flushMillis].every((value) => Number.isFinite(value) && value > 0)) return yield* Effect.fail(new StreamDeckError({ reason: 'InvalidArgument', operation: 'mixer', message: 'Mixer timing and step must be positive.' }));
   const lcd = deck.lcds[0];
   if (!lcd?.pixelSize || deck.dials.length < 2) return yield* Effect.fail(new StreamDeckError({ reason: 'Unsupported', operation: 'mixer', message: 'The audio mixer needs at least two dials and an LCD strip.' }));
-  const display = yield* Display.make;
+  const display = yield* Display.make(options.renderer ?? 'svg');
   const slots = slotsFor(deck.dials, lcd);
   const appSlots = slots.slice(0, -1);
   const masterSlot = slots.at(-1)!;
@@ -64,7 +65,7 @@ export const startMixer = (options: MixerOptions = {}) => Effect.gen(function*()
       const isMaster = slot.dial === masterSlot.dial;
       const app = isMaster ? next.master : next.apps.find((app) => app.key === next.assignments[next.page * appSlots.length + i]);
       const online = isMaster ? next.masterOnline : next.online;
-      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && Display.volumeColor(app.volume)]);
+      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume)]);
       if (cache.get(i) === stamp) continue;
       yield* deck.lcd(lcd.index).drawRegion(slot, yield* display.card(slot, app, online, isMaster ? 'MASTER' : undefined));
       cache.set(i, stamp);
@@ -136,7 +137,11 @@ export const startMixer = (options: MixerOptions = {}) => Effect.gen(function*()
       onRotate: ({ delta }: DialRotate) => enqueue(slot.dial, delta * step, 0),
       onPress: enqueue(slot.dial, 0, 1),
     }])),
-    touch: { [lcd.index]: { onSwipe: ({ from, to }) => Math.abs(to.x - from.x) >= 30 ? changePage(to.x < from.x ? 1 : -1) : Effect.void } },
+    touch: { [lcd.index]: {
+      area: { x: 0, y: 0, width: masterSlot.x, height: lcd.pixelSize.height },
+      onSwipe: ({ from, to }) => Math.abs(to.x - from.x) >= 30 && Math.abs(to.x - from.x) > Math.abs(to.y - from.y)
+        ? changePage(to.x < from.x ? 1 : -1) : Effect.void,
+    } },
     render: refresh,
   });
   const view = yield* Ref.get(state);

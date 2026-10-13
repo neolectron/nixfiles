@@ -53,13 +53,15 @@ it.live('Effect CLI preview writes a valid full-strip PNG with no HID, pactl or 
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'streamdeck-display-' });
-  const output = path.join(directory, 'preview.png');
-  const result = yield* cli(['preview', '--output', output], {
-    PATH: '/nonexistent', LD_LIBRARY_PATH: '', FONTCONFIG_FILE: '/nonexistent',
-  });
-  assert.strictEqual(result.status, 0, result.stderr); assert.match(result.stdout, /illustrative values/);
-  const png = yield* fs.readFile(output);
-  assert.deepStrictEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-  const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
-  assert.strictEqual(header.getUint32(16), 1200); assert.strictEqual(header.getUint32(20), 316);
+  for (const renderer of ['svg', 'react']) {
+    const output = path.join(directory, `${renderer}.png`);
+    const result = yield* cli(['preview', '--renderer', renderer, '--output', output], {
+      PATH: '/nonexistent', LD_LIBRARY_PATH: '', FONTCONFIG_FILE: '/nonexistent',
+    });
+    assert.strictEqual(result.status, 0, result.stderr); assert.match(result.stdout, /illustrative values/);
+    const png = yield* fs.readFile(output);
+    assert.deepStrictEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+    const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
+    assert.strictEqual(header.getUint32(16), 1200); assert.strictEqual(header.getUint32(20), 316);
+  }
 }).pipe(Effect.provide(NodeServices.layer)));
