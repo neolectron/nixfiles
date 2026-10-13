@@ -19,7 +19,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const deck = preview.device;
   const applications = options.applications ?? (yield* DesktopApps.discover);
   const actions = yield* Actions.make(deck, options.profile, applications);
-  const input = yield* Ref.make<{ readonly pressed: ReadonlySet<number>; readonly sequence: number }>({ pressed: new Set(), sequence: 0 });
+  const input = yield* Ref.make<{ readonly pressed: ReadonlySet<number>; readonly pressedDials: ReadonlySet<number>; readonly sequence: number }>({ pressed: new Set(), pressedDials: new Set(), sequence: 0 });
   const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
   const lastEvent = yield* Ref.make('');
   const mixer = deck.lcds[0]?.pixelSize && deck.dials.length >= 2
@@ -27,10 +27,13 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const binding = yield* Bindings.start({
     buttons: Object.fromEntries(deck.buttons.map((key) => [key.index, { onPress: actions.press(key.index).pipe(Effect.catch((error) => Effect.logWarning(error.message))) }])),
     onEvent: (event: DeckEvent) => Effect.gen(function*() {
-      if (event._tag === 'KeyDown' || event._tag === 'KeyUp') {
+      if (event._tag === 'KeyDown' || event._tag === 'KeyUp' || event._tag === 'DialDown' || event._tag === 'DialUp') {
         yield* Ref.update(input, (before) => {
-          const next = new Set(before.pressed); if (event._tag === 'KeyDown') next.add(event.key); else next.delete(event.key);
-          return { pressed: next, sequence: before.sequence + 1 };
+          const keyEvent = event._tag === 'KeyDown' || event._tag === 'KeyUp';
+          const next = new Set(keyEvent ? before.pressed : before.pressedDials);
+          const index = keyEvent ? event.key : event.dial;
+          if (event._tag === 'KeyDown' || event._tag === 'DialDown') next.add(index); else next.delete(index);
+          return { pressed: keyEvent ? next : before.pressed, pressedDials: keyEvent ? before.pressedDials : next, sequence: before.sequence + 1 };
         });
         yield* PubSub.publish(inputViews, yield* readSnapshot);
       }
@@ -58,7 +61,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
       dials: slots.map((slot, i) => {
         const master = i === slots.length - 1;
         const app = master ? mix?.master : mix?.apps.find((app) => app.key === mix.assignments[page * appSlots.length + i]);
-        return { index: slot.dial, name: master ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, master, x: slot.x, width: slot.width };
+        return { index: slot.dial, name: master ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, pressed: inputView.pressedDials.has(slot.dial), master, x: slot.x, width: slot.width };
       }),
       page, pages: Math.max(1, Math.ceil((mix?.assignments.length ?? 0) / Math.max(1, appSlots.length))), lastEvent: yield* Ref.get(lastEvent), inputSequence: inputView.sequence,
     } satisfies Snapshot;

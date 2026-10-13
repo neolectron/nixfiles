@@ -550,3 +550,14 @@ small{
   border-radius:inherit;
   pointer-events:none
 }
+.dial-control.pressed{
+  color:#b3dea4
+}
+.dial-control.pressed .knob circle:first-child{
+  fill:#405c42;
+  stroke:#b3dea4;
+  stroke-width:3
+}
+.dial-control.pressed .knob circle:nth-last-child(2){
+  fill:#486b4a
+}

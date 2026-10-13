@@ -107,8 +107,8 @@ function App() {
             disabled: !snapshot, onClick: () => select({ kind: 'key', index: key.index }),
           }, key.revision ? h('img', { src: `/api/image/key/${key.index}?session=${snapshot?.sessionId}&revision=${key.revision}`, alt: '', draggable: false }) : h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 })), h('span', { className: 'key-number' }, key.index + 1)))),
           ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' }, lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel des volumes et du Master', draggable: false }) : null)),
-          h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, x: index * 200, width: 200 }))).map((dial) => h('button', {
-            key: dial.index, className: `dial-control${selection.kind === 'dial' && selection.index === dial.index ? ' selected' : ''}`,
+          h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, pressed: false, x: index * 200, width: 200 }))).map((dial) => h('button', {
+            key: dial.index, className: `dial-control${selection.kind === 'dial' && selection.index === dial.index ? ' selected' : ''}${dial.pressed ? ' pressed' : ''}`,
             style: { width: `${dial.width / (snapshot?.lcds[0]?.width ?? 1200) * 100}%` },
             'aria-label': `Potard ${dial.index + 1} · ${dial.name ?? 'aucune application'}`, disabled: !snapshot, onClick: () => select({ kind: 'dial', index: dial.index }),
           }, h('svg', { viewBox: '0 0 64 64', className: 'knob', 'aria-hidden': true }, h('circle', { cx: 32, cy: 32, r: 27, fill: '#2C2E35', stroke: '#555863', strokeWidth: 2 }),

@@ -19,7 +19,8 @@ already assigned to dial presses.
 - `scripts/studio.ts`: combines the action engine and existing audio mixer, serves
   Effect HTTP routes through Vite, and broadcasts state over SSE. Key down/up
   snapshots are published immediately; slower display/audio changes are sampled
-  every 150 ms. Input sequence numbers prevent stale polls from overwriting held
+  every 150 ms. Dial down/up events use the same immediate stream and highlight
+  the pressed knob. Input sequence numbers prevent stale polls from overwriting held
   keys; a per-runtime UUID resets that ordering after a watch restart.
 - `src/ui/`: pure React key and volume views shared with the native renderer.
 - `web/`: React preview and schema-backed inspector, Effect fetch/SSE transport,
@@ -52,7 +53,8 @@ Manuel confirmed that the physical key triggers the action, the web preview is
 synchronized and the LCD follows dial volume changes. After that feedback, held
 key indication was changed to a visible overlay above the key image, driven by
 immediate physical input rather than the last-event footer. An automated test
-checks both held and released snapshots without relying on polling.
+checks both held and released snapshots for keys and dials without relying on
+polling. Manuel confirmed that the key highlight follows the physical hold.
 
 Desktop and 390-pixel mobile views were inspected in a real browser; mobile has
 no horizontal overflow. Backend watch restarts release the HID handle and HTTP
