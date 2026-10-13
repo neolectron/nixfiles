@@ -1,82 +1,79 @@
-import { parseArgs } from 'node:util';
-import { setTimeout as delay } from 'node:timers/promises';
-import { listHardware, openHardware } from './hid.js';
-import { MockDeck, mockInfo, demoEvents } from './mock.js';
-import { startSession } from './session.js';
-import { selectDevice } from './transport.js';
+import { NodeRuntime, NodeServices } from '@effect/platform-node';
+import { Console, Deferred, Effect, Fiber, Option, Ref, Schema, Stream } from 'effect';
+import { CliError, Command, Flag } from 'effect/cli';
+import { Hid, Mock, StreamDeck, discover, type DeckEvent } from './index.js';
+import { startHello } from './scripts/hello.js';
+import { playground } from './scripts/playground.js';
+import { pages } from './scripts/pages.js';
 
-const help = `Stream Deck USB-HID Linux (sans logiciel Elgato)
-  pnpm streamdeck list [--mock]
-  pnpm streamdeck events [--path <chemin>] [--duration <secondes>]
-  pnpm streamdeck hello [--lcd] [--path <chemin>] [--duration <secondes>]
-  pnpm streamdeck hello --mock --demo
-  pnpm streamdeck events --mock --demo
-
-list : détecter le modèle et ses capacités, sans ouvrir ni écrire l'appareil.
-events : journaliser boutons, potards et gestes tactiles, sans image.
-hello : écrire uniquement la première touche LCD ; HELLO/OK et jauge simulée.
---lcd : hello écrit aussi la première bande LCD, si le modèle en possède une.
---mock : aucune importation du pilote HID natif, aucune action système.
---demo : rejouer un scénario fini (uniquement avec --mock).
-Ctrl+C : fermer proprement la connexion. L'image test reste sur la touche.
-`;
-
-async function main() {
-  const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-    mock: { type: 'boolean' }, demo: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
-    path: { type: 'string' }, duration: { type: 'string' },
-    lcd: { type: 'boolean' },
-  } });
-  if (values.help) { console.log(help); return; }
-  const command = positionals[0];
-  if (positionals.length !== 1 || !['list', 'events', 'hello'].includes(command ?? '')) throw new Error(help);
-  if (values.demo && !values.mock) throw new Error('--demo exige --mock pour ne jamais ouvrir du matériel involontairement.');
-  if (values.lcd && command !== 'hello') throw new Error('--lcd exige hello ; events ne dessine aucune image.');
-  const duration = values.duration === undefined ? undefined : Number(values.duration);
-  if (duration !== undefined && (!Number.isFinite(duration) || duration <= 0 || duration > 86400)) throw new Error('--duration doit être un nombre de secondes entre 0 et 86400, bornes exclue/incluse.');
-  if (command === 'list' && (values.path || values.duration || values.demo)) throw new Error('list accepte uniquement --mock ou --help.');
-  const devices = values.mock ? [mockInfo] : await listHardware();
-  if (command === 'list') {
-    console.log(JSON.stringify(devices, null, 2));
-    if (!devices.length) console.error('Aucun appareil reconnu. Brancher le Stream Deck puis relancer.');
-    return;
-  }
-  const selected = selectDevice(devices, values.path);
-  const deck = values.mock ? new MockDeck(selected) : await openHardware(selected);
-  const controller = new AbortController();
-  let failure: unknown;
-  let failed = false;
-  const fail = (error: unknown) => { failure = error; failed = true; controller.abort(); };
-  const stop = () => { controller.abort(); };
-  process.on('SIGINT', stop); process.on('SIGTERM', stop);
-  const timer = duration === undefined ? undefined : setTimeout(stop, duration * 1000);
-  let session: ReturnType<typeof startSession> | undefined;
-  try {
-    console.log(JSON.stringify({ kind: 'connected', ...deck.info, mock: !!values.mock }));
-    session = startSession(deck, command === 'hello', (event) => console.log(JSON.stringify(event)), fail, !!values.lcd);
-    await session.flush();
-    if (values.demo) {
-      for (const event of demoEvents) {
-        if (controller.signal.aborted) break;
-        (deck as MockDeck).emit(event);
-        await session.flush();
-        await delay(100, undefined, { signal: controller.signal }).catch(() => {});
-      }
-      console.log(JSON.stringify({ kind: 'demo-complete', frames: (deck as MockDeck).frames.length, level: session.level }));
-    } else {
-      console.log('En écoute. Ctrl+C pour quitter ; --mock --demo pour rejouer les événements simulés.');
-      if (!controller.signal.aborted) await new Promise<void>((resolve) => controller.signal.addEventListener('abort', () => resolve(), { once: true }));
-    }
-  } finally {
-    if (timer) clearTimeout(timer);
-    process.off('SIGINT', stop); process.off('SIGTERM', stop);
-    try { await session?.stop(); } finally { await deck.close(); }
-  }
-  if (failed) throw failure;
+const mockFlag = Flag.Boolean('mock').pipe(Flag.withDefault(false), Flag.withDescription('Use an in-memory device; never load native HID.'));
+const demoFlag = Flag.Boolean('demo').pipe(Flag.withDefault(false), Flag.withDescription('Replay a finite mock input sequence. Requires --mock.'));
+const connectionFlags = {
+  mock: mockFlag,
+  path: Flag.String('path').pipe(Flag.optional, Flag.withDescription('Exact device path from list; required when several devices are connected.')),
+  duration: Flag.Finite('duration').pipe(
+    Flag.withSchema(Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(86400))),
+    Flag.optional, Flag.withDescription('Stop normally after this many seconds, in (0, 86400].'),
+  ),
+};
+interface DeviceOptions {
+  readonly mock: boolean;
+  readonly path: Option.Option<string>;
+  readonly duration: Option.Option<number>;
+  readonly demo?: boolean;
+  readonly lcd?: boolean;
 }
 
-main().catch((error: unknown) => {
-  console.error(`Stream Deck : ${error instanceof Error ? error.message : String(error)}`);
-  console.error('Pour les erreurs HID natives/permissions, consulter packages/streamdeck/README.md. Ne pas lancer les démos avec sudo.');
-  process.exitCode = 1;
+const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages', options: DeviceOptions) => Effect.gen(function*() {
+  if (options.demo && !options.mock) return yield* new CliError.UserError({ cause: '--demo requires --mock.', userMessage: '--demo requires --mock.' });
+  const mock = Mock.make();
+  const body = Effect.scoped(Effect.gen(function*() {
+    const deck = yield* StreamDeck;
+    yield* Console.log(JSON.stringify({ kind: 'connected', path: deck.info.path, model: deck.info.model, buttons: deck.buttons.length, dials: deck.dials.length, lcds: deck.lcds.length, mock: options.mock }));
+    const count = yield* Ref.make(0);
+    const complete = yield* Deferred.make<void>();
+    const observe = (event: DeckEvent) => Effect.gen(function*() {
+      yield* Console.log(JSON.stringify(event));
+      const n = yield* Ref.updateAndGet(count, (value) => value + 1);
+      if (n === Mock.demoEvents.length) yield* Deferred.succeed(complete, undefined);
+    });
+    const hello = kind === 'hello' ? yield* startHello(!!options.lcd, observe) : undefined;
+    const events = kind === 'events' ? yield* deck.subscribe : undefined;
+    const run = hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : playground);
+    if (options.demo) {
+      const fiber = yield* Effect.forkScoped(run);
+      for (const event of Mock.demoEvents) yield* mock.emit(event);
+      yield* Effect.raceFirst(Deferred.await(complete), Fiber.join(fiber));
+      const state = hello ? yield* hello.state : undefined;
+      yield* Console.log(JSON.stringify({ kind: 'demo-complete', frames: mock.writes.filter((write) => write.kind === 'key').length, lcdFrames: mock.writes.filter((write) => write.kind === 'lcd').length, level: state?.level, events: yield* Ref.get(count) }));
+    } else {
+      yield* Console.log('Listening. Ctrl+C to stop.');
+      yield* Option.match(options.duration, { onNone: () => run, onSome: (seconds) => Effect.raceFirst(run, Effect.sleep(seconds * 1000)) });
+    }
+  }));
+  const openOptions = Option.match(options.path, { onNone: () => ({}), onSome: (path) => ({ path }) });
+  yield* body.pipe(Effect.provide(options.mock ? mock.layer(openOptions) : Hid.layer(openOptions)));
 });
+
+const list = Command.make('list', { mock: mockFlag }, ({ mock }) => Effect.gen(function*() {
+  const devices = yield* discover.pipe(Effect.provide(mock ? Mock.make().driverLayer : Hid.driverLayer));
+  yield* Console.log(JSON.stringify(devices, null, 2));
+})).pipe(Command.withDescription('Discover models, actual USB IDs and capabilities without opening a handle.'));
+
+const hello = Command.make('hello', {
+  ...connectionFlags, demo: demoFlag,
+  lcd: Flag.Boolean('lcd').pipe(Flag.withDefault(false), Flag.withDescription('Also draw the first LCD strip, if supported.')),
+}, (options) => runDevice('hello', options)).pipe(Command.withDescription('Draw HELLO/OK on the first LCD key with a simulated gauge.'));
+const events = Command.make('events', { ...connectionFlags, demo: demoFlag }, (options) => runDevice('events', options))
+  .pipe(Command.withDescription('Observe buttons, dials and completed touch gestures. Never write displays.'));
+const playgroundCommand = Command.make('playground', connectionFlags, (options) => runDevice('playground', options))
+  .pipe(Command.withDescription('Run the editable button, knob and touch-zone script.'));
+const pagesCommand = Command.make('pages', connectionFlags, (options) => runDevice('pages', options))
+  .pipe(Command.withDescription('Run the editable two-page behavior script.'));
+
+const command = Command.make('streamdeck').pipe(
+  Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),
+  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand]),
+);
+
+NodeRuntime.runMain(Command.run(command, { version: '0.1.0' }).pipe(Effect.provide(NodeServices.layer)));

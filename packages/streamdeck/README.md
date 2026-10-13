@@ -1,188 +1,181 @@
-# Stream Deck : premiers essais USB-HID sous Linux
+# Stream Deck / Effect v4
 
-Deux hello worlds TypeScript, sans application Elgato : `events` observe les
-entrées ; `hello` dessine une touche test. Le 13 octobre 2026, la détection USB
-réelle confirme un **Stream Deck + XL, `0fd9:00c6`**, sur `/dev/hidraw8` à cet
-instant. Après l'ACL temporaire accordée par Manuel, HELLO/OK sur la première
-touche, événements boutons/potards/tactile et affichage de la bande LCD sont
-validés sur l'appareil réel. Voir les [preuves matérielles](../../docs/streamdeck-hardware-2026-10-13.md).
+A small TypeScript library for scripting USB Stream Decks under Linux, with
+**Effect 4.0.4**. The tested hardware is a **Stream Deck + XL, `0fd9:00c6`**:
+36 LCD keys (112×112), six clickable dials and one touch LCD strip (1200×100).
+Capabilities come from the detected model; indices and image sizes are validated.
 
-Le pilote 7.8.0 associe au modèle détecté 36 touches LCD de 112×112, six potards
-et une bande LCD tactile de 1200×100. Le programme utilise les contrôles du
-modèle détecté. `list` donne le nom, le chemin HID, les indices et les dimensions.
-Le mock représente toujours un + à huit touches et quatre potards ; il ne
-prouve pas la compatibilité du matériel livré.
+The community `@elgato-stream-deck/node` 7.8.0 handles HID packets, JPEG encoding
+and model-specific orientation. Our package owns scoped resources, typed events,
+display operations and behavior routing. It works without the Elgato application.
+The CLI itself uses Effect's `Command`, `Flag` and `Schema` APIs from `effect/cli`,
+with generated help and Node platform services; there is no custom argument parser.
 
-## Essayer immédiatement
+See the [research and design decisions](../../docs/streamdeck-effect-v4-research.md),
+[Effect verification](../../docs/streamdeck-effect-v4-verification.md) and
+[original physical proof](../../docs/streamdeck-hardware-2026-10-13.md).
 
-Depuis la racine du clone isolé :
+## Run
+
+From the isolated repository clone opened in VS Code:
 
 ```sh
-cd /home/neolectron/Documents/Codex/2026-10-13/task-11/nixfiles-streamdeck
 nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm streamdeck:demo
-pnpm streamdeck events --mock --demo
-```
-
-Le shell fournit Node 24, pnpm et les bibliothèques nécessaires au pilote natif,
-à partir du nixpkgs déjà verrouillé dans le dépôt. Il ne reconstruit ni n'active
-le système. Le premier accès peut télécharger des paquets. `packageManager`
-épingle pnpm 12.11.2 ; pnpm peut télécharger cette version au premier lancement.
-Le lockfile épingle également la bibliothèque HID et les outils TypeScript.
-
-Sur un Linux classique avec Node 24 et pnpm 12.11.2 disponibles, les commandes
-pnpm suffisent. Le pilote `node-hid` peut nécessiter libudev/libusb et, faute de
-binaire précompilé compatible, un compilateur C++, Python et pkg-config.
-
-Le mode mock ne charge pas `node-hid`. Il produit des trames RGB en mémoire et
-rejoue sept entrées : bouton down/up, potard down/up, rotations +3/-2, toucher.
-Résultat `hello` : cinq trames sur la touche 0, valeur simulée finale 51.
-Résultat `events` : zéro trame. `--mock` seul attend ; ajouter `--demo` pour le
-scénario fini, ou `--duration 5` pour quitter automatiquement après cinq secondes.
-
-## Essai matériel
-
-Entrer dans le même shell Nix, brancher le Stream Deck en USB puis :
-
-```sh
-lsusb -d 0fd9:
 pnpm streamdeck list
-pnpm streamdeck events --duration 30
-pnpm streamdeck hello --duration 30
-pnpm streamdeck hello --lcd --duration 30
+pnpm streamdeck:demo                          # finite mock hello
+pnpm streamdeck hello --mock --demo --lcd     # mock key + strip
+pnpm streamdeck events --mock --demo         # no display writes
+pnpm streamdeck hello --lcd --duration 30    # real device
+pnpm streamdeck playground                   # edit scripts/playground.ts
+pnpm streamdeck pages                        # edit scripts/pages.ts
 ```
 
-1. Vérifier le nom retourné par `list` et le VID:PID de `lsusb`. Si `list` est
-   vide, vérifier le câble de données, le port et la reconnaissance du modèle.
-2. Pendant `events`, presser/relâcher un bouton ; cliquer et tourner les potards
-   s'ils existent. Le journal distingue `control.type`, `control.index` et le
-   `amount` signé des rotations. Les gestes tactiles sont aussi journalisés.
-3. Pendant `hello`, la première touche LCD affiche HELLO. La presser affiche
-   OK en vert ; la relâcher rétablit HELLO. Tourner un potard déplace une jauge
-   fictive bornée à 0–100. Aucun volume système n'est changé.
-4. Ctrl+C ou un signal SIGTERM ferme le handle après les écritures en cours. La touche
-   test garde son dernier affichage ; aucune réinitialisation globale ni
-   modification de luminosité n'est faite.
+`--mock` does not import native HID. `--demo` requires mock and is finite.
+`--duration` is optional and exits normally. Ctrl+C/SIGTERM interrupts the Effect
+runtime and closes the device after pending writes; images remain displayed.
+With multiple devices, specify the freshly discovered `--path`. A reconnect can
+change hidraw paths, so do not reuse a stale path.
 
-`hello --lcd` écrit aussi la première bande LCD aux dimensions détectées :
-HELLO/OK au centre et jauge cyan en bas. Les potards font varier la jauge
-fictive et les gestes tactiles sont journalisés. Sans `--lcd`, la bande reste
-intacte ; `events --lcd` est refusé avant l'ouverture HID. Ce mode refuse aussi
-un modèle sans bande LCD. Les écritures touche/bande sont sérialisées ; les
-événements `display-written` attestent leur achèvement, sans confirmer à eux
-seuls l'apparence physique. Sur le + XL livré, Manuel a confirmé l'affichage.
+## Write a behavior
 
-Avec plusieurs appareils, le programme exige un choix explicite. Copier le
-chemin fourni par `list`, par exemple :
+For a quick experiment, edit [scripts/playground.ts](src/scripts/playground.ts)
+and run `pnpm streamdeck playground`. A complete standalone script can look like:
+
+```ts
+import { NodeRuntime } from '@effect/platform-node';
+import { Effect } from 'effect';
+import { Bindings, Hid, StreamDeck } from '../index.js';
+
+const program = Effect.gen(function*() {
+  const deck = yield* StreamDeck;
+  yield* Bindings.run({
+    buttons: {
+      0: {
+        label: 'HELLO',
+        onPress: deck.key(0).label('PRESSED'),
+        onRelease: deck.key(0).label('HELLO'),
+      },
+    },
+    knobs: {
+      0: { onRotate: ({ delta }) => Effect.log('Signed dial ticks', delta) },
+    },
+    touch: {
+      0: {
+        onTap: ({ position }) => Effect.log('Tap', position),
+        onHold: ({ position }) => Effect.log('Hold', position),
+        onSwipe: ({ from, to }) => Effect.log('Swipe', from, to),
+      },
+    },
+  });
+}).pipe(Effect.provide(Hid.layer()));
+
+NodeRuntime.runMain(program);
+```
+
+Save it under `src/scripts/my-script.ts` and run from the repo root:
 
 ```sh
-pnpm streamdeck events --path /dev/hidraw7 --duration 30
-pnpm streamdeck hello --path /dev/hidraw7 --duration 30
+pnpm --filter @nixfiles/streamdeck exec node --import tsx src/scripts/my-script.ts
 ```
 
-Ne pas réutiliser un chemin après reconnexion sans relancer `list`. Une nouvelle
-connexion relance aussi la commande : la reconnexion automatique est hors scope.
-`events` n'écrit aucune image. `hello` écrit uniquement sa touche test : son
-image précédente n'est pas récupérable par cette démo. Un appareil sans touche
-LCD reste testable avec `events`, mais `hello` refuse explicitement l'affichage.
+Handlers accept an Effect directly or a function returning an Effect. They may
+require other services: provide their layers alongside the device layer. Keep
+state in `Ref`, and redraw after updating it, as in the playground's level demo.
+The default examples change displays and log actions only.
 
-## Permissions : exemples inactifs
+## Hardware API
 
-Une détection réussie peut être suivie d'un échec d'ouverture si l'utilisateur
-n'a pas accès au nœud hidraw. Ne pas exécuter les démos avec `sudo`, ne pas
-appliquer de `chmod 666`, et ne pas copier l'exemple udev upstream en entier :
-il inclut une règle générale pour les périphériques input, inutile ici.
+All operations below return Effects. Obtaining a `key(index)`/`lcd(index)` handle
+is pure; executing an operation validates that the control exists and supports it.
 
-Les fichiers `permissions/*.example` ne sont ni installés ni importés. Avant
-toute activation, confirmer le modèle et obtenir l'accord sécurité. Conserver
-uniquement le VID:PID exact : la table de la bibliothèque 7.8.0 associe le + à
-`0fd9:0084` et le + XL à `0fd9:00c6`. Un autre modèle demande sa propre règle.
-
-L'exemple utilise `TAG+="uaccess"` sur le seul nœud hidraw du modèle retenu :
-logind peut accorder l'accès à la session locale active. Pas d'accès universel,
-pas de groupe input supplémentaire et pas de service root.
-
-Sur NixOS, l'exemple `nixos-udev-package.nix.example` construit une règle
-`50-streamdeck-user.rules` via `services.udev.packages`. Sur cette version de
-NixOS, `services.udev.extraRules` produit `99-local.rules`, trop tard pour le
-traitement uaccess de `73-seat-late.rules`. Une éventuelle intégration du modèle
-confirmé appartient à `hosts/frostbit/` et doit suivre la procédure de
-validation/activation de `AGENTS.md`, coordonnée par le parent. Ensuite
-débrancher/rebrancher l'appareil. Aucun changement n'a été activé ici.
-
-## Dépannage
-
-- `libudev.so.1: cannot open shared object file` : utiliser le shell fourni ;
-  `LD_LIBRARY_PATH` y provient de nixpkgs, sans chemins de store codés en dur.
-- `could not open` / permission denied : inspecter le VID:PID et les ACL du
-  nœud exact (`getfacl /dev/hidraw7` si disponible), puis revoir les règles avec
-  le parent. La présence dans `list` ne garantit pas les droits d'ouverture.
-- Déconnexion ou erreur d'écriture : le programme signale l'erreur, ferme le
-  handle et quitte en échec. Rebrancher, refaire `list` et relancer.
-- Si un autre logiciel utilise déjà le Stream Deck, traiter ce conflit
-  explicitement ; le programme ne tue aucun processus ni service.
-- `pnpm install --ignore-scripts` empêche la préparation de certaines dépendances
-  natives. La workspace autorise seulement les builds `node-hid` et `esbuild`.
-  L'accélérateur JPEG optionnel est désactivé ; `jpeg-js` fournit le fallback.
-
-## Structure et suite du travail
-
-```text
-package.json / pnpm-workspace.yaml / pnpm-lock.yaml / tsconfig.base.json
-packages/streamdeck/
-  src/transport.ts   contrat minimal, événements et choix de l'appareil
-  src/hid.ts         adaptateur HID v7, import natif différé
-  src/mock.ts        appareil simulé, trames en mémoire et scénario déterministe
-  src/image.ts       HELLO/OK en bitmap local RGB
-  src/session.ts     journal, état démo, écritures sérialisées
-  src/cli.ts         list / events / hello, durée, arrêt et erreurs
-  test/session.test.ts
-  shell.nix
-  permissions/*.example
-```
-
-Les packages Nix existants restent dans `packages/`. La workspace exclut
-`packages/node-global-packages`, dont le package-lock npm appartient à sa
-dérivation Nix. Les nouvelles actions pourront consommer `DeckEvent` au-dessus
-du transport, avec des adaptateurs distincts et des tests mock. Les dimensions
-et indices viennent des capacités détectées, ce qui permettra les profils.
-Les scripts racine `build`, `typecheck` et `test` ciblent les deux packages
-coordonnés : Stream Deck et `keep-awake-mcp`. Les scripts `streamdeck:*` et
-`keep-awake:*` permettent de tester chaque outil séparément. Le package veille
-conserve son package-lock npm, requis par son build Nix autonome ; la workspace
-pnpm possède désormais une résolution commune pour les deux packages.
-
-Roadmap conservée, sans implémentation ni action réelle :
-
-| Besoin | Étape suivante et limite actuelle |
+| API | Purpose |
 | --- | --- |
-| Focus fenêtre, profils selon application active | Adapter l'IPC niri, faire correspondre app_id/fenêtre et profil ; vérifier les commandes sur la version installée. |
-| Push-to-talk, dictée vers le dot | Clarifier quel dot et vérifier une API/commande officiellement accessible. Aucune capture micro ni promesse de piloter la dictée UI. |
-| Discord mute/unmute/deafen | Étudier RPC local ou raccourcis explicitement configurés ; vérifier OAuth et accès effectif avant de choisir. Aucun token utilisateur ni appel Discord ici. |
-| Icône Discord, notifications et navigation au clic | RPC documente NOTIFICATION_CREATE et SELECT_TEXT_CHANNEL ; la disponibilité locale, l'autorisation et le scope rpc.notifications.read restent à vérifier. Pas de promesse de couvrir toutes les notifications. |
-| Ouvrir OBS et recording | Séparer lancement et commandes obs-websocket GetRecordStatus/StartRecord/StopRecord ; prévoir authentification et état confirmé. Aucun enregistrement lancé. |
-| Potards volume par application PipeWire | Inventorier les flux et leurs identités, puis adapter WirePlumber/PipeWire ; gérer disparition/recréation des IDs. La jauge actuelle est purement simulée. |
+| `discover.pipe(Effect.provide(Hid.driverLayer))` | Enumerate devices and actual VID/PID, without opening them |
+| `Hid.layer({ path?, eventCapacity? })` | Provide one scoped `StreamDeck` service |
+| `deck.info`, `deck.buttons`, `deck.dials`, `deck.lcds` | Model and logical control definitions |
+| `deck.key(i).label(text, options?)` | Uppercase bitmap label; background, foreground, optional 0–100 gauge |
+| `deck.key(i).setImage(image)` | Exact-size logical RGB image |
+| `deck.key(i).fill([r,g,b])`, `.clear` | Solid color / black |
+| `deck.lcd(i).label`, `.setImage`, `.fill`, `.clear` | Same operations for an LCD strip |
+| `deck.lcd(i).drawRegion({ x,y }, image)` | Update a bounded logical region |
+| `deck.setBrightness(percent)`, `deck.resetToLogo` | Explicit device-wide changes; never called automatically |
+| `deck.firmwareVersion`, `deck.serialNumber` | Explicit identity queries; serial numbers are not logged automatically |
+| `deck.events` | Scoped live broadcast Stream of normalized input |
+| `deck.subscribe` | Establish a scoped subscription before starting producers |
+| `deck.awaitFailure` | Race a custom long-running program against terminal device failure |
 
-## Sources vérifiées
+`Image.solid(size, color)` and `Image.label(size, text, options)` construct validated
+images. `RgbImage` is `{ width, height, data: Uint8Array }`, exactly three RGB bytes
+per pixel. Compressed PNG/JPEG bytes are not RGB images; decode them in a renderer
+adapter before calling `setImage`. The bundled renderer supports ASCII uppercase
+letters/digits, not arbitrary fonts. The driver handles rotation and compression.
 
-La bibliothèque communautaire maintenue
-[@elgato-stream-deck/node](https://github.com/Julusian/node-elgato-stream-deck)
-7.8.0 communique avec le matériel indépendamment du logiciel Elgato. Son scope
-npm ne signifie pas qu'elle est officielle. Le
-[SDK officiel Elgato](https://github.com/elgatosf/streamdeck) sert aux plugins
-communiquant avec l'application Stream Deck et ne convient donc pas à ce scope.
+The event union has `_tag` variants `KeyDown`, `KeyUp`, `DialDown`, `DialUp`,
+`DialRotate` (signed `delta`), `TouchTap`, `TouchHold` and `TouchSwipe`.
+Touch coordinates are logical LCD coordinates. Touch is a completed gesture,
+not a down/up pair.
 
-- [Modèles et VID:PID v7.8.0](https://github.com/Julusian/node-elgato-stream-deck/blob/v7.8.0/packages/core/src/modelInfo.ts).
-- [Signatures événements v7.8.0](https://github.com/Julusian/node-elgato-stream-deck/blob/v7.8.0/packages/core/src/types.ts) : les événements reçoivent des objets de contrôle, pas les anciens indices seuls.
-- [Règles udev utilisateur upstream](https://github.com/Julusian/node-elgato-stream-deck/blob/v7.8.0/packages/node/udev/50-elgato-stream-deck-user.rules).
-- [RPC Discord](https://docs.discord.com/developers/topics/rpc) : authentification et restrictions à vérifier avant toute intégration.
-- [Protocole officiel obs-websocket](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md).
+## Routing and pages
 
-Détection, HELLO/OK sur touche, potards, affichage de bande et gestes tactiles
-ont été validés sur le + XL livré. L'accès repose actuellement sur une ACL
-temporaire ; l'intégration Nix persistante reste inactive. Les tests mock
-complètent ces essais sans remplacer la validation physique.
+`Bindings.run(profile)` validates bindings, subscribes before initial rendering
+and runs handlers sequentially. Initial feedback can be a per-button `label` or
+`image`, plus an optional `render` Effect for the strip or custom feedback.
+`onEvent` observes each routed event. Unbound controls cause no action.
+
+A touch binding may be an array of zones with `area: { x, y, width, height }`.
+The first matching zone wins; bounds exclude their right/bottom edge. A swipe
+routes according to its starting point. A final binding without an area is a
+fallback. See the playground for an example.
+
+`Bindings.pages({ home: profile, tools: profile }, 'home')` returns
+`{ select, current, run }` in the current scope. `select('tools')` repaints only
+keys owned by these pages, clearing stale labels, then commits the active page.
+A held key/dial releases into the profile that received its press. See
+[scripts/pages.ts](src/scripts/pages.ts) for switching from a button handler.
+
+Errors fail the runner and close its resources. Recover deliberately with Effect
+operators. For slow independent actions, explicitly use `Effect.forkScoped` and
+handle that fiber's failures; do not block the input router indefinitely.
+Disconnect and event overflow are terminal. Default capacity is 256; no input
+replay or automatic reconnect. Shared consumers reuse one owning layer.
+
+## Mock and checks
+
+```ts
+import { Effect, Stream } from 'effect';
+import { Mock, StreamDeck } from '../index.js';
+
+const mock = Mock.make();
+const testProgram = Effect.scoped(Effect.gen(function*() {
+  const deck = yield* StreamDeck;
+  const events = yield* deck.subscribe;
+  yield* mock.emit({ _tag: 'KeyDown', key: 0 });
+  return yield* Stream.runHead(events);
+}));
+const observed = await Effect.runPromise(testProgram.pipe(Effect.provide(mock.layer())));
+// mock.writes, mock.opens and mock.closes are available for assertions.
+```
+
+Custom mock devices and write failures use `Mock.make({ devices, onWrite })`.
+Use `mock.disconnect()` to exercise device loss. For deterministic tests,
+`Bindings.start` exposes a ready subscription and a `run` Effect before you emit.
+
+```sh
+pnpm test
+pnpm typecheck
+pnpm build
+node packages/streamdeck/dist/cli.js hello --mock --demo --lcd
+```
+
+Only Stream Deck dependencies changed. The sibling `keep-awake-mcp`, its npm
+lockfile, Nix derivation and installed integration are preserved.
+
+## USB permissions
+
+The existing access is Manuel's temporary ACL on the exact + XL hidraw node.
+It disappears on disconnect. Permission examples remain **inactive**. Do not run
+the scripts as root or grant world-writable access. The narrow persistent example
+uses `TAG+="uaccess"` for `0fd9:00c6` before `73-seat-late.rules`, via
+`services.udev.packages`; integrating it belongs to the host configuration and
+the parent-managed Nix activation workflow. No NixOS activation was performed.

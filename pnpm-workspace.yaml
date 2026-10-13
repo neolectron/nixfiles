@@ -14,3 +14,6 @@ allowBuilds:
 minimumReleaseAgeExclude:
   # Preserve the exact pin already validated by the keep-awake worker.
   - zod@4.6.7
+  - '@effect/platform-node-shared@4.0.4'
+  - '@effect/platform-node@4.0.4'
+  - effect@4.0.4
