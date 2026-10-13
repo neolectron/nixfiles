@@ -1,0 +1,4 @@
+$ pnpm --filter @nixfiles/streamdeck cli hello --lcd --path /dev/hidraw8 --duration 30
+$ node --import tsx src/cli.ts hello --lcd --path /dev/hidraw8 --duration 30
+{"kind":"connected","path":"/dev/hidraw8","model":"Stream Deck + XL","buttons":36,"dials":6,"lcds":1,"mock":false}
+Listening. Ctrl+C to stop.
