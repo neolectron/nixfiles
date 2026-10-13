@@ -1,10 +1,11 @@
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
 import { Console, Deferred, Effect, Fiber, Option, Ref, Schema, Stream } from 'effect';
 import { CliError, Command, Flag } from 'effect/cli';
-import { Hid, Mock, StreamDeck, discover, type DeckEvent } from './index.js';
+import { Audio, Hid, Mock, StreamDeck, discover, type DeckEvent } from './index.js';
 import { startHello } from './scripts/hello.js';
 import { playground } from './scripts/playground.js';
 import { pages } from './scripts/pages.js';
+import { mixer } from './scripts/audio-mixer.js';
 
 const mockFlag = Flag.Boolean('mock').pipe(Flag.withDefault(false), Flag.withDescription('Use an in-memory device; never load native HID.'));
 const demoFlag = Flag.Boolean('demo').pipe(Flag.withDefault(false), Flag.withDescription('Replay a finite mock input sequence. Requires --mock.'));
@@ -22,9 +23,10 @@ interface DeviceOptions {
   readonly duration: Option.Option<number>;
   readonly demo?: boolean;
   readonly lcd?: boolean;
+  readonly step?: number;
 }
 
-const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages', options: DeviceOptions) => Effect.gen(function*() {
+const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer', options: DeviceOptions) => Effect.gen(function*() {
   if (options.demo && !options.mock) return yield* new CliError.UserError({ cause: '--demo requires --mock.', userMessage: '--demo requires --mock.' });
   const mock = Mock.make();
   const body = Effect.scoped(Effect.gen(function*() {
@@ -39,7 +41,8 @@ const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages', options: D
     });
     const hello = kind === 'hello' ? yield* startHello(!!options.lcd, observe) : undefined;
     const events = kind === 'events' ? yield* deck.subscribe : undefined;
-    const run = hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : playground);
+    const run = hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : kind === 'mixer'
+      ? mixer(options.step === undefined ? {} : { step: options.step }).pipe(Effect.provide(options.mock ? Audio.mockLayer : Audio.layer)) : playground);
     if (options.demo) {
       const fiber = yield* Effect.forkScoped(run);
       for (const event of Mock.demoEvents) yield* mock.emit(event);
@@ -70,10 +73,14 @@ const playgroundCommand = Command.make('playground', connectionFlags, (options) 
   .pipe(Command.withDescription('Run the editable button, knob and touch-zone script.'));
 const pagesCommand = Command.make('pages', connectionFlags, (options) => runDevice('pages', options))
   .pipe(Command.withDescription('Run the editable two-page behavior script.'));
+const mixerCommand = Command.make('mixer', {
+  ...connectionFlags,
+  step: Flag.Finite('step').pipe(Flag.withSchema(Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(20))), Flag.withDefault(2), Flag.withDescription('Volume percentage points per dial tick, default 2.')),
+}, (options) => runDevice('mixer', options)).pipe(Command.withDescription('Show playback apps above the dials: rotate for volume, click to mute, swipe for more apps. --mock also mocks audio.'));
 
 const command = Command.make('streamdeck').pipe(
   Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),
-  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand]),
+  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand]),
 );
 
 NodeRuntime.runMain(Command.run(command, { version: '0.1.0' }).pipe(Effect.provide(NodeServices.layer)));

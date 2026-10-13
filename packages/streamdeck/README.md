@@ -29,6 +29,9 @@ pnpm streamdeck events --mock --demo         # no display writes
 pnpm streamdeck hello --lcd --duration 30    # real device
 pnpm streamdeck playground                   # edit scripts/playground.ts
 pnpm streamdeck pages                        # edit scripts/pages.ts
+pnpm streamdeck mixer                        # real app audio mixer
+pnpm streamdeck mixer --step 1               # 1 percentage point per tick
+pnpm streamdeck mixer --mock --duration 2    # inert device AND audio
 ```
 
 `--mock` does not import native HID. `--demo` requires mock and is finite.
@@ -36,6 +39,36 @@ pnpm streamdeck pages                        # edit scripts/pages.ts
 runtime and closes the device after pending writes; images remain displayed.
 With multiple devices, specify the freshly discovered `--path`. A reconnect can
 change hidraw paths, so do not reuse a stale path.
+
+## App audio mixer
+
+The [Effect mixer script](src/scripts/audio-mixer.ts) lists playback applications
+above the dials, with a percentage and gauge. Turn the dial to change that app's
+output volume (two percentage points per tick by default); click it to toggle
+playback mute. Red feedback says `MUTED`. Swipe the LCD left/right for more apps
+when they exceed the available dials. Existing apps retain their slots as others
+appear/disappear; new apps fill empty slots. Long names use the first 12 characters.
+
+The [Audio service](src/audio.ts) controls the existing PipeWire-Pulse interface
+through `pactl`, available in the standalone Nix shell. It groups playback streams
+by app identity and changes all streams belonging to that app. Channel balance
+and relative stream levels are preserved; turning a muted app does not unmute it.
+Normal volume is bounded to 0–100%; an already amplified stream can be reduced,
+but is never further amplified. Startup only reads audio and draws the strip.
+The script does not control capture streams, the microphone, or the master sink.
+Discord's knob controls its playback audio, not its own microphone mute button.
+
+App discovery includes paused streams that still exist in PipeWire. Apps without
+a playback stream cannot be shown yet. App changes and external volume changes
+are polled every 500 ms, and dial actions are batched every 40 ms. PipeWire failure
+shows amber `AUDIO OFFLINE`; routing resumes on a successful poll. USB disconnect
+is terminal: restart the CLI with the current device path after reconnecting.
+
+`Audio.Audio` is a separate Effect service (`list`, `change(appKey, { delta,
+toggles })`), provided by `Audio.layer` plus Node platform services. The HID
+library remains independent of audio. The CLI's `--mock` provides both mocks and
+cannot run a real audio command. Process spawning, timeout, cleanup, state,
+serialization, polling and CLI parsing use Effect APIs.
 
 ## Write a behavior
 

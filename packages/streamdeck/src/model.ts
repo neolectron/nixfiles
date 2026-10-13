@@ -9,6 +9,7 @@ export interface Control {
   readonly column?: number;
   readonly feedbackType?: 'none' | 'rgb' | 'lcd';
   readonly pixelSize?: Size;
+  readonly bounds?: Position & Size;
 }
 export interface DeviceInfo {
   readonly path: string;
