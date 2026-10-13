@@ -58,8 +58,12 @@ output's volume and toggles its mute on click. It follows changes to the default
 output, preserving that output's channel balance. Pending gestures for an output
 that was replaced or is no longer default are discarded instead of affecting the
 new output. Master control also works when no application has a playback stream.
-Normal volume is bounded to 0–100%; an already amplified stream can be reduced,
-but is never further amplified. Startup only reads audio and draws the strip.
+Volume is bounded to **0–200%** for apps and MASTER. Percentage text stays white
+up to 100%, then transitions smoothly from yellow just above 100% to orange at
+150% and red at 200%. The gauge fills at nominal 100%; the colored percentage
+shows the amplification above it. External values above 200% are still displayed;
+startup and polling never change them. Dial changes respect the 200% ceiling.
+Startup only reads audio and draws the strip.
 The script does not control capture streams or the microphone.
 Discord's knob controls its playback audio, not its own microphone mute button.
 
