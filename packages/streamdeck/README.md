@@ -1,21 +1,23 @@
 # Stream Deck : premiers essais USB-HID sous Linux
 
 Deux hello worlds TypeScript, sans application Elgato : `events` observe les
-entrées ; `hello` dessine une touche test. Livraison préparée le 12 octobre 2026
-pour le branchement du 13 octobre. Aucun essai matériel n'a encore été effectué.
+entrées ; `hello` dessine une touche test. Le 13 octobre 2026, la détection USB
+réelle confirme un **Stream Deck + XL, `0fd9:00c6`**, sur `/dev/hidraw8` à cet
+instant. L'ouverture échoue avec `Permission denied` : affichage et événements
+physiques restent à valider. Voir les [preuves matérielles](../../docs/streamdeck-hardware-2026-10-13.md).
 
-Le modèle acheté n'est pas confirmé. Les potards font penser à un Stream Deck +,
-mais le programme utilise les contrôles du modèle détecté, sans supposer son
-nombre de boutons ni de potards. `list` donne le nom, le chemin HID, les indices
-et les dimensions des contrôles. Le mock représente un + à huit touches et
-quatre potards ; il ne prouve pas la compatibilité du matériel livré.
+Le pilote 7.8.0 associe au modèle détecté 36 touches LCD de 112×112, six potards
+et une bande LCD tactile de 1200×100. Le programme utilise les contrôles du
+modèle détecté. `list` donne le nom, le chemin HID, les indices et les dimensions.
+Le mock représente toujours un + à huit touches et quatre potards ; il ne
+prouve pas la compatibilité du matériel livré.
 
 ## Essayer immédiatement
 
-Depuis la racine du worktree dédié :
+Depuis la racine du clone isolé :
 
 ```sh
-cd /home/neolectron/Documents/Codex/2026-10-12/task-7/nixfiles-streamdeck
+cd /home/neolectron/Documents/Codex/2026-10-13/task-11/nixfiles-streamdeck
 nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
 pnpm typecheck
@@ -41,7 +43,7 @@ Résultat `hello` : cinq trames sur la touche 0, valeur simulée finale 51.
 Résultat `events` : zéro trame. `--mock` seul attend ; ajouter `--demo` pour le
 scénario fini, ou `--duration 5` pour quitter automatiquement après cinq secondes.
 
-## Brancher demain, 13 octobre
+## Essai matériel
 
 Entrer dans le même shell Nix, brancher le Stream Deck en USB puis :
 
@@ -170,5 +172,6 @@ communiquant avec l'application Stream Deck et ne convient donc pas à ce scope.
 - [RPC Discord](https://docs.discord.com/developers/topics/rpc) : authentification et restrictions à vérifier avant toute intégration.
 - [Protocole officiel obs-websocket](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md).
 
-La compatibilité USB et l'affichage effectif sur le matériel livré restent à
-valider demain. Les tests mock vérifient notre logique, pas le firmware.
+La détection USB du + XL est confirmée. L'ouverture, l'affichage et les entrées
+restent à valider après autorisation d'accès au nœud hidraw. Les tests mock
+vérifient notre logique, pas le firmware.
