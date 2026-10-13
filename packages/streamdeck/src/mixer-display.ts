@@ -1,9 +1,9 @@
 import { NodeFileSystem } from '@effect/platform-node';
 import { Effect, FileSystem } from 'effect';
 import { fileURLToPath } from 'node:url';
-import { StreamDeckError, invalid } from './errors.js';
-import type { Color, Size } from './model.js';
-import * as Svg from './svg.js';
+import { StreamDeckError, invalid } from './errors.ts';
+import type { Color, Size } from './model.ts';
+import * as Svg from './svg.ts';
 
 export interface Feedback { readonly name: string; readonly volume: number; readonly muted: boolean; readonly mixedMute?: boolean }
 /** Nominal stays white; amplification starts yellow, reaches orange at 150%, red at 200%. */

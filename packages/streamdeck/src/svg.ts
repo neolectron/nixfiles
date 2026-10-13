@@ -1,8 +1,8 @@
 import { NodeFileSystem } from '@effect/platform-node';
 import { Effect, FileSystem, Ref } from 'effect';
 import { fileURLToPath } from 'node:url';
-import { StreamDeckError, invalid } from './errors.js';
-import type { RgbImage } from './image.js';
+import { StreamDeckError, invalid } from './errors.ts';
+import type { RgbImage } from './image.ts';
 
 export const escapeXml = (text: string) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!);
 const fontFiles = ['LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf'].map((name) => fileURLToPath(new URL(`../assets/fonts/${name}`, import.meta.url)));

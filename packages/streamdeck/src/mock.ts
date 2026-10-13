@@ -1,9 +1,9 @@
 import { Effect, Layer } from 'effect';
-import { Driver, type Connection, type Observer } from './driver.js';
-import { StreamDeckError } from './errors.js';
-import type { RgbImage } from './image.js';
-import type { DeckEvent, DeviceInfo, Position } from './model.js';
-import { StreamDeck, type OpenOptions } from './stream-deck.js';
+import { Driver, type Connection, type Observer } from './driver.ts';
+import { StreamDeckError } from './errors.ts';
+import type { RgbImage } from './image.ts';
+import type { DeckEvent, DeviceInfo, Position } from './model.ts';
+import { StreamDeck, type OpenOptions } from './stream-deck.ts';
 
 export const plusXl: DeviceInfo = {
   path: 'mock://plus-xl', model: 'Mock Stream Deck + XL', vendorId: 0x0fd9, productId: 0x00c6,

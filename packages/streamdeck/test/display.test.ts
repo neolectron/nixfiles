@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Effect } from 'effect';
-import { StreamDeckError } from '../src/errors.js';
-import * as Display from '../src/mixer-display.js';
-import * as Svg from '../src/svg.js';
+import { StreamDeckError } from '../src/errors.ts';
+import * as Display from '../src/mixer-display.ts';
+import * as Svg from '../src/svg.ts';
 
 test('bundled font metrics fit long accented names and XML text remains literal', async () => {
   const display = await Effect.runPromise(Display.make);
@@ -40,7 +40,7 @@ test('renderer handles all feedback states and reports invalid native SVG/dimens
 test('Effect CLI preview writes a valid full-strip PNG with no HID, pactl or external font lookup', () => {
   const directory = mkdtempSync(join(tmpdir(), 'streamdeck-display-')); const output = join(directory, 'preview.png');
   try {
-    const result = spawnSync(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'preview', '--output', output], {
+    const result = spawnSync(process.execPath, ['src/cli.ts', 'preview', '--output', output], {
       cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8', timeout: 10_000,
       env: { ...process.env, PATH: '/nonexistent', LD_LIBRARY_PATH: '', FONTCONFIG_FILE: '/nonexistent' },
     });

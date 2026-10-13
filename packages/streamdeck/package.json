@@ -4,19 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+    "./*": "./src/*.ts"
   },
   "engines": {
     "node": ">=24 <25"
   },
   "scripts": {
-    "cli": "node --import tsx src/cli.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/*.test.ts"
+    "cli": "node src/cli.ts",
+    "typecheck": "tsc",
+    "test": "node --test test/*.test.ts"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.4",
@@ -27,7 +23,6 @@
   },
   "devDependencies": {
     "@types/node": "24.19.2",
-    "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
 }

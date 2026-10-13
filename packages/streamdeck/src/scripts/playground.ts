@@ -1,5 +1,6 @@
 import { Effect, Ref } from 'effect';
-import { Bindings, StreamDeck } from '../index.js';
+import * as Bindings from '../bindings.ts';
+import { StreamDeck } from '../stream-deck.ts';
 
 /** Edit only this file to experiment. No real OS / microphone / recording actions. */
 export const playground = Effect.gen(function*() {

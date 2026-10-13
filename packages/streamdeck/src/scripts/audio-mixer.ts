@@ -1,8 +1,10 @@
 import { Console, Effect, Ref, Semaphore } from 'effect';
-import { Audio, type Application, type Change, type Master } from '../audio.js';
-import { Bindings, StreamDeck, StreamDeckError, type Control, type DialRotate, type Position, type Size } from '../index.js';
-import * as Display from '../mixer-display.js';
-export { card, volumeColor } from '../mixer-display.js';
+import { Audio, type Application, type Change, type Master } from '../audio.ts';
+import * as Bindings from '../bindings.ts';
+import { StreamDeck } from '../stream-deck.ts';
+import { StreamDeckError } from '../errors.ts';
+import type { Control, DialRotate, Position, Size } from '../model.ts';
+import * as Display from '../mixer-display.ts';
 
 export interface MixerOptions { readonly step?: number; readonly refreshMillis?: number; readonly flushMillis?: number }
 export interface MixerState {

@@ -1,5 +1,10 @@
 # Elgato-style mixer cards — 13 October 2026
 
+Runtime follow-up: the package now runs `.ts` directly in Node 24, with `.ts`
+relative imports, `noEmit`, no barrel and no build step. Historical build checks
+below describe the renderer delivery before that change. The current commands
+and direct module imports are documented in the package README.
+
 The user supplied two Elgato LCD photos and explicitly chose **semicircular
 gauges like the photos**. Implemented in the existing isolated task-11 clone
 and branch, after the volume-boost commit `8103cf2d`.

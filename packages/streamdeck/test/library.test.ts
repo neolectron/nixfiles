@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Deferred, Effect, Fiber, Ref, Stream } from 'effect';
-import { Bindings, Image, Mock, StreamDeck, StreamDeckError, discover, type DeckEvent, type Device } from '../src/index.js';
-import { startHello } from '../src/scripts/hello.js';
+import * as Bindings from '../src/bindings.ts';
+import * as Image from '../src/image.ts';
+import * as Mock from '../src/mock.ts';
+import { StreamDeck, discover, type Device } from '../src/stream-deck.ts';
+import { StreamDeckError } from '../src/errors.ts';
+import type { DeckEvent } from '../src/model.ts';
+import { startHello } from '../src/scripts/hello.ts';
 
 const error = new StreamDeckError({ reason: 'Driver', operation: 'test', message: 'USB failure' });
 const run = <A, E>(effect: Effect.Effect<A, E, StreamDeck>, mock: ReturnType<typeof Mock.make>, options = {}) =>
@@ -267,7 +272,7 @@ test('a service retained after its scope closes refuses further writes', async (
   await failReason(Effect.runPromise(Stream.runHead(deck.events)), 'Closed');
 });
 
-const cli = (...args: string[]) => spawnSync(process.execPath, ['--import', 'tsx', 'src/cli.ts', ...args], {
+const cli = (...args: string[]) => spawnSync(process.execPath, ['src/cli.ts', ...args], {
   cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8', timeout: 10_000,
   env: { ...process.env, LD_LIBRARY_PATH: '' },
 });

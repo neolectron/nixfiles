@@ -6,9 +6,8 @@ packages:
 engineStrict: true
 strictDepBuilds: true
 allowBuilds:
-  # Native HID driver and tsx's compiler only; no blanket install-script approval.
+  # Native HID driver only; no blanket install-script approval.
   node-hid: true
-  esbuild: true
   # Optional JPEG accelerator; the small demos use the pure-JS fallback.
   '@julusian/jpeg-turbo': false
 minimumReleaseAgeExclude:
