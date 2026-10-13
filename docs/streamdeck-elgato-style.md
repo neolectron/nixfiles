@@ -63,10 +63,34 @@ was used. Durable layout/type/color decisions are recorded in the package's
 
 Audio controls, five app slots, persistent rightmost Master, swipe pagination,
 0–200% code limit and mute semantics remain. The arcs represent configured gain;
-live dBFS signal monitoring has not been added. The snapshot also contains positive
-Master requests starting at 100% without a changed read-back value; amplification
-of the host's virtual default sink above nominal remains unverified, and this UI
-task does not alter the host's custom PipeWire routing to force it.
+live dBFS signal monitoring has not been added.
+
+## Master diagnostic: desktop shell clamps the output
+
+Manuel confirmed that rotating the rightmost dial left lowers its volume. The
+[diagnostic snapshot](streamdeck-elgato-style/master-diagnostic.log) corroborates
+100 → 98 → 80 → 78 → 66 and then 74 → 90 → 98. A subsequent +24 request returns
+100 rather than 122; further positive requests remain at 100. Target name and
+serial consistently match the freshly read sink (`headphones_input`, serial 51),
+so the stale-output guard does not discard these requests.
+
+The active Quickshell process (PID 2471 when inspected) has `QS_CONFIG_PATH` set to
+`/nix/store/w30j5s3b5g57xi2j21f0ikps0hg0mifq-noctalia-shell-2026-05-03_f0469d2/share/noctalia-shell`.
+Read-only inspection of that exact installation's `Services/Media/AudioService.qml`
+finds a maximum of 1.0 by default, or 1.5 with `volumeOverdrive` (line 27).
+Its `onVolumeChanged` handler actively rewrites an externally increased output
+to that maximum (lines 932–939). `Commons/Settings.qml` defaults the option to
+false (line 717); the local settings JSON's audio object contains only
+`spectrumFrameRate: 30`, with no overdrive override. This matches the observed
+100% reset. PipeWire's node Props advertise a higher range; this is not evidence
+of a universal PulseAudio or PipeWire 100% limit.
+
+The library's 200% limit remains tested, and the preview shows the full boost
+palette. Enabling 200% on the live Master requires a separate desktop-shell
+adjustment: Noctalia's existing overdrive switch alone only permits 150%.
+No shell setting, system package, default sink, routing or microphone setting was
+changed for this diagnostic. Temporary `master-debug` instrumentation was removed
+before finishing, and the production mixer was restarted with the normal source.
 
 The main checkout, preparation, NixOS/Home Manager settings, USB permissions,
 microphone/capture devices, Discord configuration, keep-awake installation and
