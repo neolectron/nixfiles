@@ -31,6 +31,8 @@ barrel, for example `@nixfiles/streamdeck/stream-deck` or
 ```sh
 nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
+pnpm dev                                    # live mixer; restart on source changes
+pnpm dev --mock                             # live mixer with inert USB/audio
 pnpm streamdeck list
 pnpm streamdeck:demo                          # finite mock hello
 pnpm streamdeck hello --mock --demo --lcd     # mock key + strip
@@ -43,6 +45,11 @@ pnpm streamdeck mixer --step 1               # 1 percentage point per tick
 pnpm streamdeck mixer --mock --duration 2    # inert device AND audio
 pnpm streamdeck preview                      # PNG of mixer states, no USB/audio
 ```
+
+`pnpm dev` uses Node's `--watch` with preserved console output. Changes to loaded
+TypeScript modules restart the mixer; the Effect runtime closes the previous
+USB handle before reconnecting. Mixer flags also work here, for example
+`pnpm dev --path /dev/hidraw8 --step 1`. Ctrl+C stops watch mode.
 
 `--mock` does not import native HID. `--demo` requires mock and is finite.
 `--duration` is optional and exits normally. Ctrl+C/SIGTERM interrupts the Effect

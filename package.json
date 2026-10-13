@@ -4,6 +4,7 @@
   "packageManager": "pnpm@12.11.2",
   "engines": { "node": ">=24 <25" },
   "scripts": {
+    "dev": "pnpm --filter @nixfiles/streamdeck dev",
     "typecheck": "pnpm --filter @nixfiles/streamdeck typecheck && pnpm --filter keep-awake-mcp typecheck",
     "test": "pnpm --filter @nixfiles/streamdeck test && pnpm --filter keep-awake-mcp test",
     "keep-awake:build": "pnpm --filter keep-awake-mcp build",
