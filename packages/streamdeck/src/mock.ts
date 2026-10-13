@@ -14,6 +14,7 @@ export const mockInfo: DeviceInfo = {
 export class MockDeck implements DeckTransport {
   readonly info: DeviceInfo;
   readonly frames: { index: number; rgb: Uint8Array }[] = [];
+  readonly lcdFrames: { index: number; rgb: Uint8Array }[] = [];
   closed = false;
   private listeners = new Set<(event: DeckEvent) => void>();
   constructor(info: DeviceInfo = mockInfo) { this.info = info; }
@@ -32,6 +33,12 @@ export class MockDeck implements DeckTransport {
     this.frames.push({ index, rgb: rgb.slice() });
   }
   async close() { this.closed = true; this.listeners.clear(); }
+  async paintLcd(index: number, rgb: Uint8Array) {
+    if (this.closed) throw new Error('Mock fermé');
+    const lcd = this.info.controls.find((control) => control.type === 'lcd-segment' && control.index === index);
+    if (!lcd?.pixelSize || rgb.length !== lcd.pixelSize.width * lcd.pixelSize.height * 3) throw new Error('Trame LCD RGB incorrecte');
+    this.lcdFrames.push({ index, rgb: rgb.slice() });
+  }
 }
 
 export const demoEvents: readonly DeckEvent[] = [

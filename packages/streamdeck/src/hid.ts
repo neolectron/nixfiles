@@ -37,6 +37,7 @@ export async function openHardware(info: DeviceInfo): Promise<DeckTransport> {
       return () => { listeners.delete(listener); };
     },
     async paintKey(index, rgb) { await deck.fillKeyBuffer(index, rgb, { format: 'rgb' }); },
+    async paintLcd(index, rgb) { await deck.fillLcd(index, rgb, { format: 'rgb' }); },
     async close() { await deck.close(); listeners.clear(); },
   };
 }
