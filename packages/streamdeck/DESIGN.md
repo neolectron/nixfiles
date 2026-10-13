@@ -59,7 +59,8 @@ This guidance applies to the mixer strip, not the bitmap-key demos or a web app.
 The bezel separates cards. A restrained vertical surface ramp gives the reference's
 tonal depth. Titles and values have high contrast; state labels are secondary.
 Green marks nominal gain, while amplification transitions smoothly through the
-boost colors. The volume policy is 0–200% for app and master controls.
+boost colors. The volume policy is 0–200% for apps and 0–150% for Master.
+Master's boost reaches orange at 125% and red at 150%; apps use 150% and 200%.
 
 ## Typography
 
@@ -83,8 +84,9 @@ and the hardware bezel are sufficient separation at this resolution.
 ## Shapes
 
 Cards are rounded rectangles. Gauges are upper semicircles with a 34px radius,
-small ticks and a pale pointer. Their full sweep covers 0–200%; nominal 100% has
-a prominent center tick. Above nominal, the extra arc uses the boost palette.
+small ticks and a pale pointer. Nominal 100% remains vertical at the prominent
+center tick. The left half covers 0–100%; the right half covers 100–150% for
+Master and 100–200% for apps. Above nominal, the extra arc uses the boost palette.
 
 ## Components
 

@@ -1,0 +1,266 @@
+{"kind":"connected","path":"/dev/hidraw8","model":"Stream Deck + XL","buttons":36,"dials":6,"lcds":1,"mock":false}
+Listening. Ctrl+C to stop.
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"mixer-ready","apps":[{"name":"Discord","key":"discord","volume":100,"muted":false},{"name":"Plants vs. Zombies","key":"wine-preloader","volume":100,"muted":false},{"name":"Spotify","key":"spotify","volume":20,"muted":false}],"master":{"name":"headphones_input","serial":"51","channels":[65536,65536],"volume":100,"muted":false},"step":2,"pages":1}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":22,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":94,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":90,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":86,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":84,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":86,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":20,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":86,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":80,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-10,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":70,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":68,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":80,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":16,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":96,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":10,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":10,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":16,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":94,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":88,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":74,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":72,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":84,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":16,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":10,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":16,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":94,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":88,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-10,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":90,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":78,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":92,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":22,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":32,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":24,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":26,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":26,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":20,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":30,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":34,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-10,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":90,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-10,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":80,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":30,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":20,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":86,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":80,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":76,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":80,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":94,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"audio-request","app":"spotify","delta":8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":28,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":36,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":38,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":40,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":20,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":16,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":14,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":16,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"audio-request","app":"spotify","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":108,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":112,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":126,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":128,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":136,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":150,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":10,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":6,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":146,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-18,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":128,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":120,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":114,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":112,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":110,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":108,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":106,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":104,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":102,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":106,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":14,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":120,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":28,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":148,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":150,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":4,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-6,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":144,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-16,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":128,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":120,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":112,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":110,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":108,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":106,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":104,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":102,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":98,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":102,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":114,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":122,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":18,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":140,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":10,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":150,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":16,"toggles":0}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":146,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-12,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":134,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":130,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":128,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-8,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":120,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":118,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":116,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":114,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-4,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":110,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":108,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":106,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":104,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":102,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":102,"muted":false}]}
+{"kind":"master-request","output":"headphones_input","delta":-2,"toggles":0}
+{"kind":"mixer-view","page":1,"online":true,"slots":[{"dial":0,"app":"Discord","volume":100,"muted":false},{"dial":1,"app":"Plants vs. Zombies","volume":100,"muted":false},{"dial":2,"app":"Spotify","volume":18,"muted":false},{"dial":3,"app":null},{"dial":4,"app":null},{"dial":5,"app":"MASTER","volume":100,"muted":false}]}

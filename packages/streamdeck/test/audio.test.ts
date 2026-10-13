@@ -1,7 +1,7 @@
 import { assert, expect, it, test } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
-import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
+import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
 import type { Control } from '../src/model.ts';
 import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.ts';
@@ -103,7 +103,7 @@ test('app volume rises above 100%, rises from silence, and preserves mute', asyn
   assert.strictEqual(f.commands.at(-1)![2], '93061');
 });
 
-test('application and master volumes clamp at 200%, retaining the independent protocol validation', async () => {
+test('applications clamp at 200% and Master at 150%, retaining protocol bounds and channel balance', async () => {
   const f = fixture([input(1, 'Spotify', [65536, 32768])]);
   await run(Effect.gen(function*() {
     const audio = yield* Audio;
@@ -113,18 +113,18 @@ test('application and master volumes clamp at 200%, retaining the independent pr
     yield* audio.changeMaster(target, { delta: 100, toggles: 0 });
     assert.strictEqual((yield* audio.master)!.volume, 150);
     yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 0 });
-    assert.strictEqual((yield* audio.master)!.volume, MAX_VOLUME_PERCENT);
+    assert.strictEqual((yield* audio.master)!.volume, MAX_MASTER_VOLUME_PERCENT);
   }), f);
   assert.deepStrictEqual(f.commands, [
     ['set-sink-input-volume', '1', '131072', '65536'],
     ['set-sink-volume', 'output', '98304', '49152'],
-    ['set-sink-volume', 'output', '131072', '65536'],
+    ['set-sink-volume', 'output', '98304', '49152'],
   ]);
   await expect(Effect.runPromise(decodeInputs(JSON.stringify([input(1, 'bad', [PULSE_VOLUME_MAX + 1])])))).rejects.toBeInstanceOf(AudioError);
   await expect(Effect.runPromise(decodeSinks(JSON.stringify([{ name: 'bad', mute: false, volume: { mono: { value: PULSE_VOLUME_MAX + 1 } }, properties: {} }])))).rejects.toBeInstanceOf(AudioError);
 });
 
-test('mock audio supports the same amplification and 200% cap', async () => {
+test('mock audio uses the same separate app and Master caps, preserving mute', async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const audio = yield* Audio;
     yield* audio.change('spotify', { delta: 100, toggles: 0 });
@@ -133,7 +133,7 @@ test('mock audio supports the same amplification and 200% cap', async () => {
     assert.strictEqual((yield* audio.list).find((app) => app.key === 'spotify')!.volume, MAX_VOLUME_PERCENT);
     const target = yield* audio.master; assert.ok(target);
     yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 1 });
-    assert.strictEqual((yield* audio.master)!.volume, MAX_VOLUME_PERCENT); assert.strictEqual((yield* audio.master)!.muted, true);
+    assert.strictEqual((yield* audio.master)!.volume, MAX_MASTER_VOLUME_PERCENT); assert.strictEqual((yield* audio.master)!.muted, true);
   }).pipe(Effect.provide(mockLayer)));
 });
 

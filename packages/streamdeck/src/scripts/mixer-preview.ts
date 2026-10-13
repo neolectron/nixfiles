@@ -15,7 +15,7 @@ export const preview = (output: string) => Effect.gen(function*() {
     [
       { name: 'Spotify', volume: 0, muted: false }, { name: 'Discord', volume: 100, muted: true },
       { name: 'Très longue application audio', volume: 85, muted: false }, undefined,
-      { name: 'Discord', volume: 75, muted: false, mixedMute: true }, { name: 'Master', volume: 200, muted: false },
+      { name: 'Discord', volume: 75, muted: false, mixedMute: true }, { name: 'Master', volume: 100, muted: false },
     ],
     [
       { name: 'Music', volume: 45, muted: false }, { name: 'Spotify', volume: 110, muted: false },

@@ -63,8 +63,9 @@ The [Effect mixer script](src/scripts/audio-mixer.ts) lists playback application
 above the left dials, with a percentage and semicircular gauge. Its cards follow
 the supplied Elgato references: charcoal rounded surfaces, app icons and mixed-case
 names, antialiased sans-serif type, tick marks, pointer and a large value at right.
-The gauge spans 0–200%, with a prominent nominal 100% midpoint and green nominal
-range. The right-hand boost segment follows yellow → orange → red.
+The gauge keeps 100% vertical at its prominent midpoint and its nominal range
+green. The right-hand boost segment follows yellow → orange → red and covers
+100–200% for applications, or 100–150% for Master.
 Turn the dial to change that app's
 output volume (two percentage points per tick by default); click it to toggle
 playback mute. Muted feedback shows the stored value, a crossed speaker, grey arc
@@ -82,11 +83,14 @@ output's volume and toggles its mute on click. It follows changes to the default
 output, preserving that output's channel balance. Pending gestures for an output
 that was replaced or is no longer default are discarded instead of affecting the
 new output. Master control also works when no application has a playback stream.
-Volume is bounded to **0–200%** for apps and MASTER. Percentage text stays white
-up to 100%, then transitions smoothly from yellow just above 100% to orange at
-150% and red at 200%. The gauge's green portion covers 0–100%; its colored portion
-shows the amplification above it. External values above 200% are still displayed;
-startup and polling never change them. Dial changes respect the 200% ceiling.
+Volume is bounded to **0–200% for apps** and **0–150% for Master**. Percentage
+text stays white up to 100%, then transitions from yellow through orange to red.
+Master reaches orange at 125% and red at 150%; apps reach orange at 150% and red
+at 200%. The green half covers 0–100%, with 100% vertical. The colored half
+covers the remaining range. External values above a control's ceiling are still
+displayed; startup and polling never change them. Dial changes respect that
+control's ceiling. Noctalia's `audio.volumeOverdrive` must be enabled for the live
+Master to exceed 100%; otherwise the desktop shell resets larger requests.
 Startup only reads audio and draws the strip.
 The script does not control capture streams or the microphone.
 Discord's knob controls its playback audio, not its own microphone mute button.
