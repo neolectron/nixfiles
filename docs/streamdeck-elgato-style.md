@@ -10,6 +10,27 @@ and subprocess operations use scoped Effect services. The same 45 Stream Deck
 cases now run through `@effect/vitest`; the production CLI still runs `.ts`
 directly with Node and has no build step.
 
+Master follow-up: its control now caps at 150%, while app controls keep 200%.
+The two halves use separate scales: 0–100% on the left, 100–150% on Master's
+right; 100% stays exactly vertical. Master's boost reaches orange at 125% and
+red at 150%. The new geometric regression checks the displayed pointer at 100,
+125 and 150%, and confirms that app pointers still use their 200% range. Updated
+tests verify independent native/mock ceilings and balanced channels: **46 Stream
+Deck + 22 keep-awake = 68 passing tests**, with monorepo typecheck passing.
+The production preview below has been regenerated for this scale.
+
+Manuel activated Noctalia overdrive in the UI. The
+[live follow-up snapshot](streamdeck-elgato-style/master-150-live.log) confirms
+Master readbacks above 100% and a maximum of 150% during his rotations. Watch mode
+reloaded the modified source and reopened the real + XL successfully. The active
+settings file is still an immutable Home Manager symlink without an overdrive
+entry, so `hosts/frostbit/default.nix` now records
+`programs.noctalia-shell.settings.audio.volumeOverdrive = true` for the next Nix
+activation. The agent did not replace that symlink, change microphone volume,
+run a global activation or modify the reserved main checkout.
+`nix flake check --no-write-lock-file` passes with the existing output warnings;
+evaluating the host's overdrive leaf returns `true`. No build checks were rerun.
+
 The user supplied two Elgato LCD photos and explicitly chose **semicircular
 gauges like the photos**. Implemented in the existing isolated task-11 clone
 and branch, after the volume-boost commit `8103cf2d`.

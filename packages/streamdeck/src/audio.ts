@@ -6,6 +6,8 @@ export const PULSE_VOLUME_NORM = 0x10000;
 export const PULSE_VOLUME_MAX = 0x7fffffff;
 /** Mixer limit requested by Manuel; protocol validation keeps its independent raw bound. */
 export const MAX_VOLUME_PERCENT = 200;
+/** Default output ceiling matches Noctalia's supported overdrive. */
+export const MAX_MASTER_VOLUME_PERCENT = 150;
 
 export class AudioError extends Data.TaggedError('AudioError')<{
   readonly operation: string;
@@ -86,8 +88,8 @@ export const decodeSinks = (json: string) => Effect.gen(function*() {
 });
 const validateChange = (change: Change) => Number.isFinite(change.delta) && Number.isSafeInteger(change.toggles) && change.toggles >= 0
   ? Effect.void : Effect.fail(new AudioError({ operation: 'change', message: 'Invalid audio change.' }));
-const changedChannels = (channels: ReadonlyArray<number>, volume: number, delta: number) => {
-  const target = Math.max(0, Math.min(MAX_VOLUME_PERCENT, volume + delta));
+const changedChannels = (channels: ReadonlyArray<number>, volume: number, delta: number, maximum = MAX_VOLUME_PERCENT) => {
+  const target = Math.max(0, Math.min(maximum, volume + delta));
   return channels.map((value) => Math.max(0, Math.min(PULSE_VOLUME_MAX,
     Math.round(volume > 0 ? value * target / volume : target / 100 * PULSE_VOLUME_NORM))));
 };
@@ -137,7 +139,7 @@ export const serviceLayer = Layer.effect(Audio, Effect.gen(function*() {
       const fresh = yield* readMaster;
       // A pending gesture must not spill onto a newly selected/recreated output.
       if (!fresh || fresh.name !== target.name || fresh.serial !== target.serial) return;
-      if (change.delta !== 0) yield* pactl.run(['set-sink-volume', fresh.name, ...changedChannels(fresh.channels, fresh.volume, change.delta).map(String)]);
+      if (change.delta !== 0) yield* pactl.run(['set-sink-volume', fresh.name, ...changedChannels(fresh.channels, fresh.volume, change.delta, MAX_MASTER_VOLUME_PERCENT).map(String)]);
       if (change.toggles % 2) yield* pactl.run(['set-sink-mute', fresh.name, fresh.muted ? '0' : '1']);
     })),
     change: (key, change) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
@@ -169,7 +171,7 @@ export const mockLayer = Layer.effect(Audio, Effect.sync(() => {
   return Audio.of({ list: Effect.sync(() => group(streams)), master: Effect.sync(() => master),
     changeMaster: (target, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
       if (target.name !== master.name || target.serial !== master.serial) return;
-      const channels = change.delta ? changedChannels(master.channels, master.volume, change.delta) : master.channels;
+      const channels = change.delta ? changedChannels(master.channels, master.volume, change.delta, MAX_MASTER_VOLUME_PERCENT) : master.channels;
       master = { ...master, channels, volume: Math.max(...channels) / PULSE_VOLUME_NORM * 100, muted: change.toggles % 2 ? !master.muted : master.muted };
     }))), change: (key, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
     const app = group(streams).find((candidate) => candidate.key === key); if (!app) return;

@@ -316,6 +316,7 @@ in
               general.animationSpeed = 1.3;
               general.scaleRatio = 0.9;
               systemMonitor.enableDgpuMonitoring = true;
+              audio.volumeOverdrive = true;
             };
             plugins = {
               version = "2";
