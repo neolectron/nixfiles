@@ -1,5 +1,5 @@
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
-import { Console, Deferred, Effect, Fiber, Option, Ref, Schema, Stream } from 'effect';
+import { Console, Deferred, Effect, Fiber, Option, Path, Ref, Schema, Stream } from 'effect';
 import { CliError, Command, Flag } from 'effect/cli';
 import * as Audio from './audio.ts';
 import * as Hid from './hid.ts';
@@ -34,9 +34,11 @@ interface DeviceOptions {
   readonly step?: number;
   readonly renderer?: RendererKind;
   readonly mockAudio?: boolean;
+  readonly port?: number;
+  readonly profile?: Option.Option<string>;
 }
 
-const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer', options: DeviceOptions) => Effect.gen(function*() {
+const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer' | 'studio', options: DeviceOptions) => Effect.gen(function*() {
   if (options.demo && !options.mock) return yield* new CliError.UserError({ cause: '--demo requires --mock.', userMessage: '--demo requires --mock.' });
   const mock = Mock.make();
   const body = Effect.scoped(Effect.gen(function*() {
@@ -51,7 +53,14 @@ const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer', 
     });
     const hello = kind === 'hello' ? yield* startHello(!!options.lcd, observe) : undefined;
     const events = kind === 'events' ? yield* deck.subscribe : undefined;
-    const run = hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : kind === 'mixer'
+    const studio = kind === 'studio' ? yield* Effect.gen(function*() {
+      const module = yield* Effect.tryPromise(() => import('./scripts/studio.ts'));
+      const path = yield* Path.Path;
+      const fallback = yield* path.fromFileUrl(new URL('../.studio/profile.json', import.meta.url));
+      return module.studio({ port: options.port ?? 3900, profile: Option.getOrElse(options.profile ?? Option.none(), () => fallback), mock: options.mock,
+        renderer: options.renderer ?? 'react' }).pipe(Effect.provide(options.mock || options.mockAudio ? Audio.demoLayer : Audio.layer));
+    }) : undefined;
+    const run = studio ?? hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : kind === 'mixer'
       ? mixer({ ...(options.step === undefined ? {} : { step: options.step }), ...(options.renderer === undefined ? {} : { renderer: options.renderer }) }).pipe(Effect.provide(options.mockAudio ? Audio.demoLayer : options.mock ? Audio.mockLayer : Audio.layer)) : playground);
     if (options.demo) {
       const fiber = yield* Effect.forkScoped(run);
@@ -93,10 +102,17 @@ const previewCommand = Command.make('preview', {
   renderer: rendererFlag,
   output: Flag.String('output').pipe(Flag.withDefault('/tmp/streamdeck-mixer-preview.png'), Flag.withDescription('PNG destination, parent directory must exist.')),
 }, ({ output, renderer }) => preview(output, renderer)).pipe(Command.withDescription('Render mixer appearance and states with illustrative values; no USB or audio connection.'));
+const studioCommand = Command.make('studio', {
+  ...connectionFlags,
+  renderer: Flag.Literals('renderer', ['svg', 'react']).pipe(Flag.withDefault('react')),
+  mockAudio: Flag.Boolean('mock-audio').pipe(Flag.withDefault(false)),
+  port: Flag.Finite('port').pipe(Flag.withSchema(Schema.Int.check(Schema.isBetween({ minimum: 1024, maximum: 65535 }))), Flag.withDefault(3900)),
+  profile: Flag.String('profile').pipe(Flag.optional, Flag.withDescription('Local action profile JSON; defaults to the ignored .studio/profile.json in this clone.')),
+}, (options) => runDevice('studio', options)).pipe(Command.withDescription('Local React editor, live deck preview and configurable key actions alongside the audio mixer.'));
 
 const command = Command.make('streamdeck').pipe(
   Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),
-  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand, previewCommand,
+  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand, previewCommand, studioCommand,
     Command.make('benchmark', {}, () => benchmark).pipe(Command.withDescription('Compare warm SVG and React/Takumi raster timings without USB or audio.'))]),
 );
 
