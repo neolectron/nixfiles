@@ -162,12 +162,16 @@ export const serviceLayer = Layer.effect(Audio, Effect.gen(function*() {
 export const layer = serviceLayer.pipe(Layer.provide(pactlLayer));
 
 /** Entirely inert audio fixture for the CLI's --mock mode. */
-export const mockLayer = Layer.effect(Audio, Effect.sync(() => {
+const makeMockLayer = (extraApps: boolean) => Layer.effect(Audio, Effect.sync(() => {
   let master: Master = { name: 'mock-output', serial: 'mock-output-1', channels: [32768, 32768], volume: 50, muted: false };
   let streams: PlaybackStream[] = [
     { index: 1, serial: '1', app: 'discord', name: 'Discord', channels: [65536, 0], muted: false, paused: false },
     { index: 2, serial: '2', app: 'spotify', name: 'Spotify', channels: [32768, 32768], muted: false, paused: false },
   ];
+  if (extraApps) streams.push(...Array.from({ length: 6 }, (_, i): PlaybackStream => ({
+    index: i + 3, serial: `demo-${i}`, app: `demo-${i}`, name: `Demo ${i + 1}`,
+    channels: [Math.round(PULSE_VOLUME_NORM * (i + 2) / 10)], muted: false, paused: false,
+  })));
   return Audio.of({ list: Effect.sync(() => group(streams)), master: Effect.sync(() => master),
     changeMaster: (target, change) => validateChange(change).pipe(Effect.andThen(Effect.sync(() => {
       if (target.name !== master.name || target.serial !== master.serial) return;
@@ -181,3 +185,6 @@ export const mockLayer = Layer.effect(Audio, Effect.sync(() => {
     });
   }))) });
 }));
+export const mockLayer = makeMockLayer(false);
+/** Eight inert apps for exercising physical swipe/knob routing without changing real sound. */
+export const demoLayer = makeMockLayer(true);

@@ -11,9 +11,12 @@ import { playground } from './scripts/playground.ts';
 import { pages } from './scripts/pages.ts';
 import { mixer } from './scripts/audio-mixer.ts';
 import { preview } from './scripts/mixer-preview.ts';
+import type { RendererKind } from './mixer-renderer.ts';
+import { benchmark } from './scripts/render-benchmark.ts';
 
 const mockFlag = Flag.Boolean('mock').pipe(Flag.withDefault(false), Flag.withDescription('Use an in-memory device; never load native HID.'));
 const demoFlag = Flag.Boolean('demo').pipe(Flag.withDefault(false), Flag.withDescription('Replay a finite mock input sequence. Requires --mock.'));
+const rendererFlag = Flag.Literals('renderer', ['svg', 'react']).pipe(Flag.withDefault('svg'), Flag.withDescription('LCD renderer: svg or React/Takumi, default svg.'));
 const connectionFlags = {
   mock: mockFlag,
   path: Flag.String('path').pipe(Flag.optional, Flag.withDescription('Exact device path from list; required when several devices are connected.')),
@@ -29,6 +32,8 @@ interface DeviceOptions {
   readonly demo?: boolean;
   readonly lcd?: boolean;
   readonly step?: number;
+  readonly renderer?: RendererKind;
+  readonly mockAudio?: boolean;
 }
 
 const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer', options: DeviceOptions) => Effect.gen(function*() {
@@ -47,7 +52,7 @@ const runDevice = (kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer', 
     const hello = kind === 'hello' ? yield* startHello(!!options.lcd, observe) : undefined;
     const events = kind === 'events' ? yield* deck.subscribe : undefined;
     const run = hello?.run ?? (events ? Stream.runForEach(events, observe) : kind === 'pages' ? pages : kind === 'mixer'
-      ? mixer(options.step === undefined ? {} : { step: options.step }).pipe(Effect.provide(options.mock ? Audio.mockLayer : Audio.layer)) : playground);
+      ? mixer({ ...(options.step === undefined ? {} : { step: options.step }), ...(options.renderer === undefined ? {} : { renderer: options.renderer }) }).pipe(Effect.provide(options.mockAudio ? Audio.demoLayer : options.mock ? Audio.mockLayer : Audio.layer)) : playground);
     if (options.demo) {
       const fiber = yield* Effect.forkScoped(run);
       for (const event of Mock.demoEvents) yield* mock.emit(event);
@@ -80,15 +85,19 @@ const pagesCommand = Command.make('pages', connectionFlags, (options) => runDevi
   .pipe(Command.withDescription('Run the editable two-page behavior script.'));
 const mixerCommand = Command.make('mixer', {
   ...connectionFlags,
+  renderer: rendererFlag,
+  mockAudio: Flag.Boolean('mock-audio').pipe(Flag.withDefault(false), Flag.withDescription('Eight simulated apps and output; can use real HID but never executes pactl.')),
   step: Flag.Finite('step').pipe(Flag.withSchema(Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(20))), Flag.withDefault(2), Flag.withDescription('Volume percentage points per dial tick, default 2.')),
 }, (options) => runDevice('mixer', options)).pipe(Command.withDescription('App volume and mute on the left dials; default-output MASTER on the rightmost dial. Swipe for more apps. --mock also mocks audio.'));
 const previewCommand = Command.make('preview', {
+  renderer: rendererFlag,
   output: Flag.String('output').pipe(Flag.withDefault('/tmp/streamdeck-mixer-preview.png'), Flag.withDescription('PNG destination, parent directory must exist.')),
-}, ({ output }) => preview(output)).pipe(Command.withDescription('Render mixer appearance and states with illustrative values; no USB or audio connection.'));
+}, ({ output, renderer }) => preview(output, renderer)).pipe(Command.withDescription('Render mixer appearance and states with illustrative values; no USB or audio connection.'));
 
 const command = Command.make('streamdeck').pipe(
   Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),
-  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand, previewCommand]),
+  Command.withSubcommands([list, hello, events, playgroundCommand, pagesCommand, mixerCommand, previewCommand,
+    Command.make('benchmark', {}, () => benchmark).pipe(Command.withDescription('Compare warm SVG and React/Takumi raster timings without USB or audio.'))]),
 );
 
 NodeRuntime.runMain(Command.run(command, { version: '0.1.0' }).pipe(Effect.provide(NodeServices.layer)));

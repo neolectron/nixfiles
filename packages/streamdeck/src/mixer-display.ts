@@ -4,29 +4,9 @@ import { StreamDeckError, invalid } from './errors.ts';
 import type { Color, Size } from './model.ts';
 import * as Svg from './svg.ts';
 import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from './audio.ts';
+import { volumeColor, point, arc, css } from './volume-gauge.ts';
 
 export interface Feedback { readonly name: string; readonly volume: number; readonly muted: boolean; readonly mixedMute?: boolean }
-/** Nominal stays white; the boost half progresses yellow → orange → red at its ceiling. */
-export const volumeColor = (percent: number, maximum = MAX_VOLUME_PERCENT): Color => {
-  if (percent <= 100) return [255, 255, 255];
-  const boost = Math.max(0, Math.min(1, (percent - 100) / (maximum - 100)));
-  const yellow: Color = [255, 220, 40]; const orange: Color = [255, 145, 30]; const red: Color = [255, 55, 55];
-  const from = boost < .5 ? yellow : orange; const to = boost < .5 ? orange : red;
-  const amount = boost < .5 ? boost * 2 : (boost - .5) * 2;
-  const blend = (channel: 0 | 1 | 2) => Math.round(from[channel] + (to[channel] - from[channel]) * amount);
-  return [blend(0), blend(1), blend(2)];
-};
-const css = (color: Color) => `rgb(${color.join(',')})`;
-const point = (center: number, radius: number, percent: number, maximum: number) => {
-  const level = Math.max(0, Math.min(maximum, percent));
-  const fraction = level <= 100 ? level / 200 : .5 + (level - 100) / (maximum - 100) / 2;
-  const angle = Math.PI + fraction * Math.PI;
-  return [center + Math.cos(angle) * radius, 91 + Math.sin(angle) * radius] as const;
-};
-const arc = (center: number, radius: number, from: number, to: number, maximum: number) => {
-  const a = point(center, radius, from, maximum); const b = point(center, radius, to, maximum);
-  return `M ${a[0]} ${a[1]} A ${radius} ${radius} 0 0 1 ${b[0]} ${b[1]}`;
-};
 const speaker = `<path d="M 2 8 H 6 L 11 4 V 20 L 6 16 H 2 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M 15 8 Q 19 12 15 16 M 18 5 Q 25 12 18 19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>`;
 const music = `<path d="M 9 16 V 5 L 20 3 V 14 M 9 8 L 20 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><ellipse cx="6" cy="17" rx="3" ry="2.6" fill="currentColor"/><ellipse cx="17" cy="15" rx="3" ry="2.6" fill="currentColor"/>`;
 

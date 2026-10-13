@@ -5,7 +5,8 @@ import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_MASTER_VOLUME_PERCENT, 
 import * as Mock from '../src/mock.ts';
 import type { Control } from '../src/model.ts';
 import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.ts';
-import { card, volumeColor } from '../src/mixer-display.ts';
+import { card } from '../src/mixer-display.ts';
+import { volumeColor } from '../src/volume-gauge.ts';
 import { cli } from './cli.ts';
 
 const input = (index: number, binary: string, values: number[], mute = false, serial = String(index)) => ({

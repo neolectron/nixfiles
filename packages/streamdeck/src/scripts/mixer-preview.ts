@@ -1,10 +1,12 @@
 import { Console, Effect, FileSystem } from 'effect';
-import * as Display from '../mixer-display.ts';
+import * as Display from '../mixer-renderer.ts';
+import * as Svg from '../svg.ts';
 
 /** Render the shipped card renderer at actual + XL dimensions, without HID/audio. */
-export const preview = (output: string) => Effect.gen(function*() {
+export const preview = (output: string, kind: Display.RendererKind = 'svg') => Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem;
-  const display = yield* Display.make;
+  const display = yield* Display.make(kind);
+  const composer = yield* Svg.make;
   const widths = [168, 216, 216, 216, 216, 168];
   const rows = [
     [
@@ -33,6 +35,6 @@ export const preview = (output: string) => Effect.gen(function*() {
     }
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="316"><rect width="1200" height="316" fill="#0D0D10"/>${images.join('')}</svg>`;
-  yield* fs.writeFile(output, yield* display.renderer.png(svg));
-  yield* Console.log(`Mixer preview (illustrative values): ${output}`);
+  yield* fs.writeFile(output, yield* composer.png(svg));
+  yield* Console.log(`Mixer preview (illustrative values, ${kind}): ${output}`);
 });
