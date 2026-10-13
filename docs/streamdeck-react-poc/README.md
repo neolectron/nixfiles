@@ -94,7 +94,11 @@ pnpm streamdeck benchmark
   system font configuration, without loading HID or executing audio commands.
 - Frozen pnpm install and `nix flake check` pass (existing unknown-output warnings).
 - Real HID connection and all six initial React card uploads succeeded.
-  Visible rendering and physical gesture confirmation are pending Manuel's reply.
+  Manuel confirmed the visible rendering and physical gestures work. The demo
+  log shows repeated page 1/2 navigation, dial volume changes and a fixed Master.
+  The mixer was then restarted with `--renderer react` and real audio, keeping
+  Node watch mode. Its initial snapshot shows Plants vs. Zombies and the default
+  output at 100%; no fake audio layer remains active.
 
 The [preview](preview.png) shows three illustrative rows, not live audio values.
 The [benchmark log](benchmark.log) contains 40 warmed samples for each renderer,
