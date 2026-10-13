@@ -76,7 +76,7 @@ const pagesCommand = Command.make('pages', connectionFlags, (options) => runDevi
 const mixerCommand = Command.make('mixer', {
   ...connectionFlags,
   step: Flag.Finite('step').pipe(Flag.withSchema(Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(20))), Flag.withDefault(2), Flag.withDescription('Volume percentage points per dial tick, default 2.')),
-}, (options) => runDevice('mixer', options)).pipe(Command.withDescription('Show playback apps above the dials: rotate for volume, click to mute, swipe for more apps. --mock also mocks audio.'));
+}, (options) => runDevice('mixer', options)).pipe(Command.withDescription('App volume and mute on the left dials; default-output MASTER on the rightmost dial. Swipe for more apps. --mock also mocks audio.'));
 
 const command = Command.make('streamdeck').pipe(
   Command.withDescription('Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device; images remain displayed.'),

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
-import { Audio, AudioError, Pactl, decodeInputs, group, serviceLayer, type Application } from '../src/audio.js';
+import { Audio, AudioError, Pactl, decodeInputs, group, serviceLayer, type Application, type Master } from '../src/audio.js';
 import { Mock, type Control } from '../src/index.js';
 import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.js';
 
@@ -14,13 +14,19 @@ const input = (index: number, binary: string, values: number[], mute = false, se
     'application.process.binary': `.${binary}-wrapped`, 'object.serial': serial, 'media.class': 'Stream/Output/Audio' },
 });
 const fixture = (initial = [input(7415, 'Spotify', [13107, 13107]), input(28015, 'Discord', [65536, 0])]) => {
+  let sink = { name: 'output', mute: false, volume: { left: { value: 32768 }, right: { value: 16384 } }, properties: { 'object.serial': 'sink-1' } };
+  let defaultSink = sink.name;
   let inputs = initial;
   let reads = 0;
   const commands: string[][] = [];
   let onRead: ((count: number) => void) | undefined;
   const pactl = Layer.succeed(Pactl, Pactl.of({ run: (args) => Effect.sync(() => {
+    if (args[0] === 'get-default-sink') return `${defaultSink}\n`;
+    if (args[0] === '--format=json' && args[2] === 'sinks') return JSON.stringify([sink]);
     if (args[0] === '--format=json') { onRead?.(++reads); return JSON.stringify(inputs); }
     commands.push([...args]);
+    if (args[0] === 'set-sink-mute') sink = { ...sink, mute: args[2] === '1' };
+    if (args[0] === 'set-sink-volume') sink = { ...sink, volume: { left: { value: Number(args[2]) }, right: { value: Number(args[3]) } } };
     inputs = inputs.map((row) => row.index !== Number(args[1]) ? row : {
       ...row,
       ...(args[0] === 'set-sink-input-mute' ? { mute: args[2] === '1' } : {}),
@@ -29,10 +35,14 @@ const fixture = (initial = [input(7415, 'Spotify', [13107, 13107]), input(28015,
     return '';
   }) }));
   return { commands, layer: serviceLayer.pipe(Layer.provide(pactl)), set: (next: typeof initial) => { inputs = next; },
-    onRead: (callback: (count: number) => void) => { onRead = callback; } };
+    onRead: (callback: (count: number) => void) => { onRead = callback; },
+    replaceSink: (name: string, serial: string) => { defaultSink = name; sink = { ...sink, name, properties: { 'object.serial': serial } }; },
+    removeDefault: () => { defaultSink = ''; } };
 };
 const run = <A, E>(body: Effect.Effect<A, E, Audio>, f: ReturnType<typeof fixture>) => Effect.runPromise(body.pipe(Effect.provide(f.layer)));
 const app = (key: string): Application => ({ key, name: key, streams: [], volume: 50, muted: false, mixedMute: false, paused: false });
+const master: Master = { name: 'output', serial: 'sink-1', channels: [32768, 16384], volume: 50, muted: false };
+const masterMock = { master: Effect.succeed(master), changeMaster: () => Effect.void };
 
 test('playback decoding filters capture/system nodes, identifies Discord and groups app streams', async () => {
   const system = { ...input(3, 'system', [65536]), properties: {} };
@@ -133,15 +143,15 @@ test('page changes keep pending actions bound to the original app and empty dial
   const deck = Mock.make(); const f = fixture(Array.from({ length: 8 }, (_, i) => input(i + 1, `App${i}`, [32768])));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer();
-    yield* mixer.adjustDial(0, 1); yield* mixer.changePage(1); yield* mixer.toggleDial(0); yield* mixer.toggleDial(5); yield* mixer.flush;
-    assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '34079'], ['set-sink-input-mute', '7', '1']]);
+    yield* mixer.adjustDial(0, 1); yield* mixer.changePage(1); yield* mixer.toggleDial(0); yield* mixer.toggleDial(4); yield* mixer.flush;
+    assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '34079'], ['set-sink-input-mute', '6', '1']]);
     assert.equal((yield* mixer.state).page, 1);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
 });
 
 test('offline feedback disables actions and reconnect restores the existing app slots', async () => {
   const deck = Mock.make(); let offline = false; let changes = 0;
-  const audio = Layer.succeed(Audio, Audio.of({ list: Effect.suspend(() => offline
+  const audio = Layer.succeed(Audio, Audio.of({ ...masterMock, list: Effect.suspend(() => offline
     ? Effect.fail(new AudioError({ operation: 'list', message: 'offline' })) : Effect.succeed([app('spotify')])),
     change: () => Effect.sync(() => { changes++; }) }));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
@@ -154,7 +164,7 @@ test('offline feedback disables actions and reconnect restores the existing app 
 
 test('encoder events route through the Effect binding runner', async () => {
   const deck = Mock.make(); const written = Deferred.makeUnsafe<void>(); let changeKey = '';
-  const audio = Layer.succeed(Audio, Audio.of({ list: Effect.succeed([app('spotify')]), change: (key) => Effect.sync(() => { changeKey = key; }).pipe(Effect.andThen(Deferred.succeed(written, undefined)), Effect.asVoid) }));
+  const audio = Layer.succeed(Audio, Audio.of({ ...masterMock, list: Effect.succeed([app('spotify')]), change: (key) => Effect.sync(() => { changeKey = key; }).pipe(Effect.andThen(Deferred.succeed(written, undefined)), Effect.asVoid) }));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer({ flushMillis: 1 }); const fiber = yield* Effect.forkScoped(mixer.run);
     yield* deck.emit({ _tag: 'DialRotate', dial: 0, delta: 1 }); yield* Deferred.await(written); yield* Fiber.interrupt(fiber);
@@ -169,4 +179,57 @@ test('CLI mock mixer runs with neither pactl nor native HID available and valida
   });
   const result = cli('--mock', '--duration', '0.1'); assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /mixer-ready/);
   for (const step of ['0', 'NaN', '21']) assert.equal(cli('--mock', '--step', step).status, 1);
+});
+
+test('master controls only the default sink, preserves balance, and leaves app volumes alone', async () => {
+  const f = fixture();
+  await run(Effect.gen(function*() {
+    const audio = yield* Audio; const target = yield* audio.master; assert.ok(target);
+    yield* audio.changeMaster(target, { delta: 2, toggles: 1 });
+    const muted = yield* audio.master; assert.ok(muted); assert.equal(muted.muted, true);
+    yield* audio.changeMaster(muted, { delta: -2, toggles: 0 });
+    assert.equal((yield* audio.master)!.muted, true);
+    yield* audio.changeMaster(muted, { delta: 0, toggles: 1 });
+    assert.equal((yield* audio.master)!.muted, false);
+    assert.equal(Math.round((yield* audio.list).find((app) => app.key === 'spotify')!.volume), 20);
+  }), f);
+  assert.deepEqual(f.commands, [
+    ['set-sink-volume', 'output', '34079', '17039'], ['set-sink-mute', 'output', '1'],
+    ['set-sink-volume', 'output', '32768', '16384'], ['set-sink-mute', 'output', '0'],
+  ]);
+});
+
+test('pending master changes do not spill onto a different or recreated default sink', async () => {
+  const f = fixture();
+  await run(Effect.gen(function*() {
+    const audio = yield* Audio; const previous = yield* audio.master; assert.ok(previous);
+    for (const [name, serial] of [['headphones', 'sink-2'], ['output', 'sink-3']]) {
+      f.replaceSink(name!, serial!); yield* audio.changeMaster(previous, { delta: 2, toggles: 1 });
+    }
+    f.removeDefault(); assert.equal(yield* audio.master, undefined);
+    yield* audio.changeMaster(previous, { delta: 2, toggles: 1 });
+  }), f);
+  assert.deepEqual(f.commands, []);
+});
+
+test('rightmost dial is reserved for master across pages; app pagination uses five slots', async () => {
+  const deck = Mock.make(); const f = fixture(Array.from({ length: 6 }, (_, i) => input(i + 1, `App${i}`, [32768])));
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const mixer = yield* startMixer();
+    assert.deepEqual(f.commands, []);
+    yield* mixer.adjustDial(5, 1); yield* mixer.changePage(1); yield* mixer.toggleDial(5); yield* mixer.toggleDial(0); yield* mixer.flush;
+    assert.deepEqual(f.commands, [['set-sink-input-mute', '6', '1'], ['set-sink-volume', 'output', '34079', '17039'], ['set-sink-mute', 'output', '1']]);
+    assert.equal((yield* mixer.state).page, 1); assert.equal((yield* mixer.state).master!.muted, true);
+  })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
+});
+
+test('master read failure disables its dial while app controls remain usable', async () => {
+  const deck = Mock.make(); let appChanges = 0; let masterChanges = 0;
+  const audio = Layer.succeed(Audio, Audio.of({ list: Effect.succeed([app('spotify')]),
+    master: Effect.fail(new AudioError({ operation: 'master', message: 'unavailable' })),
+    change: () => Effect.sync(() => { appChanges++; }), changeMaster: () => Effect.sync(() => { masterChanges++; }) }));
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const mixer = yield* startMixer(); yield* mixer.toggleDial(5); yield* mixer.adjustDial(5, 1); yield* mixer.toggleDial(0); yield* mixer.flush;
+    assert.equal(appChanges, 1); assert.equal(masterChanges, 0); assert.equal((yield* mixer.state).masterOnline, false);
+  })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), audio))));
 });
