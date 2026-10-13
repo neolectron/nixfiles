@@ -1,6 +1,5 @@
-import { NodeFileSystem } from '@effect/platform-node';
-import { Effect, FileSystem } from 'effect';
-import { fileURLToPath } from 'node:url';
+import { NodeFileSystem, NodePath } from '@effect/platform-node';
+import { Effect, FileSystem, Layer, Path } from 'effect';
 import { StreamDeckError, invalid } from './errors.ts';
 import type { Color, Size } from './model.ts';
 import * as Svg from './svg.ts';
@@ -31,8 +30,10 @@ const music = `<path d="M 9 16 V 5 L 20 3 V 14 M 9 8 L 20 6" fill="none" stroke=
 export const make = Effect.gen(function*() {
   const renderer = yield* Svg.make;
   const fs = yield* FileSystem.FileSystem;
+  const pathService = yield* Path.Path;
   const icons = yield* Effect.forEach(['spotify', 'discord', 'googlechrome'] as const, (name) => Effect.gen(function*() {
-    const svg = yield* fs.readFileString(fileURLToPath(new URL(`../assets/icons/${name}.svg`, import.meta.url)));
+    const filename = yield* pathService.fromFileUrl(new URL(`../assets/icons/${name}.svg`, import.meta.url));
+    const svg = yield* fs.readFileString(filename);
     const path = svg.match(/<path d="([^"]+)"/u)?.[1];
     if (!path) return yield* Effect.fail(invalid('mixer-icon', `Invalid bundled ${name} icon.`));
     return [name, path] as const;
@@ -87,5 +88,5 @@ export const make = Effect.gen(function*() {
     card: (size: Size, app: Feedback | undefined, online: boolean, titleOverride?: string) => Effect.flatMap(svg(size, app, online, titleOverride), renderer.rgb),
     png: (size: Size, app: Feedback | undefined, online: boolean, titleOverride?: string) => Effect.flatMap(svg(size, app, online, titleOverride), renderer.png),
   };
-}).pipe(Effect.mapError((cause) => cause instanceof StreamDeckError ? cause : new StreamDeckError({ reason: 'Driver', operation: 'mixer-assets', message: 'Could not load bundled mixer assets.', cause })), Effect.provide(NodeFileSystem.layer));
+}).pipe(Effect.mapError((cause) => cause instanceof StreamDeckError ? cause : new StreamDeckError({ reason: 'Driver', operation: 'mixer-assets', message: 'Could not load bundled mixer assets.', cause })), Effect.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)));
 export const card = (size: Size, app: Feedback | undefined, online: boolean, titleOverride?: string) => Effect.flatMap(make, (display) => display.card(size, app, online, titleOverride));

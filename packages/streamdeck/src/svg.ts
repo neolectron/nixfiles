@@ -1,17 +1,18 @@
-import { NodeFileSystem } from '@effect/platform-node';
-import { Effect, FileSystem, Ref } from 'effect';
-import { fileURLToPath } from 'node:url';
+import { NodeFileSystem, NodePath } from '@effect/platform-node';
+import { Effect, FileSystem, Layer, Path, Ref } from 'effect';
 import { StreamDeckError, invalid } from './errors.ts';
 import type { RgbImage } from './image.ts';
 
 export const escapeXml = (text: string) => text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!);
-const fontFiles = ['LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf'].map((name) => fileURLToPath(new URL(`../assets/fonts/${name}`, import.meta.url)));
 export const fontFamily = 'Liberation Sans';
 const failure = (cause: unknown) => new StreamDeckError({ reason: 'Driver', operation: 'svg', message: 'SVG rendering failed.', cause });
 
 /** Optional Node renderer boundary. HID discovery and bitmap demos never load it. */
 export const make = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const fontFiles = yield* Effect.forEach(['LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf'],
+    (name) => path.fromFileUrl(new URL(`../assets/fonts/${name}`, import.meta.url)));
   yield* Effect.forEach(fontFiles, (path) => fs.access(path));
   const native = yield* Effect.tryPromise({ try: () => import('@resvg/resvg-js'), catch: failure });
   const options = { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: fontFamily }, textRendering: 1 as const };
@@ -51,5 +52,5 @@ export const make = Effect.gen(function*() {
     }),
     png: (svg: string) => Effect.map(render(svg), (image) => image.asPng()),
   };
-}).pipe(Effect.mapError((cause) => cause instanceof StreamDeckError ? cause : failure(cause)), Effect.provide(NodeFileSystem.layer));
+}).pipe(Effect.mapError((cause) => cause instanceof StreamDeckError ? cause : failure(cause)), Effect.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)));
 export type Renderer = Effect.Success<typeof make>;

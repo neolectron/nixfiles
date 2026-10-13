@@ -4,6 +4,11 @@ Runtime follow-up: the package now runs `.ts` directly in Node 24, with `.ts`
 relative imports, `noEmit`, no barrel and no build step. Historical build checks
 below describe the renderer delivery before that change. The current commands
 and direct module imports are documented in the package README.
+Platform follow-up: direct Node built-in imports were replaced in both sources
+and tests. Asset paths use Effect `Path` with `NodePath.layer`, and test filesystem
+and subprocess operations use scoped Effect services. The same 45 Stream Deck
+cases now run through `@effect/vitest`; the production CLI still runs `.ts`
+directly with Node and has no build step.
 
 The user supplied two Elgato LCD photos and explicitly chose **semicircular
 gauges like the photos**. Implemented in the existing isolated task-11 clone

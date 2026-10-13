@@ -235,6 +235,16 @@ Custom mock devices and write failures use `Mock.make({ devices, onWrite })`.
 Use `mock.disconnect()` to exercise device loss. For deterministic tests,
 `Bindings.start` exposes a ready subscription and a `run` Effect before you emit.
 
+Platform operations use Effect services and `@effect/platform-node` layers;
+source files and tests have no direct Node built-in imports. `Path` resolves file
+URLs, `FileSystem` reads assets and owns scoped temporary files, and
+`ChildProcessSpawner` runs literal commands with scoped cleanup and timeouts.
+Tests use `@effect/vitest` 4.0.4 with Vitest 5.0.4; CLI integration tests use
+`it.live` with Node platform services. The test helper reads pnpm's
+`npm_node_execpath` through Effect `Config`, keeping child Node execution available
+even in tests with an intentionally empty command search path. Run the suite via
+`pnpm test` so that pnpm supplies this variable.
+
 ```sh
 pnpm test
 pnpm typecheck
