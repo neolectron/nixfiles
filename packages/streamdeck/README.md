@@ -112,7 +112,8 @@ output volume (two percentage points per tick by default); click it to toggle
 playback mute. Muted feedback shows the stored value, a crossed speaker, grey arc
 and `Muted` label. Swipe the LCD left/right for more apps
 when they exceed the available app dials (five on the + XL). Existing apps retain their slots as others
-appear/disappear; new apps fill empty slots. Long names ellipsize using real font
+appear/disappear; new apps fill empty slots. Empty application slots show only the
+strip background, without a placeholder card. Long names ellipsize using real font
 measurements to fit each region, including the narrow cards at the strip ends.
 
 The [Audio service](src/audio.ts) controls the existing PipeWire-Pulse interface

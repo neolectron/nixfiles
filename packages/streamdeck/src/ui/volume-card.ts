@@ -14,6 +14,8 @@ interface CardProps extends Size {
 /** Pure React presentation: Effect owns the state and physical event handlers. */
 export function VolumeCard({ width, height, app, online, title, icons }: CardProps) {
   const master = title === 'MASTER' || title === 'Master';
+  const style: CSSProperties = { width, height, background: '#0D0D10', fontFamily: 'Liberation Sans', position: 'relative' };
+  if (!app && !master) return h('div', { style });
   const maximum = master ? MAX_MASTER_VOLUME_PERCENT : MAX_VOLUME_PERCENT;
   const name = master ? 'Master' : title ?? app?.name ?? (online ? 'No app' : 'Audio');
   const muted = app?.muted ?? false;
@@ -39,7 +41,6 @@ export function VolumeCard({ width, height, app, online, title, icons }: CardPro
       h('path', { d: master || muted ? 'M 2 8 H 6 L 11 4 V 20 L 6 16 H 2 Z M 15 8 Q 19 12 15 16' : 'M 9 16 V 5 L 20 3 V 14 M 9 8 L 20 6', fill: 'none', stroke: online ? '#D8D9E4' : '#DBB45A', strokeWidth: 1.8 }),
       muted ? h('path', { d: 'M 14 7 L 23 17 M 23 7 L 14 17', stroke: '#F1ADB1', strokeWidth: 2 }) : null)
     : h('img', { src: icons[key], width: 19, height: 19, style: { opacity: online ? 1 : .45 } });
-  const style: CSSProperties = { width, height, background: '#0D0D10', fontFamily: 'Liberation Sans', position: 'relative' };
   return h('div', { style },
     h('div', { style: { position: 'absolute', left: 4, top: 4, width: width - 8, height: height - 8, borderRadius: 7, overflow: 'hidden', background: 'linear-gradient(#41414D,#35353F)' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginLeft: 10, marginTop: 8, height: 21 } }, symbol,

@@ -34,6 +34,7 @@ export const make = Effect.gen(function*() {
     if (!Number.isSafeInteger(size.width) || !Number.isSafeInteger(size.height) || size.width < 128 || size.height < 64 || size.width * size.height > 4_000_000
       || (app && (!Number.isFinite(app.volume) || app.volume < 0))) return yield* Effect.fail(invalid('mixer-card', 'Invalid feedback or card dimensions.'));
     const master = titleOverride === 'MASTER' || titleOverride === 'Master';
+    if (!app && !master) return `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}"><rect width="100%" height="100%" fill="#0D0D10"/></svg>`;
     const maximum = master ? MAX_MASTER_VOLUME_PERCENT : MAX_VOLUME_PERCENT;
     const title = master ? 'Master' : titleOverride ?? app?.name ?? (online ? 'No app' : 'Audio');
     const label = yield* renderer.fit(title.replace(/\s+/g, ' ').trim(), size.width - 57, 15);
