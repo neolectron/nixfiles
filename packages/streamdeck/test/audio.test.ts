@@ -1,13 +1,12 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { assert, expect, it, test } from '@effect/vitest';
+import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
 import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
 import type { Control } from '../src/model.ts';
 import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.ts';
 import { card, volumeColor } from '../src/mixer-display.ts';
+import { cli } from './cli.ts';
 
 const input = (index: number, binary: string, values: number[], mute = false, serial = String(index)) => ({
   index, mute, corked: false,
@@ -52,15 +51,15 @@ test('playback decoding filters capture/system nodes, identifies Discord and gro
   const apps = group(await Effect.runPromise(decodeInputs(JSON.stringify([
     input(1, 'Discord', [65536, 0]), input(2, 'Discord', [32768, 0], true), system, capture,
   ]))));
-  assert.equal(apps.length, 1); assert.equal(apps[0]!.name, 'Discord'); assert.equal(apps[0]!.key, 'discord');
-  assert.equal(apps[0]!.streams.length, 2); assert.equal(apps[0]!.volume, 100); assert.equal(apps[0]!.mixedMute, true);
-  for (const json of ['broken', '[{"index":1}]']) await assert.rejects(Effect.runPromise(decodeInputs(json)), AudioError);
+  assert.strictEqual(apps.length, 1); assert.strictEqual(apps[0]!.name, 'Discord'); assert.strictEqual(apps[0]!.key, 'discord');
+  assert.strictEqual(apps[0]!.streams.length, 2); assert.strictEqual(apps[0]!.volume, 100); assert.strictEqual(apps[0]!.mixedMute, true);
+  for (const json of ['broken', '[{"index":1}]']) await expect(Effect.runPromise(decodeInputs(json))).rejects.toBeInstanceOf(AudioError);
 });
 
 test('volume changes preserve channel balance and relative levels across streams', async () => {
   const f = fixture([input(1, 'Discord', [65536, 0]), input(2, 'Discord', [32768, 0])]);
   await run(Effect.flatMap(Audio, (audio) => audio.change('discord', { delta: -2, toggles: 0 })), f);
-  assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '64225', '0'], ['set-sink-input-volume', '2', '32113', '0']]);
+  assert.deepStrictEqual(f.commands, [['set-sink-input-volume', '1', '64225', '0'], ['set-sink-input-volume', '2', '32113', '0']]);
 });
 
 test('click mutes a mixed group coherently, second click unmutes all streams', async () => {
@@ -68,10 +67,10 @@ test('click mutes a mixed group coherently, second click unmutes all streams', a
   await run(Effect.gen(function*() {
     const audio = yield* Audio;
     yield* audio.change('discord', { delta: 0, toggles: 1 });
-    assert.equal((yield* audio.list)[0]!.muted, true);
+    assert.strictEqual((yield* audio.list)[0]!.muted, true);
     yield* audio.change('discord', { delta: 0, toggles: 1 });
   }), f);
-  assert.deepEqual(f.commands.map((args) => args.slice(0, 3)), [
+  assert.deepStrictEqual(f.commands.map((args) => args.slice(0, 3)), [
     ['set-sink-input-mute', '1', '1'], ['set-sink-input-mute', '2', '1'],
     ['set-sink-input-mute', '1', '0'], ['set-sink-input-mute', '2', '0'],
   ]);
@@ -85,7 +84,7 @@ test('disappearing or recycled stream indices never target a different applicati
     yield* audio.change('spotify', { delta: 2, toggles: 1 });
     yield* audio.change('missing', { delta: 2, toggles: 1 });
   }), f);
-  assert.deepEqual(f.commands, []);
+  assert.deepStrictEqual(f.commands, []);
 });
 
 test('app volume rises above 100%, rises from silence, and preserves mute', async () => {
@@ -93,15 +92,15 @@ test('app volume rises above 100%, rises from silence, and preserves mute', asyn
   await run(Effect.gen(function*() {
     const audio = yield* Audio;
     yield* audio.change('spotify', { delta: 2, toggles: 0 });
-    assert.equal((yield* audio.list)[0]!.muted, true);
+    assert.strictEqual((yield* audio.list)[0]!.muted, true);
     yield* audio.change('spotify', { delta: 1000, toggles: 0 });
   }), f);
-  assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '1311', '1311'], ['set-sink-input-volume', '1', '131072', '131072']]);
+  assert.deepStrictEqual(f.commands, [['set-sink-input-volume', '1', '1311', '1311'], ['set-sink-input-volume', '1', '131072', '131072']]);
   f.set([input(1, 'Spotify', [98304])]);
   await run(Effect.flatMap(Audio, (audio) => audio.change('spotify', { delta: 2, toggles: 0 })), f);
-  assert.equal(f.commands.at(-1)![2], '99615');
+  assert.strictEqual(f.commands.at(-1)![2], '99615');
   await run(Effect.flatMap(Audio, (audio) => audio.change('spotify', { delta: -10, toggles: 0 })), f);
-  assert.equal(f.commands.at(-1)![2], '93061');
+  assert.strictEqual(f.commands.at(-1)![2], '93061');
 });
 
 test('application and master volumes clamp at 200%, retaining the independent protocol validation', async () => {
@@ -109,39 +108,39 @@ test('application and master volumes clamp at 200%, retaining the independent pr
   await run(Effect.gen(function*() {
     const audio = yield* Audio;
     yield* audio.change('spotify', { delta: Number.MAX_VALUE, toggles: 0 });
-    assert.equal((yield* audio.list)[0]!.volume, MAX_VOLUME_PERCENT);
+    assert.strictEqual((yield* audio.list)[0]!.volume, MAX_VOLUME_PERCENT);
     const target = yield* audio.master; assert.ok(target);
     yield* audio.changeMaster(target, { delta: 100, toggles: 0 });
-    assert.equal((yield* audio.master)!.volume, 150);
+    assert.strictEqual((yield* audio.master)!.volume, 150);
     yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 0 });
-    assert.equal((yield* audio.master)!.volume, MAX_VOLUME_PERCENT);
+    assert.strictEqual((yield* audio.master)!.volume, MAX_VOLUME_PERCENT);
   }), f);
-  assert.deepEqual(f.commands, [
+  assert.deepStrictEqual(f.commands, [
     ['set-sink-input-volume', '1', '131072', '65536'],
     ['set-sink-volume', 'output', '98304', '49152'],
     ['set-sink-volume', 'output', '131072', '65536'],
   ]);
-  await assert.rejects(Effect.runPromise(decodeInputs(JSON.stringify([input(1, 'bad', [PULSE_VOLUME_MAX + 1])]))), AudioError);
-  await assert.rejects(Effect.runPromise(decodeSinks(JSON.stringify([{ name: 'bad', mute: false, volume: { mono: { value: PULSE_VOLUME_MAX + 1 } }, properties: {} }]))), AudioError);
+  await expect(Effect.runPromise(decodeInputs(JSON.stringify([input(1, 'bad', [PULSE_VOLUME_MAX + 1])])))).rejects.toBeInstanceOf(AudioError);
+  await expect(Effect.runPromise(decodeSinks(JSON.stringify([{ name: 'bad', mute: false, volume: { mono: { value: PULSE_VOLUME_MAX + 1 } }, properties: {} }])))).rejects.toBeInstanceOf(AudioError);
 });
 
 test('mock audio supports the same amplification and 200% cap', async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const audio = yield* Audio;
     yield* audio.change('spotify', { delta: 100, toggles: 0 });
-    assert.equal((yield* audio.list).find((app) => app.key === 'spotify')!.volume, 150);
+    assert.strictEqual((yield* audio.list).find((app) => app.key === 'spotify')!.volume, 150);
     yield* audio.change('spotify', { delta: Number.MAX_VALUE, toggles: 0 });
-    assert.equal((yield* audio.list).find((app) => app.key === 'spotify')!.volume, MAX_VOLUME_PERCENT);
+    assert.strictEqual((yield* audio.list).find((app) => app.key === 'spotify')!.volume, MAX_VOLUME_PERCENT);
     const target = yield* audio.master; assert.ok(target);
     yield* audio.changeMaster(target, { delta: Number.MAX_VALUE, toggles: 1 });
-    assert.equal((yield* audio.master)!.volume, MAX_VOLUME_PERCENT); assert.equal((yield* audio.master)!.muted, true);
+    assert.strictEqual((yield* audio.master)!.volume, MAX_VOLUME_PERCENT); assert.strictEqual((yield* audio.master)!.muted, true);
   }).pipe(Effect.provide(mockLayer)));
 });
 
 test('percentage pixels progress through yellow, orange and red above nominal volume', async () => {
-  assert.deepEqual(volumeColor(100), [255, 255, 255]);
-  assert.deepEqual(volumeColor(150), [255, 145, 30]); assert.deepEqual(volumeColor(200), [255, 55, 55]);
-  assert.deepEqual(volumeColor(MAX_VOLUME_PERCENT), volumeColor(200));
+  assert.deepStrictEqual(volumeColor(100), [255, 255, 255]);
+  assert.deepStrictEqual(volumeColor(150), [255, 145, 30]); assert.deepStrictEqual(volumeColor(200), [255, 55, 55]);
+  assert.deepStrictEqual(volumeColor(MAX_VOLUME_PERCENT), volumeColor(200));
   assert.ok(volumeColor(101)[1] > volumeColor(125)[1]); assert.ok(volumeColor(175)[1] > volumeColor(200)[1]);
   for (const volume of [100, 101, 150, 200, MAX_VOLUME_PERCENT]) {
     const image = await Effect.runPromise(card({ width: 168, height: 100 }, { name: 'MASTER', volume, muted: false }, true));
@@ -156,15 +155,15 @@ test('percentage pixels progress through yellow, orange and red above nominal vo
 test('invalid changes fail without playback mutations', async () => {
   const f = fixture();
   for (const change of [{ delta: NaN, toggles: 0 }, { delta: 0, toggles: -1 }]) {
-    await assert.rejects(run(Effect.flatMap(Audio, (audio) => audio.change('spotify', change)), f), AudioError);
+    await expect(run(Effect.flatMap(Audio, (audio) => audio.change('spotify', change)), f)).rejects.toBeInstanceOf(AudioError);
   }
-  assert.deepEqual(f.commands, []);
+  assert.deepStrictEqual(f.commands, []);
 });
 
 test('app slots remain stable, fill holes and paginate beyond the dial count', () => {
-  assert.deepEqual(assign(['a', 'b', 'c'], [app('c'), app('a'), app('d')]), ['a', 'd', 'c']);
-  assert.deepEqual(assign(['a', null, 'c'], [app('a')]), ['a']);
-  assert.equal(assign([], Array.from({ length: 8 }, (_, i) => app(`app${i}`))).length, 8);
+  assert.deepStrictEqual(assign(['a', 'b', 'c'], [app('c'), app('a'), app('d')]), ['a', 'd', 'c']);
+  assert.deepStrictEqual(assign(['a', null, 'c'], [app('a')]), ['a']);
+  assert.strictEqual(assign([], Array.from({ length: 8 }, (_, i) => app(`app${i}`))).length, 8);
 });
 
 test('LCD regions follow actual knob geometry and exactly cover the screen', () => {
@@ -172,22 +171,22 @@ test('LCD regions follow actual knob geometry and exactly cover the screen', () 
     bounds: { x: 44 + index * 216, y: 0, width: 112, height: 112 } }));
   const lcd: Control = { type: 'lcd-segment', index: 0, pixelSize: { width: 1200, height: 100 }, bounds: { x: 40, y: 0, width: 1200, height: 100 } };
   const slots = slotsFor(dials, lcd);
-  assert.deepEqual(slots.map((slot) => slot.width), [168, 216, 216, 216, 216, 168]);
-  assert.equal(slots.at(-1)!.x + slots.at(-1)!.width, 1200);
+  assert.deepStrictEqual(slots.map((slot) => slot.width), [168, 216, 216, 216, 216, 168]);
+  assert.strictEqual(slots.at(-1)!.x + slots.at(-1)!.width, 1200);
 });
 
 test('mixer startup only renders; batched ticks and clicks change the app actually displayed', async () => {
   const deck = Mock.make(); const f = fixture();
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer();
-    assert.deepEqual(f.commands, []); assert.equal(deck.writes.length, 6);
-    assert.deepEqual((yield* mixer.state).assignments, ['discord', 'spotify']);
+    assert.deepStrictEqual(f.commands, []); assert.strictEqual(deck.writes.length, 6);
+    assert.deepStrictEqual((yield* mixer.state).assignments, ['discord', 'spotify']);
     yield* mixer.adjustDial(1, 1); yield* mixer.adjustDial(1, 2); yield* mixer.toggleDial(1);
     yield* mixer.flush;
-    assert.deepEqual(f.commands, [['set-sink-input-volume', '7415', '17039', '17039'], ['set-sink-input-mute', '7415', '1']]);
-    const writes = deck.writes.length; yield* mixer.refresh; assert.equal(deck.writes.length, writes);
+    assert.deepStrictEqual(f.commands, [['set-sink-input-volume', '7415', '17039', '17039'], ['set-sink-input-mute', '7415', '1']]);
+    const writes = deck.writes.length; yield* mixer.refresh; assert.strictEqual(deck.writes.length, writes);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
-  assert.equal(deck.closes, 1);
+  assert.strictEqual(deck.closes, 1);
 });
 
 test('page changes keep pending actions bound to the original app and empty dials do nothing', async () => {
@@ -195,8 +194,8 @@ test('page changes keep pending actions bound to the original app and empty dial
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer();
     yield* mixer.adjustDial(0, 1); yield* mixer.changePage(1); yield* mixer.toggleDial(0); yield* mixer.toggleDial(4); yield* mixer.flush;
-    assert.deepEqual(f.commands, [['set-sink-input-volume', '1', '34079'], ['set-sink-input-mute', '6', '1']]);
-    assert.equal((yield* mixer.state).page, 1);
+    assert.deepStrictEqual(f.commands, [['set-sink-input-volume', '1', '34079'], ['set-sink-input-mute', '6', '1']]);
+    assert.strictEqual((yield* mixer.state).page, 1);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
 });
 
@@ -207,9 +206,9 @@ test('offline feedback disables actions and reconnect restores the existing app 
     change: () => Effect.sync(() => { changes++; }) }));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer(); offline = true; yield* mixer.refresh;
-    assert.equal((yield* mixer.state).online, false);
-    yield* mixer.adjustDial(0, 1); yield* mixer.toggleDial(0); yield* mixer.flush; assert.equal(changes, 0);
-    offline = false; yield* mixer.refresh; assert.deepEqual((yield* mixer.state).assignments, ['spotify']);
+    assert.strictEqual((yield* mixer.state).online, false);
+    yield* mixer.adjustDial(0, 1); yield* mixer.toggleDial(0); yield* mixer.flush; assert.strictEqual(changes, 0);
+    offline = false; yield* mixer.refresh; assert.deepStrictEqual((yield* mixer.state).assignments, ['spotify']);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), audio))));
 });
 
@@ -220,31 +219,32 @@ test('encoder events route through the Effect binding runner', async () => {
     const mixer = yield* startMixer({ flushMillis: 1 }); const fiber = yield* Effect.forkScoped(mixer.run);
     yield* deck.emit({ _tag: 'DialRotate', dial: 0, delta: 1 }); yield* Deferred.await(written); yield* Fiber.interrupt(fiber);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), audio)), Effect.timeout('2 seconds')));
-  assert.equal(changeKey, 'spotify'); assert.equal(deck.closes, 1);
+  assert.strictEqual(changeKey, 'spotify'); assert.strictEqual(deck.closes, 1);
 });
 
-test('CLI mock mixer runs with neither pactl nor native HID available and validates step', () => {
-  const cli = (...args: string[]) => spawnSync(process.execPath, ['src/cli.ts', 'mixer', ...args], {
-    cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8', timeout: 10_000,
-    env: { ...process.env, PATH: '/nonexistent', LD_LIBRARY_PATH: '' },
-  });
-  const result = cli('--mock', '--duration', '0.1'); assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /mixer-ready/);
-  for (const step of ['0', 'NaN', '21']) assert.equal(cli('--mock', '--step', step).status, 1);
-});
+it.live('CLI mock mixer runs with neither pactl nor native HID available and validates step', () => Effect.gen(function*() {
+  const env = { PATH: '/nonexistent', LD_LIBRARY_PATH: '' };
+  const result = yield* cli(['mixer', '--mock', '--duration', '0.1'], env);
+  assert.strictEqual(result.status, 0, result.stderr); assert.match(result.stdout, /mixer-ready/);
+  for (const step of ['0', 'NaN', '21']) {
+    const invalid = yield* cli(['mixer', '--mock', '--step', step], env);
+    assert.strictEqual(invalid.status, 1);
+  }
+}).pipe(Effect.provide(NodeServices.layer)));
 
 test('master controls only the default sink, preserves balance, and leaves app volumes alone', async () => {
   const f = fixture();
   await run(Effect.gen(function*() {
     const audio = yield* Audio; const target = yield* audio.master; assert.ok(target);
     yield* audio.changeMaster(target, { delta: 2, toggles: 1 });
-    const muted = yield* audio.master; assert.ok(muted); assert.equal(muted.muted, true);
+    const muted = yield* audio.master; assert.ok(muted); assert.strictEqual(muted.muted, true);
     yield* audio.changeMaster(muted, { delta: -2, toggles: 0 });
-    assert.equal((yield* audio.master)!.muted, true);
+    assert.strictEqual((yield* audio.master)!.muted, true);
     yield* audio.changeMaster(muted, { delta: 0, toggles: 1 });
-    assert.equal((yield* audio.master)!.muted, false);
-    assert.equal(Math.round((yield* audio.list).find((app) => app.key === 'spotify')!.volume), 20);
+    assert.strictEqual((yield* audio.master)!.muted, false);
+    assert.strictEqual(Math.round((yield* audio.list).find((app) => app.key === 'spotify')!.volume), 20);
   }), f);
-  assert.deepEqual(f.commands, [
+  assert.deepStrictEqual(f.commands, [
     ['set-sink-volume', 'output', '34079', '17039'], ['set-sink-mute', 'output', '1'],
     ['set-sink-volume', 'output', '32768', '16384'], ['set-sink-mute', 'output', '0'],
   ]);
@@ -257,20 +257,20 @@ test('pending master changes do not spill onto a different or recreated default 
     for (const [name, serial] of [['headphones', 'sink-2'], ['output', 'sink-3']]) {
       f.replaceSink(name!, serial!); yield* audio.changeMaster(previous, { delta: 2, toggles: 1 });
     }
-    f.removeDefault(); assert.equal(yield* audio.master, undefined);
+    f.removeDefault(); assert.strictEqual(yield* audio.master, undefined);
     yield* audio.changeMaster(previous, { delta: 2, toggles: 1 });
   }), f);
-  assert.deepEqual(f.commands, []);
+  assert.deepStrictEqual(f.commands, []);
 });
 
 test('rightmost dial is reserved for master across pages; app pagination uses five slots', async () => {
   const deck = Mock.make(); const f = fixture(Array.from({ length: 6 }, (_, i) => input(i + 1, `App${i}`, [32768])));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer();
-    assert.deepEqual(f.commands, []);
+    assert.deepStrictEqual(f.commands, []);
     yield* mixer.adjustDial(5, 1); yield* mixer.changePage(1); yield* mixer.toggleDial(5); yield* mixer.toggleDial(0); yield* mixer.flush;
-    assert.deepEqual(f.commands, [['set-sink-input-mute', '6', '1'], ['set-sink-volume', 'output', '34079', '17039'], ['set-sink-mute', 'output', '1']]);
-    assert.equal((yield* mixer.state).page, 1); assert.equal((yield* mixer.state).master!.muted, true);
+    assert.deepStrictEqual(f.commands, [['set-sink-input-mute', '6', '1'], ['set-sink-volume', 'output', '34079', '17039'], ['set-sink-mute', 'output', '1']]);
+    assert.strictEqual((yield* mixer.state).page, 1); assert.strictEqual((yield* mixer.state).master!.muted, true);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
 });
 
@@ -281,6 +281,6 @@ test('master read failure disables its dial while app controls remain usable', a
     change: () => Effect.sync(() => { appChanges++; }), changeMaster: () => Effect.sync(() => { masterChanges++; }) }));
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const mixer = yield* startMixer(); yield* mixer.toggleDial(5); yield* mixer.adjustDial(5, 1); yield* mixer.toggleDial(0); yield* mixer.flush;
-    assert.equal(appChanges, 1); assert.equal(masterChanges, 0); assert.equal((yield* mixer.state).masterOnline, false);
+    assert.strictEqual(appChanges, 1); assert.strictEqual(masterChanges, 0); assert.strictEqual((yield* mixer.state).masterOnline, false);
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), audio))));
 });
