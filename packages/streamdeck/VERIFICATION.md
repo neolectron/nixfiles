@@ -1,5 +1,10 @@
 # Vérification du 12 octobre 2026
 
+Ce rapport décrit la version initiale. Depuis le 13 octobre, Stream Deck exécute
+ses sources `.ts` directement dans Node 24, sans `tsx`, compilation ni barrel.
+Les commandes actuelles figurent dans le [README](README.md). Les anciens appels
+au build et à `dist/` ci-dessous restent des preuves historiques.
+
 Worktree isolé de `/home/neolectron/dev/nixfiles`, base `b1da9453`, branche
 `feat/streamdeck-usb-hello`. Le checkout actif et le package `keep-awake-mcp`
 de l'autre chantier n'ont pas été modifiés par ce travail.

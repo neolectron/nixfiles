@@ -1,8 +1,8 @@
 import { Context, Deferred, Effect, Layer, PubSub, Semaphore, Stream, type Scope } from 'effect';
-import { Driver } from './driver.js';
-import { StreamDeckError, invalid } from './errors.js';
-import * as Image from './image.js';
-import type { Color, Control, DeckEvent, DeviceInfo, Position } from './model.js';
+import { Driver } from './driver.ts';
+import { StreamDeckError, invalid } from './errors.ts';
+import * as Image from './image.ts';
+import type { Color, Control, DeckEvent, DeviceInfo, Position } from './model.ts';
 
 export interface Key {
   readonly setImage: (image: Image.RgbImage) => Effect.Effect<void, StreamDeckError>;

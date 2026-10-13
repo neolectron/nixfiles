@@ -1,7 +1,7 @@
 import { Context, Effect, type Scope } from 'effect';
-import type { StreamDeckError } from './errors.js';
-import type { RgbImage } from './image.js';
-import type { DeckEvent, DeviceInfo, Position } from './model.js';
+import type { StreamDeckError } from './errors.ts';
+import type { RgbImage } from './image.ts';
+import type { DeckEvent, DeviceInfo, Position } from './model.ts';
 
 /** Backend boundary. Scripts use StreamDeck, never native driver objects. */
 export interface Connection {

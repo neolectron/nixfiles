@@ -1,8 +1,8 @@
 import { Effect, Ref, Semaphore, Stream } from 'effect';
-import { invalid } from './errors.js';
-import type { RgbImage } from './image.js';
-import type { DeckEvent, DialDown, DialRotate, DialUp, KeyDown, KeyUp, Position, Size, TouchHold, TouchSwipe, TouchTap } from './model.js';
-import { StreamDeck, type Device } from './stream-deck.js';
+import { invalid } from './errors.ts';
+import type { RgbImage } from './image.ts';
+import type { DeckEvent, DialDown, DialRotate, DialUp, KeyDown, KeyUp, Position, Size, TouchHold, TouchSwipe, TouchTap } from './model.ts';
+import { StreamDeck, type Device } from './stream-deck.ts';
 
 export type Handler<Event, E, R> = Effect.Effect<unknown, E, R> | ((event: Event) => Effect.Effect<unknown, E, R>);
 export interface Button<E, R> {
@@ -72,7 +72,7 @@ const render = <E, R>(deck: Device, profile: Profile<E, R>, ownedKeys: ReadonlyA
 
 // One sequential router preserves press/release and rotation order. Long background
 // work can be explicitly forkScoped by a script, so its lifecycle stays visible.
-const router = <E, R>(current: Effect.Effect<Profile<E, R>>, events: Stream.Stream<DeckEvent, import('./errors.js').StreamDeckError>) => {
+const router = <E, R>(current: Effect.Effect<Profile<E, R>>, events: Stream.Stream<DeckEvent, import('./errors.ts').StreamDeckError>) => {
   const heldKeys = new Map<number, Profile<E, R>>();
   const heldDials = new Map<number, Profile<E, R>>();
   return Stream.runForEach(events, (event) => Effect.gen(function*() {

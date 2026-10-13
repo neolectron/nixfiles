@@ -1,5 +1,7 @@
 import { Effect } from 'effect';
-import { Bindings, StreamDeck, type StreamDeckError } from '../index.js';
+import * as Bindings from '../bindings.ts';
+import { StreamDeck } from '../stream-deck.ts';
+import type { StreamDeckError } from '../errors.ts';
 
 /** A page is just behavior + feedback; switching can come from any Effect. */
 export const pages = Effect.scoped(Effect.gen(function*() {

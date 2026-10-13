@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { invalid } from './errors.js';
-import type { Color, Size } from './model.js';
+import { invalid } from './errors.ts';
+import type { Color, Size } from './model.ts';
 
 /** Logical, unrotated RGB pixels. Encoding and device orientation belong to HID. */
 export interface RgbImage extends Size { readonly data: Uint8Array }

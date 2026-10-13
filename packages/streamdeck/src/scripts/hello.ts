@@ -1,6 +1,8 @@
 import { Effect, Ref } from 'effect';
-import type { DeckEvent } from '../model.js';
-import { Bindings, StreamDeck, StreamDeckError } from '../index.js';
+import type { DeckEvent } from '../model.ts';
+import * as Bindings from '../bindings.ts';
+import { StreamDeck } from '../stream-deck.ts';
+import { StreamDeckError } from '../errors.ts';
 
 /** Example behavior. All USB lifecycle and rendering live in the library. */
 export const startHello = (drawLcd = false, onEvent: (event: DeckEvent) => Effect.Effect<void> = (event) => Effect.log(JSON.stringify(event))) => Effect.gen(function*() {
@@ -20,7 +22,7 @@ export const startHello = (drawLcd = false, onEvent: (event: DeckEvent) => Effec
       onRelease: Ref.update(state, (s) => ({ ...s, pressed: false })).pipe(Effect.andThen(draw)),
     } },
     knobs: Object.fromEntries(deck.dials.map(({ index }) => [index, {
-      onRotate: ({ delta }: import('../model.js').DialRotate) => Ref.update(state, (s) => ({ ...s, level: Math.min(100, Math.max(0, s.level + delta)) })).pipe(Effect.andThen(draw)),
+      onRotate: ({ delta }: import('../model.ts').DialRotate) => Ref.update(state, (s) => ({ ...s, level: Math.min(100, Math.max(0, s.level + delta)) })).pipe(Effect.andThen(draw)),
     }])),
     onEvent, render: draw,
   });

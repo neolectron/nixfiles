@@ -1,5 +1,5 @@
 import { Console, Effect, FileSystem } from 'effect';
-import * as Display from '../mixer-display.js';
+import * as Display from '../mixer-display.ts';
 
 /** Render the shipped card renderer at actual + XL dimensions, without HID/audio. */
 export const preview = (output: string) => Effect.gen(function*() {

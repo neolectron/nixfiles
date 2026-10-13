@@ -1,12 +1,16 @@
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
 import { Console, Deferred, Effect, Fiber, Option, Ref, Schema, Stream } from 'effect';
 import { CliError, Command, Flag } from 'effect/cli';
-import { Audio, Hid, Mock, StreamDeck, discover, type DeckEvent } from './index.js';
-import { startHello } from './scripts/hello.js';
-import { playground } from './scripts/playground.js';
-import { pages } from './scripts/pages.js';
-import { mixer } from './scripts/audio-mixer.js';
-import { preview } from './scripts/mixer-preview.js';
+import * as Audio from './audio.ts';
+import * as Hid from './hid.ts';
+import * as Mock from './mock.ts';
+import { StreamDeck, discover } from './stream-deck.ts';
+import type { DeckEvent } from './model.ts';
+import { startHello } from './scripts/hello.ts';
+import { playground } from './scripts/playground.ts';
+import { pages } from './scripts/pages.ts';
+import { mixer } from './scripts/audio-mixer.ts';
+import { preview } from './scripts/mixer-preview.ts';
 
 const mockFlag = Flag.Boolean('mock').pipe(Flag.withDefault(false), Flag.withDescription('Use an in-memory device; never load native HID.'));
 const demoFlag = Flag.Boolean('demo').pipe(Flag.withDefault(false), Flag.withDescription('Replay a finite mock input sequence. Requires --mock.'));

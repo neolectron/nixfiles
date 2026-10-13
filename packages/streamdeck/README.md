@@ -19,6 +19,15 @@ See the [research and design decisions](../../docs/streamdeck-effect-v4-research
 
 From the isolated repository clone opened in VS Code:
 
+Node 24 runs the `.ts` sources directly using its built-in type stripping. There
+is no build step, loader or generated JavaScript. Type checking uses `tsc` with
+`noEmit`, `allowImportingTsExtensions` and `erasableSyntaxOnly`; the inherited
+`verbatimModuleSyntax` keeps type-only imports explicit. See
+[Node's TypeScript support](https://nodejs.org/docs/latest-v24.x/api/typescript.html).
+Local imports include `.ts` extensions. Import individual modules instead of a
+barrel, for example `@nixfiles/streamdeck/stream-deck` or
+`@nixfiles/streamdeck/bindings` from another workspace package.
+
 ```sh
 nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
@@ -96,7 +105,9 @@ and run `pnpm streamdeck playground`. A complete standalone script can look like
 ```ts
 import { NodeRuntime } from '@effect/platform-node';
 import { Effect } from 'effect';
-import { Bindings, Hid, StreamDeck } from '../index.js';
+import * as Bindings from '../bindings.ts';
+import * as Hid from '../hid.ts';
+import { StreamDeck } from '../stream-deck.ts';
 
 const program = Effect.gen(function*() {
   const deck = yield* StreamDeck;
@@ -127,7 +138,7 @@ NodeRuntime.runMain(program);
 Save it under `src/scripts/my-script.ts` and run from the repo root:
 
 ```sh
-pnpm --filter @nixfiles/streamdeck exec node --import tsx src/scripts/my-script.ts
+pnpm --filter @nixfiles/streamdeck exec node src/scripts/my-script.ts
 ```
 
 Handlers accept an Effect directly or a function returning an Effect. They may
@@ -206,7 +217,8 @@ replay or automatic reconnect. Shared consumers reuse one owning layer.
 
 ```ts
 import { Effect, Stream } from 'effect';
-import { Mock, StreamDeck } from '../index.js';
+import * as Mock from '../mock.ts';
+import { StreamDeck } from '../stream-deck.ts';
 
 const mock = Mock.make();
 const testProgram = Effect.scoped(Effect.gen(function*() {
@@ -226,8 +238,7 @@ Use `mock.disconnect()` to exercise device loss. For deterministic tests,
 ```sh
 pnpm test
 pnpm typecheck
-pnpm build
-node packages/streamdeck/dist/cli.js hello --mock --demo --lcd
+node packages/streamdeck/src/cli.ts hello --mock --demo --lcd
 ```
 
 Only Stream Deck dependencies changed. The sibling `keep-awake-mcp`, its npm

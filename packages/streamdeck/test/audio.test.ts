@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
-import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.js';
-import { Mock, type Control } from '../src/index.js';
-import { assign, card, slotsFor, startMixer, volumeColor } from '../src/scripts/audio-mixer.js';
+import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
+import * as Mock from '../src/mock.ts';
+import type { Control } from '../src/model.ts';
+import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.ts';
+import { card, volumeColor } from '../src/mixer-display.ts';
 
 const input = (index: number, binary: string, values: number[], mute = false, serial = String(index)) => ({
   index, mute, corked: false,
@@ -222,7 +224,7 @@ test('encoder events route through the Effect binding runner', async () => {
 });
 
 test('CLI mock mixer runs with neither pactl nor native HID available and validates step', () => {
-  const cli = (...args: string[]) => spawnSync(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'mixer', ...args], {
+  const cli = (...args: string[]) => spawnSync(process.execPath, ['src/cli.ts', 'mixer', ...args], {
     cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8', timeout: 10_000,
     env: { ...process.env, PATH: '/nonexistent', LD_LIBRARY_PATH: '' },
   });

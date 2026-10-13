@@ -1,9 +1,9 @@
 import { Effect, Layer } from 'effect';
 import type { StreamDeck as NativeDeck, StreamDeckModelInfo } from '@elgato-stream-deck/node';
-import { Driver, type Connection } from './driver.js';
-import { StreamDeckError } from './errors.js';
-import type { DeviceInfo } from './model.js';
-import { StreamDeck, type OpenOptions } from './stream-deck.js';
+import { Driver, type Connection } from './driver.ts';
+import { StreamDeckError } from './errors.ts';
+import type { DeviceInfo } from './model.ts';
+import { StreamDeck, type OpenOptions } from './stream-deck.ts';
 
 const error = (operation: string, cause: unknown, path?: string) => new StreamDeckError({
   reason: 'Driver', operation, ...(path === undefined ? {} : { path }), cause,
