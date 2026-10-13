@@ -6,3 +6,4 @@ export * as Hid from './hid.js';
 export * as Mock from './mock.js';
 export * as Image from './image.js';
 export * as Bindings from './bindings.js';
+export * as Audio from './audio.js';

@@ -14,6 +14,7 @@ const describe = (path: string, model: StreamDeckModelInfo, usb: { vendorId: num
   path, model: model.name, ...usb,
   controls: model.controls.map((control) => ({
     type: control.type, index: control.index, row: control.row, column: control.column,
+    bounds: { ...control.bounds },
     ...('feedbackType' in control ? { feedbackType: control.feedbackType } : {}),
     ...('pixelSize' in control ? { pixelSize: { ...control.pixelSize } } : {}),
   })),

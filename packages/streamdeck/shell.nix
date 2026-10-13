@@ -1,6 +1,8 @@
 # Standalone development shell; not imported by flake-parts or activated.
 let
-  flake = builtins.getFlake (toString ../..);
+  # Git's source filter excludes .git and node_modules; a plain path flakes
+  # snapshot copies them into the store on every development edit.
+  flake = builtins.getFlake "git+file://${toString ../..}";
   pkgs = flake.inputs.nixpkgs.legacyPackages.${builtins.currentSystem};
 in
 pkgs.mkShell {
@@ -8,6 +10,7 @@ pkgs.mkShell {
     pkgs.nodejs_24
     pkgs.pnpm
     pkgs.usbutils
+    pkgs.pulseaudio # pactl controls PipeWire's existing PulseAudio interface.
     pkgs.pkg-config
     pkgs.python3
   ];
