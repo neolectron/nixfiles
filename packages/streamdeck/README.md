@@ -3,8 +3,9 @@
 Deux hello worlds TypeScript, sans application Elgato : `events` observe les
 entrées ; `hello` dessine une touche test. Le 13 octobre 2026, la détection USB
 réelle confirme un **Stream Deck + XL, `0fd9:00c6`**, sur `/dev/hidraw8` à cet
-instant. L'ouverture échoue avec `Permission denied` : affichage et événements
-physiques restent à valider. Voir les [preuves matérielles](../../docs/streamdeck-hardware-2026-10-13.md).
+instant. Après l'ACL temporaire accordée par Manuel, HELLO/OK sur la première
+touche, événements boutons/potards/tactile et affichage de la bande LCD sont
+validés sur l'appareil réel. Voir les [preuves matérielles](../../docs/streamdeck-hardware-2026-10-13.md).
 
 Le pilote 7.8.0 associe au modèle détecté 36 touches LCD de 112×112, six potards
 et une bande LCD tactile de 1200×100. Le programme utilise les contrôles du
@@ -52,6 +53,7 @@ lsusb -d 0fd9:
 pnpm streamdeck list
 pnpm streamdeck events --duration 30
 pnpm streamdeck hello --duration 30
+pnpm streamdeck hello --lcd --duration 30
 ```
 
 1. Vérifier le nom retourné par `list` et le VID:PID de `lsusb`. Si `list` est
@@ -65,6 +67,14 @@ pnpm streamdeck hello --duration 30
 4. Ctrl+C ou un signal SIGTERM ferme le handle après les écritures en cours. La touche
    test garde son dernier affichage ; aucune réinitialisation globale ni
    modification de luminosité n'est faite.
+
+`hello --lcd` écrit aussi la première bande LCD aux dimensions détectées :
+HELLO/OK au centre et jauge cyan en bas. Les potards font varier la jauge
+fictive et les gestes tactiles sont journalisés. Sans `--lcd`, la bande reste
+intacte ; `events --lcd` est refusé avant l'ouverture HID. Ce mode refuse aussi
+un modèle sans bande LCD. Les écritures touche/bande sont sérialisées ; les
+événements `display-written` attestent leur achèvement, sans confirmer à eux
+seuls l'apparence physique. Sur le + XL livré, Manuel a confirmé l'affichage.
 
 Avec plusieurs appareils, le programme exige un choix explicite. Copier le
 chemin fourni par `list`, par exemple :
@@ -172,6 +182,7 @@ communiquant avec l'application Stream Deck et ne convient donc pas à ce scope.
 - [RPC Discord](https://docs.discord.com/developers/topics/rpc) : authentification et restrictions à vérifier avant toute intégration.
 - [Protocole officiel obs-websocket](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md).
 
-La détection USB du + XL est confirmée. L'ouverture, l'affichage et les entrées
-restent à valider après autorisation d'accès au nœud hidraw. Les tests mock
-vérifient notre logique, pas le firmware.
+Détection, HELLO/OK sur touche, potards, affichage de bande et gestes tactiles
+ont été validés sur le + XL livré. L'accès repose actuellement sur une ACL
+temporaire ; l'intégration Nix persistante reste inactive. Les tests mock
+complètent ces essais sans remplacer la validation physique.

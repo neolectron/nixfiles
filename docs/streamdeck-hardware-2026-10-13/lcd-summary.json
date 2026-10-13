@@ -1,0 +1,20 @@
+{
+  "kinds": {
+    "connected": 1,
+    "display-written": 324,
+    "rotate": 121,
+    "demo-level": 121,
+    "down": 20,
+    "up": 20,
+    "touch": 7
+  },
+  "rotations": [
+    0
+  ],
+  "touchGestures": [
+    "swipe",
+    "short"
+  ],
+  "positiveRotation": true,
+  "negativeRotation": true
+}

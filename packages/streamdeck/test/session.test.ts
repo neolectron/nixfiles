@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { MockDeck, mockButton, mockEncoder, demoEvents } from '../src/mock.js';
+import { MockDeck, mockButton, mockEncoder, mockInfo, demoEvents } from '../src/mock.js';
 import { startSession } from '../src/session.js';
 import { selectDevice } from '../src/transport.js';
 
@@ -125,4 +125,71 @@ test('CLI refuses real-device demo and invalid duration before native discovery'
   const invalidDuration = cli('events', '--mock', '--duration', 'NaN');
   assert.equal(invalidDuration.status, 1);
   assert.match(invalidDuration.stderr, /--duration doit/);
+});
+
+test('optional LCD display uses detected XL dimensions and serializes key and LCD writes', async () => {
+  const deck = new MockDeck({ ...mockInfo, controls: mockInfo.controls.map((control) => (
+    control.type === 'button' ? { ...control, pixelSize: { width: 112, height: 112 } } :
+    control.type === 'lcd-segment' ? { ...control, pixelSize: { width: 1200, height: 100 } } : control
+  )) });
+  const order: string[] = [];
+  let active = 0;
+  let maxActive = 0;
+  for (const method of ['paintKey', 'paintLcd'] as const) {
+    const write = deck[method].bind(deck);
+    deck[method] = async (index, rgb) => {
+      active++; maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      await write(index, rgb); order.push(method); active--;
+    };
+  }
+  const logs: { kind?: string; target?: string }[] = [];
+  const session = startSession(deck, true, (event) => logs.push(event as typeof logs[number]), (error) => { throw error; }, true);
+  await session.flush();
+  const initial = deck.lcdFrames[0]!.rgb;
+  deck.emit({ kind: 'down', control: mockButton });
+  deck.emit({ kind: 'rotate', control: mockEncoder, amount: 5 });
+  await session.stop();
+  assert.equal(maxActive, 1);
+  assert.deepEqual(order, ['paintKey', 'paintLcd', 'paintKey', 'paintLcd', 'paintKey', 'paintLcd']);
+  assert.ok(deck.frames.every((frame) => frame.index === 0 && frame.rgb.length === 112 * 112 * 3));
+  assert.ok(deck.lcdFrames.every((frame) => frame.index === 0 && frame.rgb.length === 1200 * 100 * 3));
+  assert.notDeepEqual(initial, deck.lcdFrames[1]!.rgb);
+  assert.notDeepEqual(deck.lcdFrames[1]!.rgb, deck.lcdFrames[2]!.rgb);
+  assert.equal(logs.filter((event) => event.kind === 'display-written' && event.target === 'lcd').length, 3);
+  await deck.close();
+});
+
+test('LCD stays untouched by default and unsupported LCD requests fail before painting', async () => {
+  const deck = new MockDeck();
+  const session = startSession(deck, true, () => {}, (error) => { throw error; });
+  await session.flush(); await session.stop();
+  assert.equal(deck.lcdFrames.length, 0);
+  const withoutLcd = new MockDeck({ ...mockInfo, controls: [mockButton] });
+  assert.throws(() => startSession(withoutLcd, true, () => {}, () => {}, true), /bande LCD/);
+  assert.equal(withoutLcd.frames.length, 0);
+  assert.throws(() => startSession(deck, false, () => {}, () => {}, true), /exige le mode hello/);
+  await deck.close(); await withoutLcd.close();
+});
+
+test('LCD write failures reach the failure handler without claiming a successful LCD write', async () => {
+  const deck = new MockDeck();
+  const failure = new Error('LCD disconnected');
+  deck.paintLcd = async () => { throw failure; };
+  const errors: unknown[] = [];
+  const logs: unknown[] = [];
+  const session = startSession(deck, true, (event) => logs.push(event), (error) => errors.push(error), true);
+  await session.flush();
+  assert.deepEqual(errors, [failure]);
+  assert.equal(logs.filter((event) => (event as { target?: string }).target === 'lcd').length, 0);
+  await session.stop(); await deck.close();
+});
+
+test('CLI LCD demo draws the band and refuses LCD writes outside hello before HID discovery', () => {
+  const demo = cli('hello', '--lcd', '--mock', '--demo');
+  assert.equal(demo.status, 0, demo.stderr);
+  assert.equal(demo.stdout.match(/"target":"lcd"/g)?.length, 5);
+  const forbidden = cli('events', '--lcd');
+  assert.equal(forbidden.status, 1);
+  assert.match(forbidden.stderr, /--lcd exige hello/);
 });

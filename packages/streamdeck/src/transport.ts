@@ -16,6 +16,7 @@ export interface DeckTransport {
   readonly info: DeviceInfo;
   subscribe(listener: (event: DeckEvent) => void): () => void;
   paintKey(index: number, rgb: Uint8Array): Promise<void>;
+  paintLcd(index: number, rgb: Uint8Array): Promise<void>;
   close(): Promise<void>;
 }
 

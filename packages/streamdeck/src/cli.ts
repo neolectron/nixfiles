@@ -8,13 +8,14 @@ import { selectDevice } from './transport.js';
 const help = `Stream Deck USB-HID Linux (sans logiciel Elgato)
   pnpm streamdeck list [--mock]
   pnpm streamdeck events [--path <chemin>] [--duration <secondes>]
-  pnpm streamdeck hello [--path <chemin>] [--duration <secondes>]
+  pnpm streamdeck hello [--lcd] [--path <chemin>] [--duration <secondes>]
   pnpm streamdeck hello --mock --demo
   pnpm streamdeck events --mock --demo
 
 list : détecter le modèle et ses capacités, sans ouvrir ni écrire l'appareil.
 events : journaliser boutons, potards et gestes tactiles, sans image.
 hello : écrire uniquement la première touche LCD ; HELLO/OK et jauge simulée.
+--lcd : hello écrit aussi la première bande LCD, si le modèle en possède une.
 --mock : aucune importation du pilote HID natif, aucune action système.
 --demo : rejouer un scénario fini (uniquement avec --mock).
 Ctrl+C : fermer proprement la connexion. L'image test reste sur la touche.
@@ -24,11 +25,13 @@ async function main() {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
     mock: { type: 'boolean' }, demo: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
     path: { type: 'string' }, duration: { type: 'string' },
+    lcd: { type: 'boolean' },
   } });
   if (values.help) { console.log(help); return; }
   const command = positionals[0];
   if (positionals.length !== 1 || !['list', 'events', 'hello'].includes(command ?? '')) throw new Error(help);
   if (values.demo && !values.mock) throw new Error('--demo exige --mock pour ne jamais ouvrir du matériel involontairement.');
+  if (values.lcd && command !== 'hello') throw new Error('--lcd exige hello ; events ne dessine aucune image.');
   const duration = values.duration === undefined ? undefined : Number(values.duration);
   if (duration !== undefined && (!Number.isFinite(duration) || duration <= 0 || duration > 86400)) throw new Error('--duration doit être un nombre de secondes entre 0 et 86400, bornes exclue/incluse.');
   if (command === 'list' && (values.path || values.duration || values.demo)) throw new Error('list accepte uniquement --mock ou --help.');
@@ -50,7 +53,7 @@ async function main() {
   let session: ReturnType<typeof startSession> | undefined;
   try {
     console.log(JSON.stringify({ kind: 'connected', ...deck.info, mock: !!values.mock }));
-    session = startSession(deck, command === 'hello', (event) => console.log(JSON.stringify(event)), fail);
+    session = startSession(deck, command === 'hello', (event) => console.log(JSON.stringify(event)), fail, !!values.lcd);
     await session.flush();
     if (values.demo) {
       for (const event of demoEvents) {

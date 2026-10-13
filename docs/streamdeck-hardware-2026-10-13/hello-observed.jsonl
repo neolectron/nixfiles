@@ -1,0 +1,109 @@
+{"kind":"down","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"up","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"down","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"up","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":51,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":2}
+{"kind":"demo-level","level":53,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":54,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":3}
+{"kind":"demo-level","level":57,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":2}
+{"kind":"demo-level","level":59,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":60,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":61,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":62,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":63,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-1}
+{"kind":"demo-level","level":62,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":60,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":58,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-4}
+{"kind":"demo-level","level":54,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-3}
+{"kind":"demo-level","level":51,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":49,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":47,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-1}
+{"kind":"demo-level","level":46,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":44,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":45,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":5}
+{"kind":"demo-level","level":50,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":4}
+{"kind":"demo-level","level":54,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":2}
+{"kind":"demo-level","level":56,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":57,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":58,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-1}
+{"kind":"demo-level","level":57,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-4}
+{"kind":"demo-level","level":53,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-0","type":"encoder","row":5,"column":0,"index":0,"hidIndex":0,"bounds":{"x":44,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-4}
+{"kind":"demo-level","level":49,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"demo-level","level":67,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":68,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"down","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0}}
+{"kind":"rotate","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":69,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":67,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"up","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0}}
+{"kind":"rotate","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-6}
+{"kind":"demo-level","level":61,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-3","type":"encoder","row":5,"column":5,"index":3,"hidIndex":3,"bounds":{"x":692,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-2}
+{"kind":"demo-level","level":59,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":60,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":4}
+{"kind":"demo-level","level":64,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":65,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":66,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"down","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0}}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-3}
+{"kind":"demo-level","level":63,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"up","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0}}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-5}
+{"kind":"demo-level","level":58,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-4","type":"encoder","row":5,"column":6,"index":4,"hidIndex":4,"bounds":{"x":908,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-1}
+{"kind":"demo-level","level":57,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":3}
+{"kind":"demo-level","level":60,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":2}
+{"kind":"demo-level","level":62,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":2}
+{"kind":"demo-level","level":64,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":4}
+{"kind":"demo-level","level":68,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":6}
+{"kind":"demo-level","level":74,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":1}
+{"kind":"demo-level","level":75,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-5}
+{"kind":"demo-level","level":70,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"rotate","control":{"id":"encoder-5","type":"encoder","row":5,"column":8,"index":5,"hidIndex":5,"bounds":{"x":1124,"y":969,"width":112,"height":112},"hasLed":false,"ledRingSteps":0},"amount":-3}
+{"kind":"demo-level","level":67,"note":"Valeur simulée ; aucun volume système modifié"}
+{"kind":"down","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"up","control":{"id":"button-0","type":"button","row":0,"column":0,"index":0,"hidIndex":0,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":11,"y":32,"width":112,"height":112}}}
+{"kind":"down","control":{"id":"button-1","type":"button","row":0,"column":1,"index":1,"hidIndex":1,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":154,"y":32,"width":112,"height":112}}}
+{"kind":"up","control":{"id":"button-1","type":"button","row":0,"column":1,"index":1,"hidIndex":1,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":154,"y":32,"width":112,"height":112}}}
+{"kind":"down","control":{"id":"button-1","type":"button","row":0,"column":1,"index":1,"hidIndex":1,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":154,"y":32,"width":112,"height":112}}}
+{"kind":"up","control":{"id":"button-1","type":"button","row":0,"column":1,"index":1,"hidIndex":1,"feedbackType":"lcd","pixelSize":{"width":112,"height":112},"bounds":{"x":154,"y":32,"width":112,"height":112}}}
