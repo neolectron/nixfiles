@@ -1,8 +1,8 @@
-import { invariant } from './errors.ts';
-import { Effect, Ref, Result, Schema, Semaphore, Stream } from 'effect';
+import { invariant, IntegrationError } from './errors.ts';
+import { Context, Layer, Effect, Ref, Result, Schema, Semaphore, Stream } from 'effect';
 import * as Mpris from './mpris.ts';
+import * as StateStore from './state.ts';
 import * as Sources from './sources.ts';
-import { IntegrationError } from './json-socket.ts';
 // A newly started player wins; retain the selected player on ties and pause.
 const priority = (state: State) =>
   state.playback.status === 'Playing' ? 2 : state.playback.status === 'Paused' ? 1 : 0;
@@ -124,4 +124,29 @@ export const make = Effect.gen(function* () {
     monitor: Stream.runDrain(Sources.poll(current.pipe(Effect.ignore), '1 second')),
   };
 });
-export type Controller = Effect.Success<typeof make>;
+export type Controller = Omit<Effect.Success<typeof make>, 'monitor'>;
+
+export const managed = Effect.gen(function* () {
+  const raw = yield* make;
+  const store = yield* StateStore.polling(
+    raw.current,
+    '1 second',
+    new IntegrationError({ message: 'No media player available.' }),
+  );
+  return {
+    current: store.refresh,
+    state: store.state,
+    snapshot: store.snapshot,
+    observe: store.observe,
+    command: (method: Mpris.Command) =>
+      store
+        .guard(raw.command(method))
+        .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+  };
+});
+export class MediaPlayers extends Context.Service<MediaPlayers, Effect.Success<typeof managed>>()(
+  '@nixfiles/system-control/MediaPlayers',
+) {
+  static readonly serviceLayer = Layer.effect(MediaPlayers, managed);
+  static readonly layer = MediaPlayers.serviceLayer.pipe(Layer.provide(Mpris.MprisTransport.layer));
+}

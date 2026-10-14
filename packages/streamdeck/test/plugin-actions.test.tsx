@@ -5,7 +5,7 @@ import * as Plugin from '../src/plugin.ts';
 import * as Host from '../src/plugin-host.ts';
 import * as Fields from '../src/plugin-fields.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Takumi from '../src/takumi.ts';
 import * as Display from '../src/display.ts';
 import * as SourceView from '../src/plugins/source-view.ts';

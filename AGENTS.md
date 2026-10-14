@@ -102,7 +102,7 @@ Use a lowercase, specific type such as `feat`, `fix`, `docs`, `refactor`,
 
 ## Stream Deck TypeScript standards
 
-For `packages/streamdeck`, use the shared Oxlint/Oxfmt configuration derived from
+For `packages/streamdeck` and `packages/system-control`, use the shared Oxlint/Oxfmt configuration derived from
 Formula. Run `pnpm lint`, `pnpm format`, `pnpm typecheck` and `pnpm test` before
 committing; `pnpm check` runs all four. Use `pnpm format:fix` to apply formatting.
 Vitest and `@effect/vitest` cover the library; retain meaningful regression tests.

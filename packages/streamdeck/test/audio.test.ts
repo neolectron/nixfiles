@@ -1,3 +1,4 @@
+import * as AudioModule from '@nixfiles/system-control/audio.ts';
 import { assert, expect, it, test } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
@@ -15,7 +16,7 @@ import {
   mockLayer,
   type Application,
   type Master,
-} from '../src/audio.ts';
+} from '@nixfiles/system-control/audio.ts';
 import * as Mock from '../src/mock.ts';
 import * as Cards from '../src/mixer-cards.ts';
 import * as Image from '../src/image.ts';
@@ -446,7 +447,7 @@ it.effect(
           Effect.provide(
             Layer.mergeAll(
               deck.layer(),
-              Layer.succeed(Audio, {
+              AudioModule.makeLayer({
                 list: Effect.succeed([app('player')]),
                 change: (key) =>
                   Effect.sync(() => {
@@ -519,7 +520,7 @@ it.effect(
           Effect.provide(
             Layer.mergeAll(
               deck.layer(),
-              Layer.succeed(Audio, {
+              AudioModule.makeLayer({
                 list: Effect.sync(() => applications),
                 change: () => Effect.void,
                 ...masterMock,
@@ -563,7 +564,7 @@ it.effect(
           Effect.provide(
             Layer.mergeAll(
               deck.layer(),
-              Layer.succeed(Audio, {
+              AudioModule.makeLayer({
                 list: Effect.sync(() => applications),
                 change: () => Effect.void,
                 ...masterMock,
@@ -633,21 +634,18 @@ test('offline feedback disables actions and reconnect restores the existing app 
   const deck = Mock.make();
   let offline = false;
   let changes = 0;
-  const audio = Layer.succeed(
-    Audio,
-    Audio.of({
-      ...masterMock,
-      list: Effect.suspend(() =>
-        offline
-          ? Effect.fail(new AudioError({ operation: 'list', message: 'offline' }))
-          : Effect.succeed([app('spotify')]),
-      ),
-      change: () =>
-        Effect.sync(() => {
-          changes++;
-        }),
-    }),
-  );
+  const audio = AudioModule.makeLayer({
+    ...masterMock,
+    list: Effect.suspend(() =>
+      offline
+        ? Effect.fail(new AudioError({ operation: 'list', message: 'offline' }))
+        : Effect.succeed([app('spotify')]),
+    ),
+    change: () =>
+      Effect.sync(() => {
+        changes++;
+      }),
+  });
   await Effect.runPromise(
     Effect.scoped(
       Effect.gen(function* () {
@@ -671,17 +669,14 @@ test('encoder events route through the Effect binding runner', async () => {
   const deck = Mock.make();
   const written = Deferred.makeUnsafe<void>();
   let changeKey = '';
-  const audio = Layer.succeed(
-    Audio,
-    Audio.of({
-      ...masterMock,
-      list: Effect.succeed([app('spotify')]),
-      change: (key) =>
-        Effect.sync(() => {
-          changeKey = key;
-        }).pipe(Effect.andThen(Deferred.succeed(written, undefined)), Effect.asVoid),
-    }),
-  );
+  const audio = AudioModule.makeLayer({
+    ...masterMock,
+    list: Effect.succeed([app('spotify')]),
+    change: (key) =>
+      Effect.sync(() => {
+        changeKey = key;
+      }).pipe(Effect.andThen(Deferred.succeed(written, undefined)), Effect.asVoid),
+  });
   await Effect.runPromise(
     Effect.scoped(
       Effect.gen(function* () {
@@ -700,7 +695,8 @@ test('encoder events route through the Effect binding runner', async () => {
 it.live('CLI mock mixer runs with neither pactl nor native HID available and validates step', () =>
   Effect.gen(function* () {
     const env = { PATH: '/nonexistent', LD_LIBRARY_PATH: '' };
-    const result = yield* cli(['mixer', '--mock', '--duration', '0.1'], env);
+    // Allow cold Layer / renderer initialization before the timed CLI stops.
+    const result = yield* cli(['mixer', '--mock', '--duration', '1'], env);
     assert.strictEqual(result.status, 0, result.stderr);
     assert.match(result.stdout, /mixer-ready/);
     for (const step of ['0', 'NaN', '21']) {
@@ -792,21 +788,18 @@ test('master read failure disables its dial while app controls remain usable', a
   const deck = Mock.make();
   let appChanges = 0;
   let masterChanges = 0;
-  const audio = Layer.succeed(
-    Audio,
-    Audio.of({
-      list: Effect.succeed([app('spotify')]),
-      master: Effect.fail(new AudioError({ operation: 'master', message: 'unavailable' })),
-      change: () =>
-        Effect.sync(() => {
-          appChanges++;
-        }),
-      changeMaster: () =>
-        Effect.sync(() => {
-          masterChanges++;
-        }),
-    }),
-  );
+  const audio = AudioModule.makeLayer({
+    list: Effect.succeed([app('spotify')]),
+    master: Effect.fail(new AudioError({ operation: 'master', message: 'unavailable' })),
+    change: () =>
+      Effect.sync(() => {
+        appChanges++;
+      }),
+    changeMaster: () =>
+      Effect.sync(() => {
+        masterChanges++;
+      }),
+  });
   await Effect.runPromise(
     Effect.scoped(
       Effect.gen(function* () {

@@ -1,3 +1,5 @@
+import * as SystemRuntime from '@nixfiles/system-control/runtime.ts';
+import { Discord as SystemDiscord } from '@nixfiles/system-control/discord.ts';
 import { invariant } from '../errors.ts';
 import { NodeHttpServer } from '@effect/platform-node';
 import {
@@ -56,9 +58,9 @@ import {
   DiscordConnection,
   DiscordOAuth,
   make as makeDiscordConnection,
-} from '../discord-connection.ts';
-import { AppInput } from '../discord-contract.ts';
-import { DiscordTransport } from '../discord-ipc.ts';
+} from '@nixfiles/system-control/discord-connection.ts';
+import { AppInput } from '@nixfiles/system-control/discord-contract.ts';
+import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import type { RendererKind } from '../mixer-renderer.ts';
 import * as Cards from '../mixer-cards.ts';
 const json = (body: unknown) =>
@@ -164,6 +166,14 @@ export const startStudio = (options: {
         }),
       )
       .pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+    const systemServices =
+      options.configurePlugins || options.mock
+        ? Context.empty()
+        : yield* Layer.build(
+            SystemRuntime.integrationsLayer.pipe(
+              Layer.provide(Layer.succeed(DiscordConnection, discordConnection)),
+            ),
+          );
     if (options.configurePlugins)
       yield* options
         .configurePlugins(host)
@@ -173,6 +183,7 @@ export const startStudio = (options: {
         );
     else
       yield* PersonalPlugins.configure(host).pipe(
+        Effect.provideContext(systemServices),
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideService(DiscordConnection, discordConnection),
         Effect.provideService(Cards.MixerCards, cards),
@@ -412,6 +423,8 @@ export const startStudio = (options: {
           Effect.provide(Layer.mergeAll(DiscordTransport.layer, DiscordOAuth.layer)),
           Effect.provideContext(platform),
         );
+        const sharedDiscord = Context.getOption(systemServices, SystemDiscord);
+        if (Option.isSome(sharedDiscord)) yield* sharedDiscord.value.reconnect;
         yield* host.setEnabled('discord', true);
         yield* settings.save('discord', true);
       }),

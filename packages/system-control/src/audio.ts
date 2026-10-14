@@ -1,5 +1,6 @@
 import { invariant } from './errors.ts';
 import { Context, Data, Effect, Layer, Schema, Semaphore, Stream } from 'effect';
+import * as State from './state.ts';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 /** PulseAudio 17 / PipeWire-Pulse: 100% = 0x10000; largest valid volume = UINT32_MAX / 2. */
 export const PULSE_VOLUME_NORM = 0x10000;
@@ -42,22 +43,27 @@ export interface Master {
   readonly volume: number;
   readonly muted: boolean;
 }
-export class Audio extends Context.Service<
-  Audio,
+export class AudioBackend extends Context.Service<
+  AudioBackend,
   {
     readonly list: Effect.Effect<ReadonlyArray<Application>, AudioError>;
     readonly change: (key: string, change: Change) => Effect.Effect<void, AudioError>;
+    readonly setApplication?: (
+      key: string,
+      volume?: number,
+      muted?: boolean,
+    ) => Effect.Effect<void, AudioError>;
     readonly master: Effect.Effect<Master | undefined, AudioError>;
     readonly changeMaster: (target: Master, change: Change) => Effect.Effect<void, AudioError>;
   }
->()('@nixfiles/streamdeck/Audio') {}
+>()('@nixfiles/system-control/AudioBackend') {}
 /** Testable process boundary; the production runner always uses literal argv. */
 export class Pactl extends Context.Service<
   Pactl,
   {
     readonly run: (args: ReadonlyArray<string>) => Effect.Effect<string, AudioError>;
   }
->()('@nixfiles/streamdeck/Pactl') {}
+>()('@nixfiles/system-control/Pactl') {}
 export const pactlLayer = Layer.effect(
   Pactl,
   Effect.gen(function* () {
@@ -236,8 +242,8 @@ export const group = (streams: ReadonlyArray<PlaybackStream>): ReadonlyArray<App
     }))
     .toSorted((a, b) => a.name.localeCompare(b.name));
 };
-export const serviceLayer = Layer.effect(
-  Audio,
+const backendLayer = Layer.effect(
+  AudioBackend,
   Effect.gen(function* () {
     const pactl = yield* Pactl;
     const lock = yield* Semaphore.make(1);
@@ -252,7 +258,59 @@ export const serviceLayer = Layer.effect(
         .pipe(Effect.flatMap(decodeSinks));
       return sinks.find((sink) => sink.name === name);
     });
-    return Audio.of({
+    const updateApplication = (
+      key: string,
+      change: Change,
+      absolute?: { volume?: number; muted?: boolean },
+    ) =>
+      Semaphore.withPermits(
+        lock,
+        1,
+      )(
+        Effect.gen(function* () {
+          yield* validateChange(change);
+          const app = group(yield* read).find((candidate) => candidate.key === key);
+          if (!app) {
+            if (absolute)
+              return yield* new AudioError({
+                operation: 'application',
+                message: 'Audio application unavailable.',
+              });
+            return; // App disappeared; never substitute another knob's new occupant.
+          }
+          for (const stream of app.streams) {
+            // Revalidate serial and application immediately before using the Pulse index.
+            const fresh = (yield* read).find(
+              (candidate) =>
+                candidate.index === stream.index &&
+                candidate.serial === stream.serial &&
+                candidate.app === key,
+            );
+            if (!fresh) continue;
+            if (change.delta !== 0 || absolute?.volume !== undefined) {
+              const channels = changedChannels(
+                fresh.channels,
+                app.volume,
+                absolute?.volume === undefined ? change.delta : absolute.volume - app.volume,
+              ).map(String);
+              yield* pactl.run(['set-sink-input-volume', String(fresh.index), ...channels]);
+            }
+            if (change.toggles % 2 || absolute?.muted !== undefined)
+              yield* pactl.run([
+                'set-sink-input-mute',
+                String(fresh.index),
+                absolute?.muted === undefined
+                  ? app.muted
+                    ? '0'
+                    : '1'
+                  : absolute.muted
+                    ? '1'
+                    : '0',
+              ]);
+          }
+        }),
+      );
+    return AudioBackend.of({
       list: Effect.map(read, group),
       master: readMaster,
       changeMaster: (target, change) =>
@@ -280,47 +338,24 @@ export const serviceLayer = Layer.effect(
               yield* pactl.run(['set-sink-mute', fresh.name, fresh.muted ? '0' : '1']);
           }),
         ),
-      change: (key, change) =>
-        Semaphore.withPermits(
-          lock,
-          1,
-        )(
-          Effect.gen(function* () {
-            yield* validateChange(change);
-            const app = group(yield* read).find((candidate) => candidate.key === key);
-            if (!app) return; // App disappeared; never substitute another knob's new occupant.
-            for (const stream of app.streams) {
-              // Revalidate serial and application immediately before using the Pulse index.
-              const fresh = (yield* read).find(
-                (candidate) =>
-                  candidate.index === stream.index &&
-                  candidate.serial === stream.serial &&
-                  candidate.app === key,
-              );
-              if (!fresh) continue;
-              if (change.delta !== 0) {
-                const channels = changedChannels(fresh.channels, app.volume, change.delta).map(
-                  String,
-                );
-                yield* pactl.run(['set-sink-input-volume', String(fresh.index), ...channels]);
-              }
-              if (change.toggles % 2)
-                yield* pactl.run([
-                  'set-sink-input-mute',
-                  String(fresh.index),
-                  app.muted ? '0' : '1',
-                ]);
-            }
-          }),
+      change: updateApplication,
+      setApplication: (key, volume, muted) =>
+        updateApplication(
+          key,
+          { delta: 0, toggles: 0 },
+          {
+            ...(volume === undefined ? {} : { volume }),
+            ...(muted === undefined ? {} : { muted }),
+          },
         ),
     });
   }),
 );
-export const layer = serviceLayer.pipe(Layer.provide(pactlLayer));
+
 /** Entirely inert audio fixture for the CLI's --mock mode. */
 const makeMockLayer = (extraApps: boolean) =>
   Layer.effect(
-    Audio,
+    AudioBackend,
     Effect.sync(() => {
       let master: Master = {
         name: 'mock-output',
@@ -364,7 +399,7 @@ const makeMockLayer = (extraApps: boolean) =>
             }),
           ),
         );
-      return Audio.of({
+      return AudioBackend.of({
         list: Effect.sync(() => group(streams)),
         master: Effect.sync(() => master),
         changeMaster: (target, change) =>
@@ -411,6 +446,97 @@ const makeMockLayer = (extraApps: boolean) =>
       });
     }),
   );
-export const mockLayer = makeMockLayer(false);
+
 /** Eight inert apps for exercising physical swipe/knob routing without changing real sound. */
-export const demoLayer = makeMockLayer(true);
+
+export interface Commands {
+  readonly setApplication?: (
+    key: string,
+    volume?: number,
+    muted?: boolean,
+  ) => Effect.Effect<void, AudioError>;
+  readonly list: Effect.Effect<ReadonlyArray<Application>, AudioError>;
+  readonly master: Effect.Effect<Master | undefined, AudioError>;
+  readonly change: (key: string, change: Change) => Effect.Effect<void, AudioError>;
+  readonly changeMaster: (target: Master, change: Change) => Effect.Effect<void, AudioError>;
+}
+export interface AudioState {
+  readonly applications: ReadonlyArray<Application>;
+  readonly master: Master | undefined;
+}
+/** Observable system service; legacy fresh reads and relative writes preserve existing mixer semantics. */
+export const make = (backend: Commands) =>
+  Effect.gen(function* () {
+    const lock = yield* Semaphore.make(1);
+    const read = Effect.all({ applications: backend.list, master: backend.master });
+    const store = yield* State.polling(
+      read,
+      500,
+      new AudioError({ operation: 'state', message: 'Audio unavailable.' }),
+    );
+    const write = (operation: Effect.Effect<void, AudioError>) =>
+      store.guard(
+        Semaphore.withPermits(
+          lock,
+          1,
+        )(operation.pipe(Effect.andThen(store.refresh.pipe(Effect.ignore)), Effect.asVoid)),
+      );
+    const validVolume = (value: number, max: number) =>
+      Number.isFinite(value) && value >= 0 && value <= max
+        ? Effect.void
+        : Effect.fail(
+            new AudioError({ operation: 'volume', message: `Volume must be in 0..${max}.` }),
+          );
+    const application = (key: string, volume?: number, muted?: boolean) =>
+      Effect.gen(function* () {
+        if (volume !== undefined) yield* validVolume(volume, MAX_VOLUME_PERCENT);
+        if (backend.setApplication) return yield* backend.setApplication(key, volume, muted);
+        const app = (yield* backend.list).find((entry) => entry.key === key);
+        if (!app)
+          return yield* new AudioError({
+            operation: 'application',
+            message: 'Audio application unavailable.',
+          });
+        yield* backend.change(key, {
+          delta: volume === undefined ? 0 : volume - app.volume,
+          toggles: muted === undefined || muted === app.muted ? 0 : 1,
+        });
+      });
+    const master = (volume?: number, muted?: boolean) =>
+      Effect.gen(function* () {
+        if (volume !== undefined) yield* validVolume(volume, MAX_MASTER_VOLUME_PERCENT);
+        const target = yield* backend.master;
+        if (!target)
+          return yield* new AudioError({
+            operation: 'master',
+            message: 'Default audio output unavailable.',
+          });
+        yield* backend.changeMaster(target, {
+          delta: volume === undefined ? 0 : volume - target.volume,
+          toggles: muted === undefined || muted === target.muted ? 0 : 1,
+        });
+      });
+    return {
+      list: store.guard(backend.list),
+      master: store.guard(backend.master),
+      state: store.state,
+      snapshot: store.snapshot,
+      observe: store.observe,
+      refresh: store.refresh,
+      change: (key: string, change: Change) => write(backend.change(key, change)),
+      changeMaster: (target: Master, change: Change) => write(backend.changeMaster(target, change)),
+      setVolume: (key: string, percent: number) => write(application(key, percent)),
+      setMuted: (key: string, muted: boolean) => write(application(key, undefined, muted)),
+      setMasterVolume: (percent: number) => write(master(percent)),
+      setMasterMuted: (muted: boolean) => write(master(undefined, muted)),
+    };
+  });
+export class Audio extends Context.Service<Audio, Effect.Success<ReturnType<typeof make>>>()(
+  '@nixfiles/system-control/Audio',
+) {}
+export const makeLayer = (commands: Commands) => Layer.effect(Audio, make(commands));
+const observedLayer = Layer.effect(Audio, Effect.flatMap(AudioBackend, make));
+export const serviceLayer = observedLayer.pipe(Layer.provide(backendLayer));
+export const layer = serviceLayer.pipe(Layer.provide(pactlLayer));
+export const mockLayer = observedLayer.pipe(Layer.provide(makeMockLayer(false)));
+export const demoLayer = observedLayer.pipe(Layer.provide(makeMockLayer(true)));

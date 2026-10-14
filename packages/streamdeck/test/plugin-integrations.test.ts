@@ -1,3 +1,4 @@
+import * as DiscordRpc from '@nixfiles/system-control/discord-rpc.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeServices, NodeSocketServer } from '@effect/platform-node';
 import {
@@ -12,14 +13,15 @@ import {
   Schedule,
   Schema,
 } from 'effect';
-import { JsonSocket, IntegrationError, type Message } from '../src/json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
+import { JsonSocket, type Message } from '@nixfiles/system-control/json-socket.ts';
 import * as Obs from '../src/plugins/obs.ts';
-import { DiscordTransport } from '../src/discord-ipc.ts';
+import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import * as Talk from '../src/plugins/push-to-talk.ts';
 import { commandFromConfig } from '../src/plugins/command-bridge.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Fields from '../src/plugin-fields.ts';
@@ -184,7 +186,7 @@ it.live(
               };
             }),
         });
-        const api = yield* Discord.make({
+        const api = yield* DiscordRpc.make({
           clientId: '123',
           accessToken: Redacted.make('test-only-token'),
         }).pipe(Effect.provide(layer));
@@ -223,9 +225,10 @@ it.live(
             }),
         });
         const result = yield* Effect.result(
-          Discord.make({ clientId: '123', accessToken: Redacted.make('private-test-token') }).pipe(
-            Effect.provide(layer),
-          ),
+          DiscordRpc.make({
+            clientId: '123',
+            accessToken: Redacted.make('private-test-token'),
+          }).pipe(Effect.provide(layer)),
         );
         assert.strictEqual(result._tag, 'Failure');
         if (result._tag === 'Failure') {

@@ -1,12 +1,15 @@
+import type { VoiceState } from '@nixfiles/system-control/discord-rpc.ts';
+import * as DiscordRpc from '@nixfiles/system-control/discord-rpc.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeCrypto, NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, FileSystem, Layer, Ref, Redacted, Schedule } from 'effect';
-import { IntegrationError, type Message } from '../src/json-socket.ts';
-import { DiscordTransport } from '../src/discord-ipc.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
+import { type Message } from '@nixfiles/system-control/json-socket.ts';
+import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 
 const server = Effect.gen(function* () {
@@ -46,7 +49,7 @@ const server = Effect.gen(function* () {
         };
       }),
   });
-  const change = (next: Discord.VoiceState) =>
+  const change = (next: VoiceState) =>
     Ref.set(state, next).pipe(
       Effect.andThen(
         Effect.suspend(
@@ -71,7 +74,7 @@ it.live(
     Effect.scoped(
       Effect.gen(function* () {
         const fake = yield* server;
-        const api = yield* Discord.make({
+        const api = yield* DiscordRpc.make({
           clientId: 'test',
           accessToken: Redacted.make('test'),
         }).pipe(Effect.provide(fake.layer));
@@ -106,7 +109,7 @@ it.live(
         const fake = yield* server;
         const layer = Layer.effect(
           Discord.Discord,
-          Discord.make({ clientId: 'test', accessToken: Redacted.make('test') }),
+          DiscordRpc.make({ clientId: 'test', accessToken: Redacted.make('test') }),
         ).pipe(Layer.provide(fake.layer));
         const plugin = Plugin.fromLayer({
           id: 'discord',

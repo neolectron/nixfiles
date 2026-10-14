@@ -1,5 +1,10 @@
 import { Console, Context, Effect, Layer, Option, Ref, Schema, Semaphore } from 'effect';
-import { Audio, type Application, type Change, type Master } from '../audio.ts';
+import {
+  Audio,
+  type Application,
+  type Change,
+  type Master,
+} from '@nixfiles/system-control/audio.ts';
 import * as Bindings from '../bindings.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import { StreamDeckError, invariant } from '../errors.ts';

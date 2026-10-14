@@ -1,12 +1,14 @@
+import { Spotify as SpotifyService } from '@nixfiles/system-control/spotify.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem, Layer, Ref, Schedule } from 'effect';
-import { IntegrationError } from '../src/json-socket.ts';
-import * as Mpris from '../src/mpris.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
+import * as Player from '@nixfiles/system-control/spotify.ts';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Spotify from '../src/plugins/spotify.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 
 const fake = Effect.gen(function* () {
@@ -293,14 +295,13 @@ it.live(
         const mock = Mock.make();
         const server = yield* fake;
         const layer = Layer.effect(
-          Spotify.Spotify,
-          Mpris.make('org.mpris.MediaPlayer2.spotify').pipe(Effect.provide(server.layer)),
+          SpotifyService,
+          Player.managed('org.mpris.MediaPlayer2.spotify').pipe(Effect.provide(server.layer)),
         );
         const plugin = Plugin.fromLayer({
           ...Spotify.plugin,
-          service: Spotify.Spotify,
+          service: SpotifyService,
           layer,
-          run: (api) => api.monitor,
         });
         yield* Effect.scoped(
           Effect.gen(function* () {

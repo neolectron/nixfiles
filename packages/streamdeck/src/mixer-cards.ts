@@ -1,5 +1,5 @@
 import { Context, Effect, Exit, Fiber, Layer, Scope } from 'effect';
-import type { Application, Change } from './audio.ts';
+import type { Application, Change } from '@nixfiles/system-control/audio.ts';
 import type { RgbImage } from './image.ts';
 import type { Size } from './model.ts';
 import { invalid } from './errors.ts';

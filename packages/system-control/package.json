@@ -1,0 +1,31 @@
+{
+  "name": "@nixfiles/system-control",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*.ts": "./src/*.ts"
+  },
+  "scripts": {
+    "cli": "node src/cli.ts",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "lint": "oxlint -c ../../.oxlintrc.json src vitest.config.ts",
+    "lint:fix": "pnpm lint --fix",
+    "format": "oxfmt --check -c ../../.oxfmtrc.json .",
+    "format:fix": "oxfmt -c ../../.oxfmtrc.json ."
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.4",
+    "effect": "4.0.4"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.4",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.4"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

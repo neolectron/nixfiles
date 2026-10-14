@@ -17,7 +17,11 @@ See the [research and design decisions](../../docs/streamdeck-effect-v4-research
 
 The [system services and presentation plan](../../docs/system-control-streamdeck-plan.md)
 records the next architecture: reusable Effect system services, shared actions,
-scoped tiles/scenes/overlays, and folders as a navigation plugin.
+scoped tiles/scenes/overlays, and folders as a navigation plugin. The first stage
+is implemented: [system-control](../system-control/README.md) provides independent
+Audio, MPRIS/Spotify, media and Discord services. Studio shares their root Layers
+with presentation plugins; `pnpm system inspect` reads them without USB. LCD
+surfaces and the shared action catalogue are later stages.
 
 ## Coding standards
 
@@ -140,6 +144,11 @@ the profile. Disable stops their input handlers, tasks and child processes,
 closes their Layer resources, and clears only their owned displays. USB remains
 open; the other plugins keep running. A new activation reconstructs transient
 state from saved configuration.
+
+System services supplied by Studio's root Layer are shared. Their polling and
+connections continue while their presentation is disabled, so other consumers
+can keep using them. `Sources` now comes from
+`@nixfiles/system-control/sources.ts`.
 
 Register personal plugins in `src/studio-plugins.ts`. The inactive **Exemple :
 événements** demonstrates an Effect source, React rendering and key presses.

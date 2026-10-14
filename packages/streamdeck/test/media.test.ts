@@ -1,14 +1,17 @@
+import { MediaPlayers } from '@nixfiles/system-control/media.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem, Layer, Ref, Schedule } from 'effect';
-import * as Media from '../src/media.ts';
-import * as Mpris from '../src/mpris.ts';
+import * as Media from '@nixfiles/system-control/media.ts';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as MediaPlugin from '../src/plugins/media.ts';
 import * as Plugin from '../src/plugin.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Mock from '../src/mock.ts';
-import { IntegrationError } from '../src/json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import { startStudio } from '../src/scripts/studio.ts';
+import * as Host from '../src/plugin-host.ts';
+import { TestClock } from 'effect/testing';
 
 interface Player {
   readonly name: string;
@@ -87,6 +90,38 @@ const fake = (initial: ReadonlyMap<string, Player>) =>
     };
   });
 
+it.effect(
+  'disabling and re-enabling media presentation retains the shared system service and its monitoring',
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const server = yield* fake(new Map([[spotify, { name: 'Spotify', status: 'Playing' }]]));
+        const mock = Mock.make();
+        yield* Effect.gen(function* () {
+          const shared = yield* MediaPlayers;
+          const host = yield* Host.make;
+          const handle = yield* host.install(MediaPlugin.plugin);
+          yield* host.setEnabled(handle.id, true);
+          yield* handle.use((api) => Effect.sync(() => assert.strictEqual(api, shared)));
+          yield* host.setEnabled(handle.id, false);
+          yield* Ref.set(
+            server.players,
+            new Map([[spotify, { name: 'Spotify', status: 'Paused' }]]),
+          );
+          yield* TestClock.adjust(1000);
+          assert.strictEqual((yield* shared.state).playback.status, 'Paused');
+          yield* host.setEnabled(handle.id, true);
+          yield* handle.use((api) => Effect.sync(() => assert.strictEqual(api, shared)));
+          assert.strictEqual(server.commands().length, 0);
+        }).pipe(
+          Effect.provide(
+            Layer.merge(mock.layer(), MediaPlayers.serviceLayer.pipe(Layer.provide(server.layer))),
+          ),
+        );
+      }),
+    ).pipe(Effect.provide(NodeServices.layer)),
+);
+
 it.live(
   'global commands select one playing player, retain it on pause and switch when another starts',
   () =>
@@ -97,7 +132,7 @@ it.live(
           [spotify, { name: 'Spotify', status: 'Playing' }],
         ]),
       );
-      const api = yield* Media.make.pipe(Effect.provide(server.layer));
+      const api = yield* Media.managed.pipe(Effect.provide(server.layer));
       assert.strictEqual((yield* api.state).busName, spotify);
       assert.strictEqual(server.commands().length, 0);
       yield* api.command('PlayPause');
@@ -125,7 +160,7 @@ it.live(
   () =>
     Effect.gen(function* () {
       const server = yield* fake(new Map([[browser, { name: 'Chrome', status: 'Playing' }]]));
-      const api = yield* Media.make.pipe(Effect.provide(server.layer));
+      const api = yield* Media.managed.pipe(Effect.provide(server.layer));
       yield* Ref.update(
         server.players,
         (all) => new Map([...all, [spotify, { name: 'Spotify', status: 'Playing' }]]),
@@ -148,7 +183,7 @@ it.live(
   () =>
     Effect.gen(function* () {
       const server = yield* fake(new Map());
-      const api = yield* Media.make.pipe(Effect.provide(server.layer));
+      const api = yield* Media.managed.pipe(Effect.provide(server.layer));
       assert.strictEqual((yield* Effect.result(api.command('Next')))._tag, 'Failure');
       yield* Ref.set(
         server.players,
@@ -179,15 +214,11 @@ it.live(
         const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'media-plugin-' });
         const mock = Mock.make();
         const server = yield* fake(new Map([[spotify, { name: 'Spotify', status: 'Playing' }]]));
-        const layer = Layer.effect(
-          MediaPlugin.MediaKeys,
-          Media.make.pipe(Effect.provide(server.layer)),
-        );
+        const layer = Layer.effect(MediaPlayers, Media.managed.pipe(Effect.provide(server.layer)));
         const plugin = Plugin.fromLayer({
           ...MediaPlugin.plugin,
-          service: MediaPlugin.MediaKeys,
+          service: MediaPlayers,
           layer,
-          run: (api) => api.monitor,
         });
         yield* Effect.scoped(
           Effect.gen(function* () {

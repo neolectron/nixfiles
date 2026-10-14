@@ -11,7 +11,8 @@ import {
   Stream,
 } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
-import { IntegrationError } from './json-socket.ts';
+import { IntegrationError } from './errors.ts';
+import * as StateStore from './state.ts';
 import * as Sources from './sources.ts';
 const nextLoop = (state: State) =>
   state.loop === 'None' ? 'Playlist' : state.loop === 'Playlist' ? 'Track' : 'None';
@@ -96,7 +97,7 @@ export class MprisTransport extends Context.Service<
     readonly ready: Effect.Effect<void, IntegrationError>;
     readonly run: (args: ReadonlyArray<string>) => Effect.Effect<string, IntegrationError>;
   }
->()('@nixfiles/streamdeck/MprisTransport') {
+>()('@nixfiles/system-control/MprisTransport') {
   static readonly layer = Layer.effect(
     MprisTransport,
     Effect.gen(function* () {
@@ -325,4 +326,50 @@ export const make = (busName: string, name = 'Lecteur') =>
     const state = Effect.flatMap(Ref.get(cached), Effect.fromResult);
     return { current, state, command, seek, toggleShuffle, cycleLoop, monitor };
   });
-export type Controller = Effect.Success<ReturnType<typeof make>>;
+export type Controller = Omit<Effect.Success<ReturnType<typeof make>>, 'monitor'>;
+
+export class MprisPlayer extends Context.Service<
+  MprisPlayer,
+  Omit<Controller, 'monitor'> &
+    Pick<
+      Effect.Success<ReturnType<typeof StateStore.make<State, IntegrationError>>>,
+      'snapshot' | 'observe'
+    >
+>()('@nixfiles/system-control/MprisPlayer') {
+  static readonly serviceLayer = (busName: string, name?: string) =>
+    Layer.effect(
+      MprisPlayer,
+      Effect.gen(function* () {
+        const raw = yield* make(busName, name);
+        const store = yield* StateStore.polling(
+          raw.current,
+          '1 second',
+          new IntegrationError({ message: 'Media player unavailable.' }),
+        );
+        const { monitor: _monitor, ...api } = raw;
+        return {
+          ...api,
+          current: store.refresh,
+          state: store.state,
+          snapshot: store.snapshot,
+          observe: store.observe,
+          command: (method: Command) =>
+            store
+              .guard(raw.command(method))
+              .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+          seek: (seconds: number) =>
+            store
+              .guard(raw.seek(seconds))
+              .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+          toggleShuffle: store
+            .guard(raw.toggleShuffle)
+            .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+          cycleLoop: store
+            .guard(raw.cycleLoop)
+            .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+        };
+      }),
+    );
+  static readonly layer = (busName: string, name?: string) =>
+    MprisPlayer.serviceLayer(busName, name).pipe(Layer.provide(MprisTransport.layer));
+}

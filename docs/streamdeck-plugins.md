@@ -6,6 +6,12 @@ service. Enabling builds its services; disabling interrupts its tasks and action
 unsubscribes sources, closes Layer resources and clears its owned displays.
 Other plugins keep running and the physical connection stays open.
 
+System bindings live in `@nixfiles/system-control`: Audio, MPRIS/Spotify, media
+and Discord can be used without the deck. Studio provides shared system Layers
+at its root; presentation plugins reuse them. Disabling a presentation does not
+close a shared integration. Standalone plugins can still own their own service
+scope. See [the service API](../packages/system-control/README.md).
+
 ## Use the built-in plugins
 
 The editor's **Fonctionnalités** switches control **Mixer audio**, **Applications et scripts** and **Raccourcis**.
@@ -46,6 +52,8 @@ Edit `packages/streamdeck/src/studio-plugins.ts`. The shipped example registers 
 clock source without enabling it. Replace its source, or register more plugins:
 
 ```ts
+import * as Sources from '@nixfiles/system-control/sources.ts';
+
 const source = Sources.poll(myService.currentState, '1 second').pipe(
   Stream.map((value) => value.title),
 );
@@ -100,7 +108,9 @@ remains selected when no other player is playing. Reopening/closing applications
 updates the selection. Discovery and feedback are read-only, use
 `--auto-start=no`, and recover from missing players without disabling the plugin.
 The key shows the selected application and a play/pause icon matching its state.
-The monitor closes with the plugin activation scope.
+The `MediaPlayers` system Layer owns monitoring. In Studio it remains alive
+when the media presentation is disabled; standalone activation closes its own
+Layer with the plugin scope.
 
 On Manuel's current deck the plugin is enabled and standard Previous,
 Play/Pause and Next were placed on keys 21–23, directly above the corresponding

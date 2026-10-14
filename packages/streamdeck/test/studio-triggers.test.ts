@@ -5,7 +5,7 @@ import { TestClock } from 'effect/testing';
 import { HttpClient, HttpClientRequest, HttpServer } from 'effect/http';
 import * as Mock from '../src/mock.ts';
 import * as Actions from '../src/studio-actions.tsx';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Talk from '../src/plugins/push-to-talk.ts';
 import { ButtonBinding } from '../src/studio-contract.ts';
 import { StreamDeck } from '../src/stream-deck.ts';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Snapshot } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
-import { RedirectUri } from '../src/discord-contract.ts';
+import { RedirectUri } from '@nixfiles/system-control/discord-contract.ts';
 export function DiscordConnection({
   snapshot,
   disabled,

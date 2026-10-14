@@ -1,144 +1,15 @@
-import {
-  Config,
-  Context,
-  Crypto,
-  Deferred,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-  Ref,
-  Result,
-  Schema,
-  Semaphore,
-} from 'effect';
-import { IntegrationError, requests, type Message } from '../json-socket.ts';
-import { DiscordTransport } from '../discord-ipc.ts';
+import * as SystemDiscord from '@nixfiles/system-control/discord.ts';
+import type { VoiceState } from '@nixfiles/system-control/discord-rpc.ts';
+import { Config, Context, Effect, Layer, Option } from 'effect';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
+import type { Message } from '@nixfiles/system-control/json-socket.ts';
+import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import * as Plugin from '../plugin.ts';
 import { commandFromConfig } from './command-bridge.ts';
 import { DesktopKeys, makeDiscordKeys } from '../desktop-keys.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
-import { DiscordConnection, DiscordOAuth } from '../discord-connection.ts';
-import { rpcError } from '../discord-rpc-error.ts';
+import { DiscordConnection, DiscordOAuth } from '@nixfiles/system-control/discord-connection.ts';
 
-const settings = Schema.Struct({ mute: Schema.Boolean, deaf: Schema.Boolean });
-export type VoiceState = typeof settings.Type;
-export const make = (options: {
-  readonly clientId: string;
-  readonly accessToken: Redacted.Redacted<string>;
-}) =>
-  Effect.gen(function* () {
-    const socket = yield* DiscordTransport;
-    const crypto = yield* Crypto.Crypto;
-    const replies = yield* requests;
-    const lock = yield* Semaphore.make(1);
-    const ready = yield* Deferred.make<void, IntegrationError>();
-    const voice = yield* Ref.make<Option.Option<VoiceState>>(Option.none());
-    const voiceRequests = new Set<string>();
-    const connection = yield* socket.connect(options.clientId, (message) =>
-      Effect.gen(function* () {
-        if (message.evt === 'READY') yield* Deferred.succeed(ready, undefined);
-        if (
-          message.evt === 'VOICE_SETTINGS_UPDATE' ||
-          (typeof message.nonce === 'string' && voiceRequests.has(message.nonce))
-        ) {
-          const decoded = yield* Schema.decodeUnknownEffect(settings)(message.data).pipe(
-            Effect.result,
-          );
-          if (Result.isSuccess(decoded)) yield* Ref.set(voice, Option.some(decoded.success));
-        }
-        if (typeof message.nonce === 'string') {
-          const data =
-            typeof message.data === 'object' &&
-            message.data !== null &&
-            !Array.isArray(message.data)
-              ? (message.data as Record<string, unknown>)
-              : {};
-          yield* replies.reply(
-            message.nonce,
-            message.evt === 'ERROR'
-              ? rpcError(
-                  typeof message.cmd === 'string' && /^[A-Z_]+$/.test(message.cmd)
-                    ? message.cmd
-                    : 'COMMAND',
-                  data,
-                )
-              : data,
-          );
-        }
-      }),
-    );
-    yield* Effect.raceFirst(Deferred.await(ready), connection.failure).pipe(
-      Effect.timeout('5 seconds'),
-    );
-    const request = (cmd: string, args: Record<string, unknown> = {}, evt?: string) =>
-      Effect.gen(function* () {
-        const nonce = yield* crypto.randomUUIDv4();
-        if (cmd === 'GET_VOICE_SETTINGS' || cmd === 'SET_VOICE_SETTINGS') voiceRequests.add(nonce);
-        return yield* replies
-          .call(
-            nonce,
-            connection.send({ cmd, args, nonce, ...(evt ? { evt } : {}) }),
-            connection.failure,
-          )
-          .pipe(
-            Effect.ensuring(
-              Effect.sync(() => {
-                voiceRequests.delete(nonce);
-              }),
-            ),
-          );
-      }).pipe(
-        Effect.mapError((error) =>
-          error instanceof IntegrationError
-            ? error
-            : new IntegrationError({ message: 'La requête RPC Discord a échoué.' }),
-        ),
-      );
-    yield* request('AUTHENTICATE', { access_token: Redacted.value(options.accessToken) });
-    yield* request('SUBSCRIBE', {}, 'VOICE_SETTINGS_UPDATE');
-    const current = request('GET_VOICE_SETTINGS').pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(settings)),
-      Effect.mapError((cause) =>
-        cause instanceof IntegrationError
-          ? cause
-          : new IntegrationError({ message: 'Réglages vocaux Discord indisponibles.' }),
-      ),
-    );
-    const toggle = (field: 'mute' | 'deaf') =>
-      Semaphore.withPermits(
-        lock,
-        1,
-      )(
-        Effect.gen(function* () {
-          const before = yield* current;
-          yield* request('SET_VOICE_SETTINGS', { [field]: !before[field] });
-          return yield* current;
-        }),
-      );
-    yield* current;
-    const cached = Effect.flatMap(
-      Ref.get(voice),
-      Option.match({
-        onSome: Effect.succeed,
-        onNone: () => Effect.fail(new IntegrationError({ message: 'État vocal Discord inconnu.' })),
-      }),
-    );
-    // Events give immediate updates; the read-only poll also recovers partial/missed events.
-    const monitor = Effect.forever(Effect.sleep('2 seconds').pipe(Effect.andThen(current)));
-    return {
-      current,
-      toggle,
-      voice: cached,
-      failure: Effect.raceFirst(connection.failure, monitor),
-    };
-  }).pipe(
-    Effect.mapError((error) =>
-      error instanceof IntegrationError
-        ? error
-        : new IntegrationError({ message: 'Connexion RPC Discord échouée.' }),
-    ),
-  );
 export interface Controller {
   readonly current: Effect.Effect<Message, IntegrationError>;
   readonly toggle: (field: 'mute' | 'deaf') => Effect.Effect<Message, IntegrationError>;
@@ -152,10 +23,13 @@ const voiceConfigured = Effect.gen(function* () {
     'STREAMDECK_DISCORD_BACKEND',
   ).pipe(Config.withDefault('rpc'));
   if (backend === 'keyboard') return yield* makeDiscordKeys;
+  const shared = yield* Effect.serviceOption(SystemDiscord.Discord);
+  if (Option.isSome(shared)) return { ...shared.value, failure: Effect.never };
   const saved = yield* Effect.serviceOption(DiscordConnection);
   if (Option.isSome(saved)) {
     const options = yield* saved.value.options;
-    if (options) return yield* make(options);
+    if (options)
+      return { ...(yield* SystemDiscord.make(Effect.succeed(options))), failure: Effect.never };
   }
   const clientId = yield* Config.String('STREAMDECK_DISCORD_CLIENT_ID').pipe(Config.option);
   const accessToken = yield* Config.Redacted('STREAMDECK_DISCORD_ACCESS_TOKEN').pipe(Config.option);
@@ -168,7 +42,12 @@ const voiceConfigured = Effect.gen(function* () {
           'Connexion RPC Discord à configurer : application autorisée et autorisation OAuth nécessaires. Le bouton affichera HORS LIGNE jusqu’à la connexion.',
       }),
     );
-  return yield* make({ clientId: clientId.value, accessToken: accessToken.value });
+  return {
+    ...(yield* SystemDiscord.make(
+      Effect.succeed({ clientId: clientId.value, accessToken: accessToken.value }),
+    )),
+    failure: Effect.never,
+  };
 });
 /** A missing bridge affects its action only; activation never starts screen sharing. */
 export const configured = Effect.gen(function* () {

@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
-import { IntegrationError } from '../json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import * as Plugin from '../plugin.ts';
 import { commandFromConfig } from './command-bridge.ts';
 

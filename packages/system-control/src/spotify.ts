@@ -1,8 +1,9 @@
-import { Effect, Result, Semaphore, Stream } from 'effect';
-import * as Mpris from '../mpris.ts';
-import * as Sources from '../sources.ts';
-import { IntegrationError } from '../json-socket.ts';
-import type { Identity } from '../mixer-cards.ts';
+import { Config, Context, Layer, Option, Effect, Result, Semaphore, Stream } from 'effect';
+import * as Mpris from './mpris.ts';
+import * as StateStore from './state.ts';
+import * as Sources from './sources.ts';
+import { IntegrationError } from './errors.ts';
+import type { Identity } from './application-identity.ts';
 export const keyForApplication = (key: string) =>
   key === 'spotify' || key === 'com.spotify.client'
     ? 'spotify'
@@ -89,5 +90,49 @@ export const make = (override?: string) =>
         return values;
       }),
       monitor: Stream.runDrain(Sources.poll(current.pipe(Effect.ignore), '1 second')),
-    } satisfies Controller;
+    };
   });
+
+export const managed = (override?: string) =>
+  Effect.gen(function* () {
+    const raw = yield* make(override);
+    const store = yield* StateStore.polling(
+      raw.current,
+      '1 second',
+      new IntegrationError({ message: 'No Spotify player available.' }),
+    );
+    return {
+      current: store.refresh,
+      state: store.state,
+      snapshot: store.snapshot,
+      observe: store.observe,
+      command: (method: Mpris.Command) =>
+        store
+          .guard(raw.command(method))
+          .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+      seek: (seconds: number) =>
+        store
+          .guard(raw.seek(seconds))
+          .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+      toggleShuffle: store
+        .guard(raw.toggleShuffle)
+        .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+      cycleLoop: store
+        .guard(raw.cycleLoop)
+        .pipe(Effect.tap((state) => store.publish(Result.succeed(state)))),
+      forApplication: raw.forApplication,
+      applications: raw.applications,
+    };
+  });
+export class Spotify extends Context.Service<Spotify, Effect.Success<ReturnType<typeof managed>>>()(
+  '@nixfiles/system-control/Spotify',
+) {
+  static readonly serviceLayer = (busName?: string) => Layer.effect(Spotify, managed(busName));
+  static readonly layer = Layer.effect(
+    Spotify,
+    Effect.gen(function* () {
+      const bus = yield* Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.option);
+      return yield* managed(Option.getOrUndefined(bus));
+    }),
+  ).pipe(Layer.provide(Mpris.MprisTransport.layer));
+}

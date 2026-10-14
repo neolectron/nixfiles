@@ -4,7 +4,7 @@ import { Config, Effect, Fiber, FileSystem, Layer, Schedule, Stream } from 'effe
 import * as Mock from '../src/mock.ts';
 import * as Actions from '../src/studio-actions.tsx';
 import { StreamDeck } from '../src/stream-deck.ts';
-import { demoLayer } from '../src/audio.ts';
+import { demoLayer } from '@nixfiles/system-control/audio.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 
 it.live(

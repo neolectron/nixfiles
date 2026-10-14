@@ -2,7 +2,7 @@ import { NodeFileSystem, NodePath } from '@effect/platform-node';
 import { Context, Effect, FileSystem, Layer, Path, Stream } from 'effect';
 import { Base64 } from 'effect/encoding';
 import { FetchHttpClient, HttpClient } from 'effect/http';
-import { IntegrationError } from '../json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 
 const maxBytes = 1024 * 1024;
 const invalid = () => new IntegrationError({ message: 'Jaquette absente ou invalide.' });

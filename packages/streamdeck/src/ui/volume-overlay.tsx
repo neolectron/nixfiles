@@ -1,4 +1,4 @@
-import { MAX_VOLUME_PERCENT } from '../audio.ts';
+import { MAX_VOLUME_PERCENT } from '@nixfiles/system-control/audio.ts';
 import { css, volumeColor } from '../volume-gauge.ts';
 /** Pure artwork overlay. Timing and audio writes belong to the Spotify service and mixer. */
 export function VolumeOverlay({ volume, muted }: { volume: number; muted: boolean }) {

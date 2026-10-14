@@ -1,11 +1,11 @@
 import { invariant } from '../errors.ts';
 import { Clock, Effect, Option, Ref } from 'effect';
 import { MixerCards } from '../mixer-cards.ts';
-import * as Mpris from '../mpris.ts';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Takumi from '../takumi.ts';
 import { NowPlayingCard } from '../ui/now-playing-card.tsx';
-import type { Controller } from './spotify-player.ts';
-import { keyForApplication } from './spotify-player.ts';
+import type { Controller } from '@nixfiles/system-control/spotify.ts';
+import { keyForApplication } from '@nixfiles/system-control/spotify.ts';
 import * as Artwork from './spotify-artwork.ts';
 const volumeFeedbackMillis = 1500;
 /** Registers content, not hardware claims. The mixer remains the sole LCD compositor. */

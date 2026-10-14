@@ -1,22 +1,12 @@
-import { Config, Context, Effect, Layer, Option, Schema } from 'effect';
-import * as Mpris from '../mpris.ts';
+import { Spotify } from '@nixfiles/system-control/spotify.ts';
+import { Context, Effect, Layer, Option, Schema } from 'effect';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Plugin from '../plugin.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
-import * as Player from './spotify-player.ts';
+import * as Player from '@nixfiles/system-control/spotify.ts';
 import * as Lcd from './spotify-lcd.tsx';
 import { MixerCards } from '../mixer-cards.ts';
 
-export class Spotify extends Context.Service<Spotify, Player.Controller>()(
-  '@nixfiles/streamdeck/Spotify',
-) {
-  static readonly layer = Layer.effect(
-    Spotify,
-    Effect.gen(function* () {
-      const bus = yield* Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.option);
-      return yield* Player.make(Option.getOrUndefined(bus));
-    }),
-  ).pipe(Layer.provide(Mpris.MprisTransport.layer));
-}
 type Icon = KeyFeedback['icon'];
 const unavailable = (icon: Icon): KeyFeedback => ({ icon, text: 'HORS LIGNE', tone: 'neutral' });
 const playback = (state: Mpris.State): KeyFeedback => ({
@@ -58,7 +48,7 @@ export const run = (api: Player.Controller) =>
     const cards = yield* Effect.serviceOption(MixerCards);
     if (Option.isSome(cards))
       yield* Lcd.register(api).pipe(Effect.provideService(MixerCards, cards.value));
-    yield* api.monitor;
+    yield* Effect.never;
   });
 export const plugin = Plugin.fromLayer({
   id: 'spotify',
@@ -66,7 +56,14 @@ export const plugin = Plugin.fromLayer({
   description: 'Lecture, pistes et vue tactile du titre, artiste et progression via MPRIS local.',
   controls: {},
   service: Spotify,
-  layer: Spotify.layer,
+  layer: Layer.effect(
+    Spotify,
+    Effect.gen(function* () {
+      const shared = yield* Effect.serviceOption(Spotify);
+      if (Option.isSome(shared)) return shared.value;
+      return Context.get(yield* Layer.build(Spotify.layer), Spotify);
+    }),
+  ),
   run,
   actions: [
     transport(

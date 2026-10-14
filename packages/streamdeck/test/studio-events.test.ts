@@ -3,7 +3,7 @@ import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem, Layer, Ref } from 'effect';
 import { TestClock } from 'effect/testing';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Bindings from '../src/bindings.ts';
 import { startStudio } from '../src/scripts/studio.ts';

@@ -15,9 +15,9 @@ import {
 } from 'effect';
 import * as Plugin from '../src/plugin.ts';
 import * as Host from '../src/plugin-host.ts';
-import * as Sources from '../src/sources.ts';
+import * as Sources from '@nixfiles/system-control/sources.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import { StreamDeck } from '../src/stream-deck.ts';
 import * as EventDisplay from '../src/plugins/event-display.tsx';
 import { startStudio } from '../src/scripts/studio.ts';
@@ -199,7 +199,7 @@ it.live(
         const profile = `${directory}/profile.json`;
         const mock = Mock.make();
         let commands = 0;
-        const audio = Audio.Audio.of({
+        const audio = {
           list: Effect.succeed([]),
           master: Effect.succeed({
             name: 'test',
@@ -216,7 +216,7 @@ it.live(
             Effect.sync(() => {
               commands++;
             }),
-        });
+        };
         yield* Effect.gen(function* () {
           const studio = yield* startStudio({ profile, applications: [], mock: true });
           yield* studio.actions.save(0, {
@@ -245,7 +245,7 @@ it.live(
           assert.strictEqual(mock.opens, 1);
         }).pipe(
           Effect.scoped,
-          Effect.provide(Layer.mergeAll(mock.layer(), Layer.succeed(Audio.Audio, audio))),
+          Effect.provide(Layer.mergeAll(mock.layer(), Audio.makeLayer(audio))),
         );
         const reloaded = Mock.make();
         yield* Effect.gen(function* () {
@@ -258,7 +258,7 @@ it.live(
           assert.strictEqual((yield* studio.snapshot).keys[0]!.binding!.label, 'Count');
         }).pipe(
           Effect.scoped,
-          Effect.provide(Layer.mergeAll(reloaded.layer(), Layer.succeed(Audio.Audio, audio))),
+          Effect.provide(Layer.mergeAll(reloaded.layer(), Audio.makeLayer(audio))),
         );
       }),
     ).pipe(Effect.provide(NodeServices.layer), Effect.timeout('10 seconds')),

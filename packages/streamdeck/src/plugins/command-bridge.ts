@@ -1,7 +1,7 @@
 import { invariant } from '../errors.ts';
 import { Config, Effect, Schema, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
-import { IntegrationError } from '../json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 /** Explicit literal argv bridges; no shell interpolation, secret fields or automatic execution. */
 export const commandFromConfig = (name: string) =>
   Effect.gen(function* () {
