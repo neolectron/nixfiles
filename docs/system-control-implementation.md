@@ -24,9 +24,12 @@ Le Studio construit les intégrations une fois dans son scope racine et les
 plugins Spotify, média et Discord réutilisent ces instances. Leur désactivation
 retire leur présentation sans fermer le service partagé. Les activations isolées
 peuvent encore construire leur propre service. Les profils et identifiants des
-raccourcis restent identiques. Le mixer garde ses lectures fraîches de
-compatibilité et sa boucle de composition LCD ; sa migration vers des scènes
-et des abonnements partagés sera une étape ultérieure.
+raccourcis restent identiques. Le mixer consomme `Audio.observe` et son snapshot
+partagé ; sa boucle de composition LCD ne relit plus PipeWire en fonctionnement
+normal. Les changements externes de volume/mute remontent aux contributions via
+`MixerCards.onChange(app, previous)`. Spotify actualise sa valeur et son overlay
+sur la jaquette, quelle que soit l'origine du changement. Le service audio conserve
+une surveillance toutes les 500 ms et sérialise les rafraîchissements concurrents.
 
 La commande `pnpm system inspect` utilise Effect CLI et Node 24 directement.
 Elle lit les services sans import USB, sans commande de contrôle de lecture, mute,

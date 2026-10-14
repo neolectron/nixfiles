@@ -27,6 +27,8 @@ export interface Contribution<E, R> {
   };
   /** Notification of a local knob adjustment; audio writes remain owned by the mixer. */
   readonly onAdjust?: (app: Application, change: Change) => Effect.Effect<void, E, R>;
+  /** Confirmed volume/mute changes from the system, regardless of their source. */
+  readonly onChange?: (app: Application, previous: Application) => Effect.Effect<void, E, R>;
   /** The compositor offers only contiguous empty slots, never another app or Master. */
   readonly expandIntoEmpty?: boolean;
   /** Keep this source after ordinary app cards, independently of its selected view. */
@@ -53,6 +55,7 @@ export const make = Effect.sync(() => {
     label: string | undefined;
     tap: (app: Application) => Effect.Effect<boolean>;
     adjust: (app: Application, change: Change) => Effect.Effect<boolean>;
+    changed: (app: Application, previous: Application) => Effect.Effect<void>;
     placement: 'last' | undefined;
   };
   const entries = new Map<string, Entry>();
@@ -117,6 +120,10 @@ export const make = Effect.sync(() => {
                 Effect.map((value) => value ?? false),
               )
             : Effect.succeed(false),
+        changed: (app, previous) =>
+          contribution.onChange
+            ? invoke(contribution.onChange(app, previous)).pipe(Effect.asVoid)
+            : Effect.void,
       };
       entries.set(contribution.id, entry);
       yield* Effect.addFinalizer(() =>
@@ -134,6 +141,8 @@ export const make = Effect.sync(() => {
     tap: (app: Application) => Effect.suspend(() => find(app)?.tap(app) ?? Effect.succeed(false)),
     adjust: (app: Application, change: Change) =>
       Effect.suspend(() => find(app)?.adjust(app, change) ?? Effect.succeed(false)),
+    changed: (app: Application, previous: Application) =>
+      Effect.suspend(() => find(app)?.changed(app, previous) ?? Effect.void),
     label: (app: Application) => Effect.sync(() => find(app)?.label),
     placement: (app: Application) => Effect.sync(() => find(app)?.placement),
     retain: Effect.suspend(() =>

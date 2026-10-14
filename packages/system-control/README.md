@@ -52,6 +52,12 @@ per service. App volume is bounded to 200%, Master to 150%; channel balance and
 stream identities are preserved. Absolute mute applies to every current stream
 of an application, including mixed mute states.
 
+`Audio` reads PipeWire-Pulse every 500 ms and broadcasts externally changed app
+volumes and mute states through `observe`, including changes made from the Linux
+tray. Consumers share this snapshot rather than starting their own system polls.
+Manual and periodic refreshes serialize so a delayed read cannot replace a newer
+snapshot. Observing does not write volumes back to the system.
+
 The primary APIs are the service classes and their Layers. The lower-level
 protocol factories remain available for transport tests and advanced composition;
 they are not the managed service API.

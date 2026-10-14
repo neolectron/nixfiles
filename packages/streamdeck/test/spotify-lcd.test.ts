@@ -1,7 +1,18 @@
 import { Spotify as SpotifyService } from '@nixfiles/system-control/spotify.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
-import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Schedule, Scope } from 'effect';
+import {
+  Clock,
+  Deferred,
+  Effect,
+  Fiber,
+  FileSystem,
+  Layer,
+  Ref,
+  Schedule,
+  Schema,
+  Scope,
+} from 'effect';
 import { TestClock } from 'effect/testing';
 import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Player from '@nixfiles/system-control/spotify.ts';
@@ -15,6 +26,7 @@ import * as Takumi from '../src/takumi.ts';
 import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 import { timestamp } from '../src/ui/now-playing-card.tsx';
+import { Data as SpotifyPresentation } from '../src/plugins/spotify-presentation.tsx';
 
 const fixture = Effect.gen(function* () {
   const metadata = yield* Ref.make({
@@ -203,6 +215,38 @@ it.effect(
         assert.ok(source.requests.every((args) => args[8] === 'GetAll'));
       }),
     ).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.effect('external audio updates display the actual volume and mute in the Spotify overlay', () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const source = yield* fixture;
+      const api = yield* Player.managed().pipe(Effect.provide(source.layer));
+      const cards = yield* Cards.make;
+      const renderer = yield* Takumi.make;
+      yield* SpotifyLcd.register(api).pipe(
+        Effect.provideService(Cards.MixerCards, cards),
+        Effect.provideService(Takumi.ReactRenderer, renderer),
+      );
+      yield* cards.tap(spotifyApp);
+      const external = { ...spotifyApp, volume: 125, muted: true };
+      yield* cards.changed(external, spotifyApp);
+      const frame = yield* cards.frame(external, { width: 400, height: 100 });
+      assert.ok(frame?.view);
+      const data = Schema.decodeUnknownSync(SpotifyPresentation)(frame.view.data);
+      assert.strictEqual(data.app.volume, 125);
+      assert.strictEqual(data.app.muted, true);
+      assert.ok(data.volumeUntil > (yield* Clock.currentTimeMillis));
+      yield* TestClock.adjust(1500);
+      const expired = yield* cards.frame(external, { width: 400, height: 100 });
+      assert.ok(expired?.view);
+      assert.ok(
+        Schema.decodeUnknownSync(SpotifyPresentation)(expired.view.data).volumeUntil <=
+          (yield* Clock.currentTimeMillis),
+      );
+      assert.ok(source.requests.every((args) => args[8] === 'GetAll'));
+    }),
+  ).pipe(Effect.provide(NodeServices.layer)),
 );
 
 it.live(

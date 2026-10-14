@@ -1,4 +1,4 @@
-import { Effect, Fiber, PubSub, Ref, Result, Stream, type Duration } from 'effect';
+import { Effect, Fiber, PubSub, Ref, Result, Semaphore, Stream, type Duration } from 'effect';
 
 /** A scoped snapshot plus a broadcast stream. Subscribe before reading the initial value. */
 export const make = <A, E>(initial: E) =>
@@ -54,12 +54,18 @@ export const make = <A, E>(initial: E) =>
 export const polling = <A, E>(read: Effect.Effect<A, E>, interval: Duration.Input, initial: E) =>
   Effect.gen(function* () {
     const store = yield* make<A, E>(initial);
+    const reads = yield* Semaphore.make(1);
     const refresh = store.guard(
-      Effect.gen(function* () {
-        const result = yield* Effect.result(read);
-        yield* store.publish(result);
-        return yield* Effect.fromResult(result);
-      }),
+      Semaphore.withPermits(
+        reads,
+        1,
+      )(
+        Effect.gen(function* () {
+          const result = yield* Effect.result(read);
+          yield* store.publish(result);
+          return yield* Effect.fromResult(result);
+        }),
+      ),
     );
     yield* refresh.pipe(Effect.ignore);
     yield* Effect.forkScoped(

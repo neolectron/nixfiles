@@ -235,7 +235,9 @@ progress. Knob rotation and clicks continue to use the audio mixer. MPRIS timing
 is sampled every second and advances according to playback rate only while playing;
 paused tracks keep a fixed position. Missing timing is shown as unknown.
 While the track view is selected, rotating its knob immediately adds a circular
-volume overlay on the artwork, with the percentage centered. Each rotation extends
+volume overlay on the artwork, with the percentage centered. Changes made in the
+Linux tray or another PipeWire client also update the value and show this overlay,
+including mute changes. Each adjustment extends
 a 1.5-second deadline; the next mixer refresh after expiry removes the overlay.
 The expanded card, title, artists and progress remain visible. This feedback preserves the user's
 selected view and is independent for Spotify and Spotifast. Touching the card
@@ -245,7 +247,12 @@ explicitly changes its selected view and clears the temporary feedback.
 `matches(app)`, `frame(app, size)` and an optional labeled `tap.run(app)` Effect.
 Optional `onAdjust(app, change)` receives local knob adjustments before the mixer
 flushes audio changes; its resulting content is rendered immediately. This is
-a scoped notification, not a second volume writer. Spotify uses `Clock` and `Ref`
+a scoped notification, not a second volume writer. `onChange(app, previous)` receives
+confirmed volume/mute changes from the shared `Audio.observe` state, regardless of
+their source. Initial discovery, retained cards without audio streams and unchanged
+snapshots do not trigger it. Both callbacks belong to the contribution's scope.
+The mixer uses the service's cached snapshot for feedback; its presentation timer
+does not poll PipeWire separately. Spotify uses `Clock` and `Ref`
 to temporarily show volume within its track view, with no timer
 fiber or application-specific logic in the mixer.
 Returning no frame uses the mixer's normal volume card. A frame supplies a change
