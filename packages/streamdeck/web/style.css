@@ -180,6 +180,19 @@ small{
 .deck-key.pressed{
   background:#655136
 }
+.deck-key[draggable="true"]{cursor:grab}
+.deck-key.dragging{opacity:.45;cursor:grabbing}
+.deck-key.drop-target{
+  outline:3px dashed var(--accent);
+  outline-offset:3px;
+}
+.rearrange-help,.rearrange-status{
+  font-size:.8rem;
+  line-height:1.5;
+  margin:12px 0;
+  color:var(--muted);
+}
+.rearrange-status{color:var(--accent)}
 .deck-key img{
   width:100%;
   height:100%;

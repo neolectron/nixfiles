@@ -136,6 +136,34 @@ export const move = (profile: MutableProfile, id: string, destination: string) =
   const hole = target.items.indexOf(null); if (hole < 0) target.items.push(entry); else target.items[hole] = entry;
 };
 
+/** Exchange captured storage locations atomically; fixed status belongs to the physical slot. */
+export const exchange = (profile: MutableProfile, navigation: Navigation, source: number, target: number) => {
+  const view = project(profile, navigation, 0);
+  const from = view.keys.get(source); const to = view.keys.get(target);
+  if (!from || !to || from.virtual || to.virtual) throw new Error('La touche Retour automatique ne peut pas être déplacée ou remplacée.');
+  if (!from.entry) throw new Error('Choisis une touche avec un raccourci à déplacer.');
+  if (source === target || from.entry.id === to.entry?.id) return;
+  if (from.pinned && !to.entry) {
+    if (from.zone !== to.zone) throw new Error('Décoche « Fixer sur toutes les pages » avant de déplacer cette touche vers une case libre d’une autre zone.');
+    const zone = profile.zones.find((zone) => zone.id === from.zone)!;
+    // Relocate the fixed slot on every page. Its former position inherits the free slot's contents.
+    delete zone.pinned[String(source)]; zone.pinned[String(target)] = from.entry;
+    zone.keys = zone.keys.map((key) => key === source ? target : key === target ? source : key);
+    return;
+  }
+  // Both addresses are resolved before writing: replacing a pin must not shift a page mid-exchange.
+  const write = (key: number, slot: typeof from, entry: Entry | null) => {
+    const zone = profile.zones.find((zone) => zone.id === slot.zone)!;
+    if (slot.pinned) zone.pinned[String(key)] = entry!;
+    else {
+      const items = container(profile, zone.id, position(navigation, zone.id).folder).items as Array<Entry | null>;
+      while (items.length <= slot.slot!) items.push(null);
+      items[slot.slot!] = entry;
+    }
+  };
+  write(source, from, to.entry); write(target, to, from.entry);
+};
+
 /** Splitting the main zone preserves every root page and each shortcut's identity. */
 export const createZone = (profile: MutableProfile, id: string, name: string, selection: ReadonlyArray<number>) => {
   const source = profile.zones.find((zone) => zone.id === 'deck')!;

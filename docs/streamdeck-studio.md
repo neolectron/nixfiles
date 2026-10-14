@@ -37,6 +37,22 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 
 ## Verification
 
+The key preview supports native desktop drag/drop and Alt + arrow keys. Dropping
+onto an occupied slot exchanges shortcuts; a free slot moves the shortcut.
+The operation uses one atomic profile write, retains shortcut IDs/feedback and
+checks both slot addresses and the layout revision. Unsaved drafts, held/running
+actions and automatic folder Return tiles cannot be rearranged. A fixed tile can
+move to a free slot in its own zone on every page; moving it to a free slot in
+another zone requires unpinning it first. Occupied fixed slots keep their fixed
+status during an exchange. The zones themselves retain their physical key sets.
+
+108 Stream Deck tests and both package typechecks pass after this increment.
+The real browser verified a counter move, an exchange with Spotify and an inverse
+keyboard move, without executing either action; the original arrangement was
+restored afterwards. The narrow viewport has no horizontal overflow. Native
+touchscreen drag/drop was not tested (this gesture uses the browser's desktop
+drag/drop support).
+
 Type checking passes for both workspace packages. The Stream Deck suite has
 90 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
