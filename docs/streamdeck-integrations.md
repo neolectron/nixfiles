@@ -31,8 +31,30 @@ automatically retried, since repeating a toggle would reverse it.
 
 ## Discord voice controls
 
-`src/plugins/discord.ts` uses the [documented local RPC](https://docs.discord.com/developers/topics/rpc).
-An authorized Discord application is required. A bot token or a personal Discord
+`src/plugins/discord.ts` defaults to local shortcuts when RPC credentials are
+absent. This mode needs the existing niri Wayland session and `wtype`. Activation
+checks the tools/protocol with a no-input probe; it does not toggle audio state.
+Both tools already exist through Nix on the current machine, so no packages,
+permissions, daemon or global keybindings were changed.
+
+Mute/deafen use Discord's [documented Ctrl+Shift+M / Ctrl+Shift+D shortcuts](https://support.discord.com/hc/en-us/articles/31232432266647-Discord-Commands-Shortcuts-and-Navigation-Guide).
+The operation finds and briefly focuses Discord, confirms focus, sends a keysym
+chord and restores the preceding window. Closed Discord or unconfirmed focus
+prevents input. Restoration also runs after failure/cancellation and avoids
+taking focus back if the user moved elsewhere. `wtype` owns a temporary virtual
+keyboard whose keys/modifiers are released when that scoped process exits.
+The backend cannot read voice settings: mute/deaf are explicitly `null` rather
+than inferred from presses. **Connexion Discord** reports the backend and whether
+the window is open. Manuel confirmed that the existing physical **Mute Discord**
+key 36 changes Discord's mute state and returns focus to the preceding window.
+
+`STREAMDECK_DISCORD_BACKEND` accepts `auto` (default), `keyboard` or `rpc`.
+Auto selects keyboard with neither credential configured; configuring either
+credential opts into RPC and requires both. Explicit keyboard ignores credentials.
+The saved `discord/mute` and `discord/deafen` bindings work in both modes.
+An authorized application is required only for the optional
+[documented local RPC](https://docs.discord.com/developers/topics/rpc) backend.
+A bot token or a personal Discord
 session token is not an RPC OAuth access token and must not be substituted.
 This implementation accepts an existing authorized RPC OAuth access token; it
 does not implement the application's OAuth authorization/token exchange flow.
@@ -44,9 +66,9 @@ does not implement the application's OAuth authorization/token exchange flow.
 
 The plugin authenticates, reads `GET_VOICE_SETTINGS`, and serializes toggles through
 `SET_VOICE_SETTINGS`. It changes only the requested field (`mute` or `deaf`).
-Status reads the client's state. No credentials were requested through the action
+In RPC mode, status reads the client's state. No credentials were requested through the action
 form or saved in the repository. Discord's local RPC was observed on port 6463,
-but authenticated real voice control remains unverified until access is supplied.
+but authenticated RPC voice control remains unverified until access is supplied.
 Protocol tests replace the JsonSocket Layer; no real Discord voice settings changed.
 
 There is no screen-share operation in the documented RPC command catalogue.
@@ -121,8 +143,11 @@ to 64, expire after five seconds and are removed on cancellation. Keep secrets i
 the service Layer, not in action defaults. Use `Sources.callback` or native Streams
 for notifications; use `DeckDisplay` / `SourceView` for their React feedback.
 
-Validation: 84 Stream Deck tests and 22 keep-awake tests; both package type checks.
+Validation: 90 Stream Deck tests and 22 keep-awake tests; both package type checks.
 The added suite covers a real loopback OBS transport/authentication, failure and
 correlation, Discord state toggles, strict parameter-free actions, physical release
 after paging, stale web release, disable cleanup, partial starts, failed stops and
 literal command bridge setup/execution. No new dependencies or global settings.
+The local Discord suite adds default selection without OAuth, both shortcut
+chords, missing-window/focus guards, focus restoration after failure/cancel,
+user focus changes and domain error display without FiberFailure stack traces.

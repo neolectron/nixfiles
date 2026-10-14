@@ -1,9 +1,14 @@
-import { Data, Effect, Schedule, Schema, Stream } from 'effect';
+import { Data, Effect, Result, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
 import { Catalogue, Snapshot, type ButtonBinding, type Navigate, type Organize } from '../src/studio-contract.ts';
 
 class RequestError extends Data.TaggedError('RequestError')<{ readonly message: string }> {}
+/** Preserve domain errors at the React boundary instead of displaying FiberFailure stack traces. */
+export const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(Effect.result(effect)).then((result) => {
+  if (Result.isFailure(result)) throw result.failure;
+  return result.success;
+});
 const json = (path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unknown) => Effect.scoped(Effect.gen(function*() {
   const client = yield* HttpClient.HttpClient;
   const request = HttpClientRequest.make(method)(path).pipe(HttpClientRequest.setHeader('x-streamdeck-studio', '1'));

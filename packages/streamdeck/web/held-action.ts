@@ -1,5 +1,4 @@
 import { createElement as h, useEffect, useRef, useState } from 'react';
-import { Effect } from 'effect';
 import type { Snapshot } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
 
@@ -14,7 +13,7 @@ export function HeldAction({ keyIndex, address, disabled, onSnapshot, onError }:
     if (held.current === pressed) return;
     held.current = pressed; setPressed(pressed);
     sequence.current = sequence.current.then(async () => {
-      try { onSnapshot(await Effect.runPromise(pressed ? Api.trigger(keyIndex, address) : Api.release(keyIndex, address))); }
+      try { onSnapshot(await Api.run(pressed ? Api.trigger(keyIndex, address) : Api.release(keyIndex, address))); }
       catch (error) { onError(error); }
     });
   };
@@ -24,7 +23,7 @@ export function HeldAction({ keyIndex, address, disabled, onSnapshot, onError }:
     window.addEventListener('blur', blur); document.addEventListener('visibilitychange', hidden);
     return () => {
       window.removeEventListener('blur', blur); document.removeEventListener('visibilitychange', hidden);
-      if (held.current) { held.current = false; sequence.current = sequence.current.then(async () => { await Effect.runPromise(Api.release(keyIndex, address)).catch(onError); }); }
+      if (held.current) { held.current = false; sequence.current = sequence.current.then(async () => { await Api.run(Api.release(keyIndex, address)).catch(onError); }); }
     };
   }, [keyIndex, address]);
   useEffect(() => { if (disabled) change(false); }, [disabled]);

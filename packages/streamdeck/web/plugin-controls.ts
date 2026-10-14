@@ -1,5 +1,4 @@
 import { createElement as h, useState } from 'react';
-import { Effect } from 'effect';
 import type { Snapshot } from '../src/studio-contract.ts';
 import { keyRanges } from './zone-map.ts';
 import * as Api from './api.ts';
@@ -8,7 +7,7 @@ export function PluginControls({ snapshot, online, dirty, onSnapshot }: { snapsh
   const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState('');
   const toggle = async (plugin: Snapshot['plugins']['items'][number], enabled: boolean) => {
     setBusy(plugin.id); setError('');
-    try { onSnapshot(await Effect.runPromise(Api.setPlugin(plugin.id, enabled, plugin.enabled))); }
+    try { onSnapshot(await Api.run(Api.setPlugin(plugin.id, enabled, plugin.enabled))); }
     catch (error) { setError(error instanceof Error ? error.message : 'Le plugin n’a pas pu être modifié.'); }
     finally { setBusy(null); }
   };

@@ -32,7 +32,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
   const disabled = busy || dirty || !online;
   const run = async (effect: Effect.Effect<Snapshot, unknown>) => {
     setBusy(true); setError('');
-    try { onSnapshot(await Effect.runPromise(effect)); } catch (error) { setError(message(error)); } finally { setBusy(false); }
+    try { onSnapshot(await Api.run(effect)); } catch (error) { setError(message(error)); } finally { setBusy(false); }
   };
   const folder = (event: FormEvent) => { event.preventDefault(); if (selected) void run(Api.organize({ operation: 'create-folder', key: selected.index, name: folderName.trim(), address: selected.address, target: folderTarget })); };
   return h('section', { className: 'layout-controls', id: 'zones', 'aria-label': 'Dossiers, zones et pages' },
@@ -73,7 +73,7 @@ export function ShortcutOrganization({ snapshot, selected, online, dirty, onSnap
   if (!selected?.id || selected.navigation) return null;
   const disabled = busy || dirty || !online;
   const run = async (effect: Effect.Effect<Snapshot, unknown>) => {
-    setBusy(true); setError(''); try { onSnapshot(await Effect.runPromise(effect)); } catch (error) { setError(message(error)); } finally { setBusy(false); }
+    setBusy(true); setError(''); try { onSnapshot(await Api.run(effect)); } catch (error) { setError(message(error)); } finally { setBusy(false); }
   };
   return h('div', { className: 'shortcut-organization' }, h('h3', {}, 'Rangement'),
     h('label', { className: 'pin-field' }, h('input', { type: 'checkbox', checked: selected.pinned, disabled, onChange: (event) => void run(Api.organize({ operation: 'pin', key: selected.index, value: (event.currentTarget as HTMLInputElement).checked, address: selected.address })) }),

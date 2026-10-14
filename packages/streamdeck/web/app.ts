@@ -50,14 +50,14 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
-      const snapshot = await Effect.runPromise(Api.save(selected.index, binding(), baseline, baselineAddress));
+      const snapshot = await Api.run(Api.save(selected.index, binding(), baseline, baselineAddress));
       const next = draftOf(snapshot.keys.find((key) => key.index === selected.index)!.binding, catalogue);
       setDraft(next); setSaved(JSON.stringify(next)); setBaseline(snapshot.keys.find((key) => key.index === selected.index)!.binding); setBaselineAddress(snapshot.keys.find((key) => key.index === selected.index)!.address); onSnapshot(snapshot); setNotice('Affectation enregistrée.');
     } catch (error) { setError(messageOf(error)); } finally { setBusy(false); }
   };
   const test = async () => {
     setBusy(true); setError(''); setNotice('');
-    try { onSnapshot(await Effect.runPromise(selected.status === 'running' ? Api.cancel(selected.index, selected.address) : Api.trigger(selected.index, selected.address))); setNotice(selected.status === 'running' ? 'Commande arrêtée.' : 'Action déclenchée.'); }
+    try { onSnapshot(await Api.run(selected.status === 'running' ? Api.cancel(selected.index, selected.address) : Api.trigger(selected.index, selected.address))); setNotice(selected.status === 'running' ? 'Commande arrêtée.' : 'Action déclenchée.'); }
     catch (error) { setError(messageOf(error)); } finally { setBusy(false); }
   };
   if (selected.navigation) return h('section', { className: 'inspector' }, h('h2', {}, 'Retour du dossier'), h('p', { className: 'inspector-intro' }, 'Cette touche reste disponible sur toutes les pages du dossier pour revenir à son parent.'), h('button', { disabled: busy || !online, onClick: test }, 'Revenir'));
