@@ -622,3 +622,30 @@ follow the system receive the change; applications with an explicit dark/light
 override keep their choice. There are no credentials or plugin-specific settings.
 Disable releases its own polling scope; shared service instances remain owned by
 their caller. No USB device is required to use its actions from Chrome.
+
+## Run a saved Codex prompt
+
+**ChatGPT / Codex → Tiles → Prompt Codex** exports the **Exécuter un prompt Codex**
+action. Set its multiline **Prompt**, optional absolute **Dossier**, and file access,
+then click **Enregistrer**. A press executes that saved prompt automatically in the
+background and shows its response in the key inspector (the last 4096 characters,
+as for other actions). It neither reads nor replaces the selected text, nor opens
+a new conversation in the Codex desktop app. The key displays **EN COURS** while
+the prompt service is busy.
+
+With an empty directory, the action runs in a scoped temporary directory, in
+`read-only` mode. To run a coding task, provide its project directory and select
+`workspace-write` explicitly if edits are wanted. This uses Codex's corresponding
+sandbox; there is no unrestricted-access option. Preparing/saving a tile does not
+execute it. One prompt runs at a time, with additional requests rejected rather
+than queued. Disable the plugin to cancel the job. Work already completed by the
+agent in a writable project is not rolled back by cancellation.
+
+The Effect `CodexPrompt` system service owns execution, validation, busy state,
+timeout and cleanup; the tile only supplies configuration and feedback. Jobs reuse
+CLI authentication and `STREAMDECK_CODEX_COMMAND` / `STREAMDECK_CODEX_MODEL`
+(default `codex` / `gpt-6-luna`). They are ephemeral, bounded to ten minutes, and
+never detach processes. Prompt text goes through stdin; temporary output is
+removed on success, failure or cancellation. MCP servers, apps, plugins and web
+search are disabled for these invocations without changing global Codex settings.
+The selected-text transformation retains its stricter tool-free instructions.

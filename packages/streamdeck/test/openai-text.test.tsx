@@ -50,6 +50,10 @@ it.live(
             ...OpenAI.plugin,
             setup: Effect.succeed({
               api: {
+                prompts: {
+                  busy: Effect.succeed(false),
+                  run: () => Effect.die('Unexpected prompt job'),
+                },
                 selection: {
                   transform: (prompt: string) =>
                     Effect.sync(() => {
@@ -63,7 +67,7 @@ it.live(
           }),
         );
         const catalogue = yield* host.catalogue;
-        assert.strictEqual(catalogue.filter((action) => action.plugin === 'openai-apps').length, 5);
+        assert.strictEqual(catalogue.filter((action) => action.plugin === 'openai-apps').length, 6);
         assert.strictEqual(calls, 0);
         yield* host.validateAction('openai-apps', 'transform-selection', {
           prompt: 'Custom instruction',

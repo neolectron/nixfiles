@@ -170,3 +170,20 @@ Nix configuration are rewritten.
 desktop without Noctalia. Tests or other desktops can inject `AppearanceBackend`
 into `SystemAppearance.serviceLayer`. This optional service is acquired by the
 appearance plugin only when enabled, unless explicitly shared by its caller.
+
+## Saved Codex prompts
+
+`CodexPrompt.layer` in `codex-prompt.ts` provides `run({ prompt, directory, access })`
+and a read-only `busy` Effect, without a Stream Deck or selection dependency.
+Inject `CodexBackend` into `CodexPrompt.serviceLayer` for another transport or tests.
+Acquisition never executes a prompt. The service rejects overlapping requests;
+caller cancellation or scope close interrupts the job, releases its lock and
+revokes retained operations. Executed project edits remain on disk.
+
+The CLI backend sends the exact prompt on stdin, uses the selected absolute cwd
+and Codex `read-only` or `workspace-write` sandbox, and returns the final response.
+An empty cwd creates a temporary directory and only permits read-only execution.
+It reuses CLI authentication and the text adapter's command/model environment
+overrides. Jobs are ephemeral, bounded to ten minutes, with no detached process;
+output/temp files belong to the job scope. MCP/app/plugin integrations are disabled
+per invocation using the same configuration boundary as the selection adapter.
