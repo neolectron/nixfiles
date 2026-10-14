@@ -74,6 +74,18 @@ it.live('Discord authenticates and serializes real-state toggles without changin
   assert.deepStrictEqual(sent.filter((frame) => frame.cmd === 'SET_VOICE_SETTINGS').map((frame) => frame.args), [{ mute: true }, { mute: false }, { deaf: true }]);
 })).pipe(Effect.provide(NodeServices.layer)));
 
+it.live('Discord retains GET voice permission errors instead of reporting an unreadable state', () => Effect.scoped(Effect.gen(function*() {
+  const layer = Layer.succeed(DiscordTransport, { connect: (_clientId, receive) => Effect.gen(function*() {
+    yield* receive({ evt: 'READY' });
+    return { failure: Effect.never, send: (frame: Message) => receive({ nonce: frame.nonce, cmd: frame.cmd,
+      ...(frame.cmd === 'GET_VOICE_SETTINGS' ? { evt: 'ERROR', data: { code: 4006, message: 'Permissions denied' } } : { data: {} }),
+    }) };
+  }) });
+  const result = yield* Effect.result(Discord.make({ clientId: '123', accessToken: Redacted.make('private-test-token') }).pipe(Effect.provide(layer)));
+  assert.strictEqual(result._tag, 'Failure');
+  if (result._tag === 'Failure') { assert.ok(result.failure.message.includes('GET_VOICE_SETTINGS (4006)')); assert.ok(!result.failure.message.includes('private-test-token')); }
+})).pipe(Effect.provide(NodeServices.layer)));
+
 it.live('push-to-talk releases the original binding after paging, rejects stale web releases and stops on disable', () => Effect.scoped(Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem; const dir = yield* fs.makeTempDirectoryScoped({ prefix: 'plugin-talk-' }); const mock = Mock.make();
   const starts = yield* Ref.make(0); const stops = yield* Ref.make(0);

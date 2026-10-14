@@ -2,28 +2,30 @@ import { Clock, Context, Crypto, Deferred, Effect, FileSystem, Layer, Path, Reda
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/http';
 import { IntegrationError, requests } from './json-socket.ts';
 import { DiscordTransport } from './discord-ipc.ts';
-import { AppInput } from './discord-contract.ts';
+import { AppInput, RedirectUri } from './discord-contract.ts';
+import { rpcError } from './discord-rpc-error.ts';
 const Token = Schema.Struct({ access_token: Schema.NonEmptyString, refresh_token: Schema.NonEmptyString, expires_in: Schema.Number.check(Schema.isGreaterThan(0)) });
 const Stored = Schema.Struct({ version: Schema.Literal(1), clientId: Schema.String, clientSecret: Schema.String,
   token: Schema.optional(Schema.Struct({ access: Schema.String, refresh: Schema.String, expiresAt: Schema.Number })),
 });
 type Stored = typeof Stored.Type;
 const error = (message: string) => new IntegrationError({ message });
+type Grant = { code: string } | { refresh: Redacted.Redacted<string> };
+/** Platform HttpClient seam keeps OAuth requests independently testable. */
+export const makeOAuth = Effect.map(HttpClient.HttpClient, (http) => ({
+  exchange: (clientId: string, secret: Redacted.Redacted<string>, grant: Grant) => Effect.scoped(Effect.gen(function*() {
+    const client = HttpClient.filterStatusOk(http);
+    const request = HttpClientRequest.post('https://discord.com/api/oauth2/token').pipe(HttpClientRequest.bodyUrlParams({ client_id: clientId, client_secret: Redacted.value(secret),
+      ...('code' in grant ? { grant_type: 'authorization_code', code: grant.code, redirect_uri: RedirectUri } : { grant_type: 'refresh_token', refresh_token: Redacted.value(grant.refresh) }),
+    }));
+    const response = yield* client.execute(request);
+    return yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Token)));
+  })).pipe(Effect.timeout('10 seconds'), Effect.mapError(() => error('Échange OAuth Discord refusé. Vérifie le secret et les autorisations RPC de l’application.'))),
+}));
 
 /** OAuth secrets stay in the service and mode-0600 file; public snapshots never return them. */
-export class DiscordOAuth extends Context.Service<DiscordOAuth, {
-  readonly exchange: (clientId: string, secret: Redacted.Redacted<string>, grant: { code: string } | { refresh: Redacted.Redacted<string> }) => Effect.Effect<typeof Token.Type, IntegrationError>;
-}>()('@nixfiles/streamdeck/DiscordOAuth') {
-  static readonly layer = Layer.succeed(DiscordOAuth, {
-    exchange: (clientId, secret, grant) => Effect.scoped(Effect.gen(function*() {
-      const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient);
-      const request = HttpClientRequest.post('https://discord.com/api/oauth2/token').pipe(HttpClientRequest.bodyUrlParams({ client_id: clientId, client_secret: Redacted.value(secret),
-        ...('code' in grant ? { grant_type: 'authorization_code', code: grant.code } : { grant_type: 'refresh_token', refresh_token: Redacted.value(grant.refresh) }),
-      }));
-      const response = yield* client.execute(request);
-      return yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Token)));
-    })).pipe(Effect.timeout('10 seconds'), Effect.mapError(() => error('Échange OAuth Discord refusé. Vérifie le secret et les autorisations RPC de l’application.')), Effect.provide(FetchHttpClient.layer)),
-  });
+export class DiscordOAuth extends Context.Service<DiscordOAuth, Effect.Success<typeof makeOAuth>>()('@nixfiles/streamdeck/DiscordOAuth') {
+  static readonly layer = Layer.effect(DiscordOAuth, makeOAuth).pipe(Layer.provide(FetchHttpClient.layer));
 }
 
 export const authorize = (clientId: string) => Effect.scoped(Effect.gen(function*() {
@@ -31,11 +33,11 @@ export const authorize = (clientId: string) => Effect.scoped(Effect.gen(function
   const ready = yield* Deferred.make<void, IntegrationError>();
   const connection = yield* socket.connect(clientId, (frame) => Effect.gen(function*() {
     if (frame.evt === 'READY') yield* Deferred.succeed(ready, undefined);
-    if (typeof frame.nonce === 'string') yield* replies.reply(frame.nonce, frame.evt === 'ERROR' ? error('Autorisation RPC refusée par Discord. L’application doit autoriser ton compte comme testeur ou disposer de l’accès RPC.') : typeof frame.data === 'object' && frame.data !== null ? frame.data as Record<string, unknown> : {});
+    if (typeof frame.nonce === 'string') yield* replies.reply(frame.nonce, frame.evt === 'ERROR' ? rpcError('AUTHORIZE', frame.data) : typeof frame.data === 'object' && frame.data !== null ? frame.data as Record<string, unknown> : {});
   }));
   yield* Effect.raceFirst(Deferred.await(ready), connection.failure).pipe(Effect.timeout('5 seconds'));
   const nonce = yield* crypto.randomUUIDv4();
-  const result = yield* replies.call(nonce, connection.send({ cmd: 'AUTHORIZE', nonce, args: { client_id: clientId, scopes: ['rpc', 'identify'] } }), connection.failure, '2 minutes');
+  const result = yield* replies.call(nonce, connection.send({ cmd: 'AUTHORIZE', nonce, args: { client_id: clientId, scopes: ['rpc', 'identify'], redirect_uri: RedirectUri } }), connection.failure, '2 minutes');
   const data = yield* Schema.decodeUnknownEffect(Schema.Struct({ code: Schema.NonEmptyString }))(result);
   return data.code;
 })).pipe(Effect.mapError((cause) => cause instanceof IntegrationError ? cause : error('Autorisation Discord interrompue ou réponse invalide.')));
