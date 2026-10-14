@@ -946,3 +946,38 @@ button.zone-edit-link {
     pointer-events: auto;
   }
 }
+.plugin-tiles {
+  margin-bottom: 24px;
+}
+.plugin-tiles summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding-block: 8px;
+}
+.plugin-tile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plugin-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  justify-content: flex-start;
+}
+.plugin-tile svg {
+  flex-shrink: 0;
+}
+.plugin-tile span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.plugin-tile strong {
+  font-size: 14px;
+}
+.plugin-tile small {
+  color: var(--muted);
+}

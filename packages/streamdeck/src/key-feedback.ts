@@ -16,6 +16,10 @@ export const KeyFeedback = Schema.Struct({
     'shuffle',
     'repeat',
     'music',
+    'discord',
+    'spotify',
+    'openai',
+    'obs',
   ]),
 });
 export type KeyFeedback = typeof KeyFeedback.Type;

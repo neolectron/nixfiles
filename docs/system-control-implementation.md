@@ -72,9 +72,28 @@ testées avec des transports injectés ; l'essai réel ci-dessus est en lecture 
 
 ## Suite du plan
 
+L’incrément suivant ajoute `Desktop` (applications XDG, fenêtres niri, lancement et
+focus) et `Obs` (API stable, sessions WebSocket et reconnexion scoped). Le module
+`obs-rpc.ts` contient le protocole indépendant du deck ; `desktop-apps.ts` a quitté
+le package Stream Deck. Le Studio partage Desktop une fois, et OBS reste acquis
+uniquement lors de l’activation de sa présentation.
+
+Les actions des plugins peuvent exporter une tile de touche avec label, icône et
+paramètres par défaut. Discord, Spotify / Spotifast, OBS et ChatGPT / Codex proposent
+leurs lancements dans l’inspecteur. Les tests injectent les services pour valider
+lancement/focus, états ouvert/fermé, désactivation, catalogue, defaults stricts,
+reconnexion OBS et fermeture des ressources. Un essai système en lecture seule
+confirme Discord, Spotifast et Codex ouverts, ChatGPT et OBS installés mais fermés,
+et le plugin OBS activé avec son WebSocket hors ligne. Aucun enregistrement n’a
+été démarré ; les raccourcis personnels restent dans leur profil ignoré par Git.
+
+Ces presets de touches ne constituent pas encore le contrat SurfaceHost/LCD.
+La validation complète de cet incrément passe : `pnpm check` (Oxlint, Oxfmt,
+typecheck et **202 tests** : 22 système, 158 Stream Deck, 22 keep-awake).
+
 Les étapes 2 à 6 restent à réaliser : catalogue d'actions et schémas communs,
 SurfaceHost, scènes/régions/tiles, navigation comme plugin, présentation Spotify
-plein écran, HTTP/MCP et extraction des autres intégrations. Les réglages
+plein écran, HTTP/MCP et extraction des intégrations restantes. Les réglages
 d'activation des services système et des présentations ne sont pas encore
 deux contrôles distincts dans l'éditeur. La classification fine des erreurs
 d'intégration viendra avec les contrats d'actions.

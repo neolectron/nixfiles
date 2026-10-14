@@ -49,13 +49,19 @@ existing CLI/runtime:
 import { Effect } from 'effect';
 import { Spotify } from '../plugins/spotify.ts';
 
-const nextTrack = Effect.gen(function*() {
+const nextTrack = Effect.gen(function* () {
   const spotify = yield* Spotify;
   return yield* spotify.command('Next');
 }).pipe(Effect.provide(Spotify.layer));
 ```
 
 ## OBS Studio
+
+The plugin can be enabled and its actions configured while OBS/WebSocket is offline.
+**Ouvrir OBS Studio**, available in **Tiles des plugins**, uses the Desktop service
+and has no WebSocket prerequisite. The OBS system service reconnects in its scope;
+other OBS actions report typed unavailability until connected without disabling the
+plugin. Starting the app never starts recording or broadcasting.
 
 `packages/streamdeck/src/plugins/obs.ts` implements [obs-websocket 5](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
 through Effect's Socket and Crypto services: Hello/Identify/Identified, SHA-256
@@ -185,7 +191,7 @@ const target = Layer.succeed(Talk.VoiceTarget, {
   start: dot.begin,
   stop: dot.end,
 });
-yield* host.install(Talk.plugin(target));
+yield * host.install(Talk.plugin(target));
 ```
 
 The default registration uses `VoiceTarget.commandLayer`, configured with two

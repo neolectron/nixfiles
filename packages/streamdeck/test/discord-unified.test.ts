@@ -179,7 +179,7 @@ it.live(
             (yield* studio.plugins.catalogue)
               .filter((action) => action.plugin === 'discord')
               .map((action) => action.id),
-            ['status', 'mute', 'deafen', 'share-screen'],
+            ['launch', 'status', 'mute', 'deafen', 'share-screen'],
           );
         }).pipe(Effect.provide(Layer.mergeAll(mock.layer(), Audio.demoLayer)));
       }),

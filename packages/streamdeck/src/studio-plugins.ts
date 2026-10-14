@@ -7,6 +7,7 @@ import * as Discord from './plugins/discord.ts';
 import * as PushToTalk from './plugins/push-to-talk.ts';
 import * as Spotify from './plugins/spotify.ts';
 import * as Media from './plugins/media.ts';
+import * as OpenAIApps from './plugins/openai-apps.ts';
 
 /** Register personal plugins here. New plugins start disabled unless saved otherwise. */
 export const configure = (host: Effect.Success<typeof make>) =>
@@ -19,5 +20,6 @@ export const configure = (host: Effect.Success<typeof make>) =>
     yield* host.install(Discord.plugin);
     yield* host.install(Spotify.plugin);
     yield* host.install(Media.plugin);
+    yield* host.install(OpenAIApps.plugin);
     yield* host.install(PushToTalk.plugin(PushToTalk.VoiceTarget.commandLayer));
   });

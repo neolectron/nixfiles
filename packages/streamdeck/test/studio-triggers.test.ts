@@ -1,6 +1,6 @@
 import { assert, it } from '@effect/vitest';
 import { NodeHttpServer, NodeServices } from '@effect/platform-node';
-import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Schema } from 'effect';
+import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Schema, Schedule } from 'effect';
 import { TestClock } from 'effect/testing';
 import { HttpClient, HttpClientRequest, HttpServer } from 'effect/http';
 import * as Mock from '../src/mock.ts';
@@ -62,6 +62,16 @@ it.effect(
           yield* tap(1);
           assert.strictEqual((yield* studio.snapshot).keys[1]!.count, 1);
           yield* tap(2);
+          // HID emission queues the callback; wait for the routed job, without
+          // advancing the gesture clock or relying on a scheduler flush.
+          yield* studio.snapshot.pipe(
+            Effect.repeat({
+              until: (view) => view.keys[2]?.count === 1,
+              schedule: Schedule.spaced(1),
+            }),
+            Effect.timeout('2 seconds'),
+            TestClock.withLive,
+          );
           assert.strictEqual((yield* studio.snapshot).keys[2]!.count, 1);
           yield* Fiber.interrupt(router);
           const saved = JSON.parse(yield* fs.readFileString(profile));

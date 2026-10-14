@@ -30,8 +30,8 @@ export function PluginFields({
     );
     onChange(
       { plugin, command, ...Fields.draft(next?.schema, next?.defaults ?? {}) },
-      label === 'Action d’un plugin' || label === info?.name
-        ? (next?.name ?? 'Action d’un plugin')
+      label === 'Action d’un plugin' || label === info?.name || label === info?.tile?.label
+        ? (next?.tile?.label ?? next?.name ?? 'Action d’un plugin')
         : label,
     );
   };

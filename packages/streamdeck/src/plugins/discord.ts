@@ -9,8 +9,9 @@ import { commandFromConfig } from './command-bridge.ts';
 import { DesktopKeys, makeDiscordKeys } from '../desktop-keys.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 import { DiscordConnection, DiscordOAuth } from '@nixfiles/system-control/discord-connection.ts';
+import * as AppTiles from './application-tiles.ts';
 
-export interface Controller {
+export interface Controller extends AppTiles.Applications {
   readonly current: Effect.Effect<Message, IntegrationError>;
   readonly toggle: (field: 'mute' | 'deaf') => Effect.Effect<Message, IntegrationError>;
   readonly failure: Effect.Effect<never, IntegrationError>;
@@ -36,12 +37,10 @@ const voiceConfigured = Effect.gen(function* () {
   if (backend === 'auto' && Option.isNone(clientId) && Option.isNone(accessToken))
     return yield* makeDiscordKeys;
   if (Option.isNone(clientId) || Option.isNone(accessToken))
-    return yield* Effect.fail(
-      new IntegrationError({
-        message:
-          'Connexion RPC Discord à configurer : application autorisée et autorisation OAuth nécessaires. Le bouton affichera HORS LIGNE jusqu’à la connexion.',
-      }),
-    );
+    return {
+      ...(yield* SystemDiscord.make(SystemDiscord.configuredOptions)),
+      failure: Effect.never,
+    };
   return {
     ...(yield* SystemDiscord.make(
       Effect.succeed({ clientId: clientId.value, accessToken: accessToken.value }),
@@ -60,7 +59,13 @@ export const configured = Effect.gen(function* () {
 export class Discord extends Context.Service<Discord, Controller>()(
   '@nixfiles/streamdeck/Discord',
 ) {
-  static readonly layer = Layer.effect(Discord, configured).pipe(
+  static readonly layer = Layer.effect(
+    Discord,
+    Effect.gen(function* () {
+      const api = yield* configured;
+      return { ...api, desktop: yield* AppTiles.desktop };
+    }),
+  ).pipe(
     Layer.provide(Layer.mergeAll(DiscordTransport.layer, DesktopKeys.layer, DiscordOAuth.layer)),
   );
 }
@@ -93,6 +98,7 @@ export const plugin = Plugin.fromLayer({
   layer: Discord.layer,
   run: (api) => api.failure,
   actions: [
+    AppTiles.launch<Controller>(AppTiles.discord),
     Plugin.action({
       id: 'status',
       name: 'Connexion Discord',
