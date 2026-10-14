@@ -1,17 +1,89 @@
-import { useState } from 'react';
-import type { Snapshot } from '../src/studio-contract.ts';
+import { useState, type ReactNode } from 'react';
+import type { Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { keyRanges } from './zone-map.tsx';
 import * as Api from './api.ts';
 import { DiscordConnection } from './discord-connection.tsx';
+import { PluginTiles } from './plugin-tiles.tsx';
+import { Tabs } from './tabs.tsx';
+
+function PluginPanels({
+  plugin,
+  catalogue,
+  tileTarget,
+  busy,
+  onChooseTile,
+  onDropTile,
+  onTileTarget,
+  children,
+}: {
+  readonly plugin: Snapshot['plugins']['items'][number];
+  readonly catalogue: Catalogue | undefined;
+  readonly tileTarget: number | null;
+  readonly busy: boolean;
+  readonly onChooseTile: (action: Catalogue['pluginActions'][number]) => void;
+  readonly onDropTile: (action: Catalogue['pluginActions'][number], index: number) => void;
+  readonly onTileTarget: (index: number | null) => void;
+  readonly children: ReactNode;
+}) {
+  const actions = catalogue?.pluginActions.filter((action) => action.plugin === plugin.id) ?? [];
+  const [selected, setSelected] = useState<'tiles' | 'settings' | null>(null);
+  return (
+    <Tabs
+      id={`plugin-${plugin.id}`}
+      label={plugin.name}
+      selected={selected ?? (actions.some((action) => action.tile) ? 'tiles' : 'settings')}
+      onSelect={setSelected}
+      className="editor-tabs plugin-tabs"
+      items={[
+        {
+          id: 'tiles',
+          label: 'Tiles',
+          content: (
+            <>
+              <p className="plugin-tile-target" role="status">
+                {tileTarget === null
+                  ? 'Sélectionne une touche à configurer.'
+                  : `Affecter à la touche ${tileTarget + 1}`}
+              </p>
+              {catalogue ? (
+                <PluginTiles
+                  actions={actions}
+                  busy={busy}
+                  canChoose={tileTarget !== null}
+                  onDrop={onDropTile}
+                  onTarget={onTileTarget}
+                  onChoose={onChooseTile}
+                />
+              ) : (
+                <p className="field-hint">Chargement des tiles…</p>
+              )}
+            </>
+          ),
+        },
+        { id: 'settings', label: 'Réglages', content: children },
+      ]}
+    />
+  );
+}
 export function PluginControls({
   snapshot,
   online,
   dirty,
+  catalogue,
+  tileTarget,
+  onChooseTile,
+  onDropTile,
+  onTileTarget,
   onSnapshot,
 }: {
   snapshot: Snapshot;
   online: boolean;
   dirty: boolean;
+  catalogue: Catalogue | undefined;
+  tileTarget: number | null;
+  onChooseTile: (action: Catalogue['pluginActions'][number]) => void;
+  onDropTile: (action: Catalogue['pluginActions'][number], index: number) => void;
+  onTileTarget: (index: number | null) => void;
   onSnapshot: (snapshot: Snapshot) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -64,23 +136,33 @@ export function PluginControls({
               </span>
             </summary>
             <div className="plugin-body">
-              <p className="plugin-controls-used">
-                {[
-                  plugin.keys.length ? `Touches ${keyRanges(plugin.keys)}` : '',
-                  plugin.dials.length ? `Potards ${keyRanges(plugin.dials)}` : '',
-                  plugin.lcds.length ? 'Écran LCD' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'Aucun contrôle réservé'}
-              </p>
-              {plugin.id === 'discord' ? (
-                <DiscordConnection
-                  snapshot={snapshot}
-                  disabled={!online || !!busy || dirty}
-                  onSnapshot={onSnapshot}
-                  onBusy={setConnecting}
-                />
-              ) : null}
+              <PluginPanels
+                plugin={plugin}
+                catalogue={catalogue}
+                tileTarget={tileTarget}
+                busy={!online || !!busy || connecting || dirty}
+                onChooseTile={onChooseTile}
+                onDropTile={onDropTile}
+                onTileTarget={onTileTarget}
+              >
+                <p className="plugin-controls-used">
+                  {[
+                    plugin.keys.length ? `Touches ${keyRanges(plugin.keys)}` : '',
+                    plugin.dials.length ? `Potards ${keyRanges(plugin.dials)}` : '',
+                    plugin.lcds.length ? 'Écran LCD' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'Aucun contrôle réservé'}
+                </p>
+                {plugin.id === 'discord' ? (
+                  <DiscordConnection
+                    snapshot={snapshot}
+                    disabled={!online || !!busy || dirty}
+                    onSnapshot={onSnapshot}
+                    onBusy={setConnecting}
+                  />
+                ) : null}
+              </PluginPanels>
             </div>
           </details>
           <label className="plugin-toggle">

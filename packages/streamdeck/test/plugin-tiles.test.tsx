@@ -56,7 +56,7 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
   assert.strictEqual(catalogue.pluginActions.length, 5);
   const html = renderToStaticMarkup(
     <PluginTiles
-      catalogue={catalogue}
+      actions={catalogue.pluginActions}
       busy={false}
       onChoose={() => {
         throw new Error('Rendering must not execute actions');
@@ -65,7 +65,7 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
   );
   for (const name of ['Discord', 'Spotify', 'OBS Studio', 'ChatGPT', 'Codex'])
     assert.ok(html.includes(name));
-  assert.strictEqual((html.match(/<svg/g) ?? []).length, 5);
+  assert.strictEqual((html.match(/<svg/g) ?? []).length, 10);
   for (const action of catalogue.pluginActions) {
     assert.deepStrictEqual(Schema.decodeUnknownSync(Plugin.NoInput)(action.defaults), {});
     const face = renderToStaticMarkup(

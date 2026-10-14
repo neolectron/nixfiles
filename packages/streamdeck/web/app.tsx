@@ -9,7 +9,6 @@ import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.tsx';
 import { TargetPreview, zoneLabel } from './zone-map.tsx';
 import * as Fields from '../src/plugin-fields.ts';
-import { PluginTiles } from './plugin-tiles.tsx';
 import { PluginFields } from './plugin-fields.tsx';
 import { PluginControls } from './plugin-controls.tsx';
 import { EditorTabs, type EditorTab } from './editor-tabs.tsx';
@@ -92,6 +91,11 @@ const draftOf = (binding: ButtonBinding | null, catalogue: Catalogue): Draft => 
 };
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : 'La requête a échoué.';
+type TileChoice = {
+  readonly action: Catalogue['pluginActions'][number];
+  readonly index: number;
+  readonly address: string;
+};
 function KeyInspector({
   selected,
   catalogue,
@@ -99,6 +103,8 @@ function KeyInspector({
   online,
   onSnapshot,
   onDirty,
+  tileChoice,
+  onTileConsumed,
 }: {
   selected: KeyView;
   catalogue: Catalogue;
@@ -106,6 +112,8 @@ function KeyInspector({
   online: boolean;
   onSnapshot: (snapshot: Snapshot) => void;
   onDirty: (dirty: boolean) => void;
+  tileChoice: TileChoice | null;
+  onTileConsumed: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(selected.binding, catalogue));
   const [saved, setSaved] = useState(() => JSON.stringify(draftOf(selected.binding, catalogue)));
@@ -114,6 +122,26 @@ function KeyInspector({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!tileChoice) return;
+    if (tileChoice.index === selected.index && tileChoice.address === selected.address) {
+      const { action } = tileChoice;
+      setDraft((current) => ({
+        ...current,
+        action: 'plugin',
+        label: action.tile?.label ?? action.name,
+        values: {
+          plugin: action.plugin,
+          command: action.id,
+          ...Fields.draft(action.schema, action.defaults),
+        },
+        activation: action.interaction === 'hold' ? 'press' : current.activation,
+      }));
+      setError('');
+      setNotice('');
+    }
+    onTileConsumed();
+  }, [tileChoice, selected.index, selected.address, onTileConsumed]);
   const dirty = JSON.stringify(draft) !== saved;
   const definition = catalogue.actions.find((action) => action.id === draft.action);
   const draftTile =
@@ -282,25 +310,6 @@ function KeyInspector({
         <span className="coordinate">{`${selected.row + 1} : ${selected.column + 1}`}</span>
       </div>
       <form onSubmit={submit}>
-        <PluginTiles
-          catalogue={catalogue}
-          busy={busy}
-          onChoose={(action) => {
-            setDraft({
-              ...draft,
-              action: 'plugin',
-              label: action.tile?.label ?? action.name,
-              values: {
-                plugin: action.plugin,
-                command: action.id,
-                ...Fields.draft(action.schema, action.defaults),
-              },
-              activation: action.interaction === 'hold' ? 'press' : draft.activation,
-            });
-            setError('');
-            setNotice('');
-          }}
-        />
         <label className="field">
           <span>Action</span>
           <select
@@ -706,6 +715,8 @@ function App() {
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 });
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState<EditorTab>('edit');
+  const [tileChoice, setTileChoice] = useState<TileChoice | null>(null);
+  const [tileTarget, setTileTarget] = useState<number | null>(null);
   const acceptSnapshot = (value: Snapshot) =>
     setSnapshot((previous) =>
       previous?.sessionId === value.sessionId &&
@@ -751,6 +762,7 @@ function App() {
     }
     if (dirty && !window.confirm('Abandonner les modifications non enregistrées ?')) return;
     setDirty(false);
+    setTileChoice(null);
     setSelection(next);
     setTab('edit');
   };
@@ -764,6 +776,23 @@ function App() {
     snapshot?.plugins.items.find((plugin) => plugin.id === 'shortcuts')?.enabled ?? false;
   const mixerActive =
     snapshot?.plugins.items.find((plugin) => plugin.id === 'audio-mixer')?.enabled ?? false;
+  const chooseTile = (action: Catalogue['pluginActions'][number], index = selectedKey?.index) => {
+    const target = snapshot?.keys.find((key) => key.index === index);
+    if (
+      !target ||
+      !online ||
+      !shortcutsActive ||
+      dirty ||
+      target.navigation ||
+      target.pressed ||
+      target.status === 'running'
+    )
+      return;
+    select({ kind: 'key', index: target.index });
+    setTileChoice({ action, index: target.index, address: target.address });
+    setTileTarget(null);
+    setTab('edit');
+  };
   const columns = snapshot ? Math.max(...snapshot.keys.map((key) => key.column)) + 1 : 9;
   const turnPage = (direction: number) => {
     Effect.runFork(
@@ -795,6 +824,7 @@ function App() {
             {snapshot ? (
               <KeyGrid
                 snapshot={invariant(snapshot, 'editor-snapshot')}
+                tileTarget={tileTarget}
                 selected={selection.kind === 'key' ? selection.index : null}
                 editable={online && shortcutsActive && !dirty}
                 disabledReason={
@@ -937,6 +967,18 @@ function App() {
                 snapshot={snapshot}
                 online={online}
                 dirty={dirty}
+                catalogue={catalogue}
+                tileTarget={
+                  selectedKey &&
+                  shortcutsActive &&
+                  !selectedKey.navigation &&
+                  selectedKey.status !== 'running'
+                    ? selectedKey.index
+                    : null
+                }
+                onChooseTile={chooseTile}
+                onDropTile={chooseTile}
+                onTileTarget={setTileTarget}
                 onSnapshot={acceptSnapshot}
               />
             ) : (
@@ -980,6 +1022,8 @@ function App() {
               online={online}
               onSnapshot={acceptSnapshot}
               onDirty={setDirty}
+              tileChoice={tileChoice}
+              onTileConsumed={() => setTileChoice(null)}
             />
           ) : selectedDial ? (
             <section className="inspector dial-inspector">

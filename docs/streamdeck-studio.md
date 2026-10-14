@@ -17,6 +17,19 @@ changes until it is saved or canceled. Plugin activation is distinct from transp
 health: Discord's configuration shows its saved authorization, not an inferred RPC
 connection just because the plugin is enabled.
 
+Each plugin row separates **Tiles** and **Réglages** into its own keyboard-accessible
+tabs, preserving connection drafts across tab switches. Exported tiles use the same
+`KeyCard` renderer as the deck, scaled to 68 px, and remain visible with their plugin
+disabled. Click a tile to prepare an assignment on the selected key, or drag its
+six-dot handle onto an editable key. The target highlights during dragging and
+Édition opens with an unsaved draft after dropping. **Enregistrer** commits the
+assignment; palette gestures never invoke plugin actions. Escape, pointer cancel
+and window blur cancel dragging. Existing deck rearrangement remains independent.
+
+Verification: `pnpm check` passes **203 tests**. Live browser checks cover category
+isolation, keyboard tab navigation, an OBS tile dropped onto an empty key while
+OBS is disabled, canceling that draft, and the narrow-screen layout.
+
 ## Dial interaction and visible rearrangement handles — 14 October 2026
 
 Snapshots now carry cumulative signed `rotationSteps` for each encoder. Immediate

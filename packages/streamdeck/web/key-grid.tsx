@@ -10,6 +10,7 @@ import {
 import type { Snapshot } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
 import { useKeyInput } from './use-key-input.ts';
+import { DragGrip } from './drag-grip.tsx';
 type Key = Snapshot['keys'][number];
 type Gesture = {
   key: Key;
@@ -38,7 +39,10 @@ function DeckCell({
   onSelect: (index: number) => void;
   onSnapshot: (snapshot: Snapshot) => void;
   onError: (error: unknown) => void;
-  cellProps: HTMLAttributes<HTMLDivElement> & { 'data-deck-slot': number };
+  cellProps: HTMLAttributes<HTMLDivElement> & {
+    'data-deck-slot': number;
+    'data-tile-drop-allowed': string;
+  };
   dragHandlers: HTMLAttributes<HTMLButtonElement>;
   dragHandle: boolean;
   children: ReactNode;
@@ -87,13 +91,7 @@ function DeckCell({
             dragHandlers.onPointerDown?.(event);
           }}
         >
-          <svg width={12} height={16} viewBox="0 0 12 16" aria-hidden={true}>
-            {[3, 8, 13].flatMap((y) =>
-              [3, 9].map((x) => (
-                <circle key={`${x}/${y}`} cx={x} cy={y} r={1.25} fill="currentColor" />
-              )),
-            )}
-          </svg>
+          <DragGrip />
           <span>{deckKey.index + 1}</span>
         </button>
       ) : (
@@ -137,6 +135,7 @@ export function KeyGrid({
   onSnapshot,
   interactive,
   empty,
+  tileTarget = null,
 }: {
   snapshot: Snapshot;
   selected: number | null;
@@ -146,6 +145,7 @@ export function KeyGrid({
   onSelect: (index: number) => void;
   onSnapshot: (snapshot: Snapshot) => void;
   interactive: boolean;
+  tileTarget?: number | null;
 }) {
   const drag = useRef<Gesture | null>(null);
   const pointerDrag = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
@@ -293,7 +293,8 @@ export function KeyGrid({
               }}
               cellProps={{
                 'data-deck-slot': key.index,
-                className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index ? ' drop-target' : ''}`,
+                'data-tile-drop-allowed': allowed && movable(key) ? 'true' : 'false',
+                className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index || tileTarget === key.index ? ' drop-target' : ''}`,
                 onKeyDown: (event) => {
                   if (
                     !allowed ||
