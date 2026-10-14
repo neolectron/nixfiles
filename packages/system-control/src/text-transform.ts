@@ -1,6 +1,7 @@
 import { Config, Context, Effect, Fiber, FileSystem, Layer, Schema, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 import { IntegrationError } from './errors.ts';
+import { disabledMcp } from './codex-config.ts';
 
 export const Request = Schema.Struct({
   text: Schema.NonEmptyString.check(Schema.isMaxLength(32000)),
@@ -49,40 +50,9 @@ export const codex = (executable = 'codex', model = 'gpt-6-luna') =>
               { mode: 0o600 },
             );
             yield* fs.writeFileString(policy, instructions, { mode: 0o600 });
-            // System-level MCP tables survive --ignore-user-config and an empty-table override.
-            // Discover names only, without initializing the servers or printing their configuration.
-            const listing = yield* processes.spawn(
-              ChildProcess.make(executable, ['mcp', 'list', '--json'], {
-                cwd: directory,
-                stdin: 'ignore',
-                forceKillAfter: '1 second',
-              }),
+            const disabledServers = yield* disabledMcp(executable, directory).pipe(
+              Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, processes),
             );
-            const [listed, raw] = yield* Effect.all(
-              [
-                listing.exitCode,
-                Stream.mkString(Stream.decodeText(listing.stdout)),
-                Stream.runDrain(listing.stderr),
-              ],
-              { concurrency: 'unbounded' },
-            );
-            if (listed !== 0)
-              return yield* new IntegrationError({
-                message: 'Lecture de la configuration Codex impossible.',
-              });
-            const servers = yield* Schema.decodeUnknownEffect(
-              Schema.fromJsonString(
-                Schema.Array(
-                  Schema.Struct({
-                    name: Schema.String,
-                    transport: Schema.Struct({
-                      type: Schema.Literals(['stdio', 'streamable_http']),
-                    }),
-                  }),
-                ),
-              ),
-            )(raw);
-            const disabledServers = `{${servers.map(({ name, transport }) => `${JSON.stringify(name)}={enabled=false,${transport.type === 'stdio' ? 'command="false"' : 'url="http://127.0.0.1:1"'}}`).join(',')}}`;
             const handle = yield* processes.spawn(
               ChildProcess.make(
                 executable,
