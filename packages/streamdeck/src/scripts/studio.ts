@@ -7,7 +7,7 @@ import * as Preview from '../deck-preview.ts';
 import * as DesktopApps from '../desktop-apps.ts';
 import * as Actions from '../studio-actions.ts';
 import { StudioError } from '../studio-errors.ts';
-import { KeyInput, Navigate, Organize, Trigger, UpdateBinding, UpdatePlugin, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
+import { KeyInput, LcdTap, Navigate, Organize, Trigger, UpdateBinding, UpdatePlugin, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import type { DeckEvent } from '../model.ts';
 import { slotsFor } from '../plugins/audio-mixer.ts';
@@ -23,6 +23,7 @@ import { DiscordConnection, DiscordOAuth, make as makeDiscordConnection } from '
 import { AppInput } from '../discord-contract.ts';
 import { DiscordTransport } from '../discord-ipc.ts';
 import type { RendererKind } from '../mixer-renderer.ts';
+import * as Cards from '../mixer-cards.ts';
 
 export const startStudio = (options: { profile: string; mock?: boolean; renderer?: RendererKind; applications?: ReadonlyArray<ApplicationEntry>; configurePlugins?: (host: Effect.Success<typeof Plugins.make>) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope> }) => Effect.gen(function*() {
   const original = yield* StreamDeck;
@@ -35,16 +36,17 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
   const lastEvent = yield* Ref.make('');
   const renderer = Context.get(yield* Layer.build(Takumi.ReactRenderer.layer), Takumi.ReactRenderer);
+  const cards = yield* Cards.make;
   const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
   const settings = yield* PluginSettings.make(`${options.profile}.plugins.json`);
   const discordConnection = yield* makeDiscordConnection(`${options.profile}.discord-connection.json`);
   const pluginLock = yield* Semaphore.make(1);
-  const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(Cards.MixerCards, cards));
   const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
   yield* host.install(Commands.plugin(applications));
   const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))), feedback: host.feedback, interaction: host.interaction } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
-  if (options.configurePlugins) yield* options.configurePlugins(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
-  else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(DiscordConnection, discordConnection));
+  if (options.configurePlugins) yield* options.configurePlugins(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(Cards.MixerCards, cards));
+  else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(DiscordConnection, discordConnection), Effect.provideService(Cards.MixerCards, cards));
   for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
   const actions = {
     save: (...args: Parameters<Shortcuts.Controller['save']>) => shortcuts.use((api) => api.save(...args)),
@@ -86,6 +88,13 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     const mix = Option.isSome(currentMixer) ? yield* currentMixer.value.state : undefined;
     const slots = deck.lcds[0]?.pixelSize && deck.dials.length ? slotsFor(deck.dials, deck.lcds[0]) : [];
     const appSlots = slots.slice(0, -1); const page = mix?.page ?? 0;
+    const dials = yield* Effect.forEach(slots, (slot, i) => Effect.gen(function*() {
+      const master = i === slots.length - 1;
+      const app = master ? mix?.master : mix?.apps.find((app) => app.key === mix.assignments[page * appSlots.length + i]);
+      const key = app && 'key' in app ? app.key : null;
+      const interaction = app && 'key' in app ? (yield* cards.label(app)) ?? null : null;
+      return { index: slot.dial, key, interaction, name: master && mix ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, pressed: inputView.pressedDials.has(slot.dial), master, x: slot.x, width: slot.width };
+    }));
     return { discordConnection: yield* discordConnection.publicState, plugins: yield* host.snapshot, layout: actionView.layout, sessionId, model: deck.info.model, mock: options.mock ?? false,
       keys: deck.buttons.map((key) => {
         const slot = actionView.keys.get(key.index)!;
@@ -97,11 +106,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
         status: slot.state.status, detail: slot.state.detail, feedback: slot.state.feedback ?? null,
       }; }),
       lcds: deck.lcds.map((lcd) => ({ index: lcd.index, width: lcd.pixelSize!.width, height: lcd.pixelSize!.height, revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0 })),
-      dials: slots.map((slot, i) => {
-        const master = i === slots.length - 1;
-        const app = master ? mix?.master : mix?.apps.find((app) => app.key === mix.assignments[page * appSlots.length + i]);
-        return { index: slot.dial, name: master && mix ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, pressed: inputView.pressedDials.has(slot.dial), master, x: slot.x, width: slot.width };
-      }),
+      dials,
       page, pages: Math.max(1, Math.ceil((mix?.assignments.length ?? 0) / Math.max(1, appSlots.length))), lastEvent: yield* Ref.get(lastEvent), inputSequence: inputView.sequence,
     } satisfies Snapshot;
   });
@@ -123,6 +128,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   return { snapshot: readSnapshot, applications, actions, preview, plugins: host, setPlugin, rendererStats: renderer.stats, configureDiscord, connectDiscord,
     inputViews: Stream.fromPubSub(inputViews),
     changePage: audioPage,
+    lcdTap: (input: typeof LcdTap.Type) => mixer.use((api) => api.tapDial(input.dial, input.application, input.page)),
     run: binding.run,
   };
 });
@@ -139,6 +145,11 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
     return yield* body;
   }));
   yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+  yield* router.add('POST', '/api/lcd-tap', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const input = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(LcdTap, { onExcessProperty: 'error' })));
+    yield* controller.lcdTap(input); return json(yield* controller.snapshot);
+  })));
   yield* router.add('PUT', '/api/discord/connection', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const input = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(AppInput, { onExcessProperty: 'error' })), Effect.mapError(() => new StudioError({ message: 'Identifiant, secret ou port Discord invalide.', status: 400 })));

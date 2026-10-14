@@ -1,4 +1,4 @@
-import { Console, Context, Effect, Layer, Ref, Schema, Semaphore } from 'effect';
+import { Console, Context, Effect, Layer, Option, Ref, Schema, Semaphore } from 'effect';
 import { Audio, type Application, type Change, type Master } from '../audio.ts';
 import * as Bindings from '../bindings.ts';
 import { StreamDeck } from '../stream-deck.ts';
@@ -7,6 +7,7 @@ import type { Control, DialRotate, Position, Size } from '../model.ts';
 import * as Display from '../mixer-renderer.ts';
 import { volumeColor } from '../volume-gauge.ts';
 import * as Plugin from '../plugin.ts';
+import { MixerCards } from '../mixer-cards.ts';
 
 export interface MixerOptions { readonly step?: number; readonly refreshMillis?: number; readonly flushMillis?: number; readonly renderer?: Display.RendererKind }
 export interface MixerState {
@@ -45,6 +46,7 @@ export const slotsFor = (dials: ReadonlyArray<Control>, lcd: Control): ReadonlyA
 export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
   const deck = yield* StreamDeck;
   const audio = yield* Audio;
+  const extensions = Option.getOrUndefined(yield* Effect.serviceOption(MixerCards));
   const step = options.step ?? 2;
   const pollMillis = options.refreshMillis ?? 500;
   const flushMillis = options.flushMillis ?? 40;
@@ -66,9 +68,11 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
       const isMaster = slot.dial === masterSlot.dial;
       const app = isMaster ? next.master : next.apps.find((app) => app.key === next.assignments[next.page * appSlots.length + i]);
       const online = isMaster ? next.masterOnline : next.online;
-      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume)]);
+      const custom = !isMaster && app && 'key' in app && extensions ? yield* extensions.frame(app, slot) : undefined;
+      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume), custom?.stamp]);
       if (cache.get(i) === stamp) continue;
-      yield* deck.lcd(lcd.index).drawRegion(slot, yield* display.card(slot, app, online, isMaster ? 'MASTER' : undefined));
+      const image = custom ? yield* custom.draw : undefined;
+      yield* deck.lcd(lcd.index).drawRegion(slot, image ?? (yield* display.card(slot, app, online, isMaster ? 'MASTER' : undefined)));
       cache.set(i, stamp);
       changed = true;
     }
@@ -83,10 +87,17 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
   });
   const refresh = Semaphore.withPermits(screen, 1)(Effect.gen(function*() {
     const before = yield* Ref.get(state);
-    const apps = yield* audio.list.pipe(Effect.catch((error) => Effect.gen(function*() {
+    let apps = yield* audio.list.pipe(Effect.catch((error) => Effect.gen(function*() {
       if (before.online) yield* Effect.logWarning('Audio unavailable', error.message);
       return undefined;
     })));
+    if (apps && extensions) {
+      const retained = yield* extensions.retain;
+      for (const identity of retained) if (!apps.some((app) => app.key === identity.key || identity.aliases?.includes(app.key))) {
+        const previous = before.apps.find((app) => app.key === identity.key || identity.aliases?.includes(app.key));
+        apps = [...apps, { key: previous?.key ?? identity.key, name: identity.name, streams: [], volume: previous?.volume ?? 0, muted: previous?.muted ?? false, mixedMute: false, paused: true }];
+      }
+    }
     const master = yield* audio.master.pipe(Effect.map((value) => ({ value, online: true })), Effect.catch((error) => Effect.gen(function*() {
       if (before.masterOnline) yield* Effect.logWarning('Master unavailable', error.message);
       return { value: undefined, online: false };
@@ -133,6 +144,12 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
     const pages = Math.max(1, Math.ceil(current.assignments.length / appSlots.length));
     yield* render({ ...current, page: (current.page + direction + pages) % pages });
   }));
+  const tapDial = (dial: number, key?: string, expectedPage?: number) => Semaphore.withPermits(screen, 1)(Effect.gen(function*() {
+    const current = yield* Ref.get(state); const index = appSlots.findIndex((slot) => slot.dial === dial);
+    const app = index < 0 ? undefined : current.apps.find((app) => app.key === current.assignments[current.page * appSlots.length + index]);
+    if ((key !== undefined && app?.key !== key) || (expectedPage !== undefined && current.page !== expectedPage)) return yield* Effect.fail(new StreamDeckError({ reason: 'InvalidArgument', operation: 'mixer-tap', message: 'L’application ou la page a changé. Recharge le mixer.' }));
+    if (app && extensions && (yield* extensions.tap(app))) yield* render(current);
+  }));
   const binding = yield* Bindings.start({
     knobs: Object.fromEntries(slots.map((slot) => [slot.dial, {
       onRotate: ({ delta }: DialRotate) => enqueue(slot.dial, delta * step, 0),
@@ -140,6 +157,10 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
     }])),
     touch: { [lcd.index]: {
       area: { x: 0, y: 0, width: masterSlot.x, height: lcd.pixelSize.height },
+      onTap: ({ position }) => {
+        const slot = appSlots.find((slot) => position.x >= slot.x && position.x < slot.x + slot.width);
+        return slot ? tapDial(slot.dial) : Effect.void;
+      },
       onSwipe: ({ from, to }) => Math.abs(to.x - from.x) >= 30 && Math.abs(to.x - from.x) > Math.abs(to.y - from.y)
         ? changePage(to.x < from.x ? 1 : -1) : Effect.void,
     } },
@@ -147,7 +168,7 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
   });
   const view = yield* Ref.get(state);
   yield* Console.log(JSON.stringify({ kind: 'mixer-ready', apps: view.apps.map((app) => ({ name: app.name, key: app.key, volume: Math.round(app.volume), muted: app.muted })), master: view.master, step, pages: Math.max(1, Math.ceil(view.assignments.length / appSlots.length)) }));
-  return { state: Ref.get(state), refresh, flush, changePage,
+  return { state: Ref.get(state), refresh, flush, changePage, tapDial,
     adjustDial: (dial: number, ticks: number) => enqueue(dial, ticks * step, 0),
     toggleDial: (dial: number) => enqueue(dial, 0, 1),
     run: Effect.raceAllFirst([

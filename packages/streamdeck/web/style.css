@@ -219,6 +219,7 @@ small{
   font-variant-numeric:tabular-nums
 }
 .lcd-strip{
+  position:relative;
   width:100%;
   background:#0d0d10;
   margin-top:26px;
@@ -231,6 +232,19 @@ small{
   display:block;
   object-fit:contain
 }
+.lcd-card-hit{
+  position:absolute;
+  top:0;
+  bottom:0;
+  min-height:0;
+  padding:0;
+  border:0;
+  border-radius:5px;
+  background:transparent;
+  cursor:pointer
+}
+button.lcd-card-hit:hover:not(:disabled){background:#ffffff08}
+.lcd-card-hit:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
 .dial-row{
   display:flex;
   align-items:flex-start;

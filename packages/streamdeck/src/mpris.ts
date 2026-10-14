@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref, Result, Schedule, Schema, Semaphore, Stream } from 'effect';
+import { Clock, Context, Effect, Layer, Ref, Result, Schedule, Schema, Semaphore, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 import { IntegrationError } from './json-socket.ts';
 import * as Sources from './sources.ts';
@@ -12,12 +12,23 @@ const reply = Schema.Struct({ type: Schema.Literal('a{sv}'), data: Schema.Tuple(
   CanControl: boolean, CanGoNext: boolean, CanGoPrevious: boolean, CanPlay: boolean, CanPause: boolean, CanSeek: boolean,
   Shuffle: Schema.optional(boolean), LoopStatus: Schema.optional(Schema.Struct({ type: Schema.Literal('s'), data: Schema.Literals(['None', 'Track', 'Playlist']) })),
   Metadata: Schema.optional(Schema.Struct({ type: Schema.Literal('a{sv}'), data: Schema.Record(Schema.String, variant) })),
+  Position: Schema.optional(variant), Rate: Schema.optional(variant),
 })]) });
 export interface State {
   readonly status: 'Playing' | 'Paused' | 'Stopped'; readonly title: string; readonly artists: ReadonlyArray<string>;
   readonly canControl: boolean; readonly canNext: boolean; readonly canPrevious: boolean; readonly canPlay: boolean; readonly canPause: boolean; readonly canSeek: boolean;
   readonly shuffle: boolean | null; readonly loop: 'None' | 'Track' | 'Playlist' | null;
+  readonly trackId: string | null; readonly durationMicros: number | null; readonly positionMicros: number | null;
+  readonly sampledAt: number; readonly rate: number;
 }
+const micros = Schema.Struct({ type: Schema.Literal('x'), data: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })) });
+const microValue = (value: unknown) => { const decoded = Schema.decodeUnknownOption(micros)(value); return decoded._tag === 'Some' ? decoded.value.data : null; };
+/** Position has no change notifications; advance the last sample only while playing. */
+export const positionAt = (state: State, now: number) => {
+  if (state.positionMicros === null) return null;
+  const value = state.positionMicros + (state.status === 'Playing' ? Math.max(0, now - state.sampledAt) * 1000 * state.rate : 0);
+  return Math.max(0, state.durationMicros === null ? value : Math.min(value, state.durationMicros));
+};
 export type Command = 'PlayPause' | 'Play' | 'Pause' | 'Stop' | 'Next' | 'Previous';
 /** Replaceable D-Bus boundary. busctl JSON avoids parsing GVariant text or invoking a shell. */
 export class MprisTransport extends Context.Service<MprisTransport, {
@@ -46,14 +57,18 @@ export const make = (busName: string, name = 'Lecteur') => Effect.gen(function*(
   const run = (args: ReadonlyArray<string>) => transport.run(['--user', '--json=short', '--timeout=2s', '--auto-start=no', ...args]);
   const read = run(['call', busName, path, properties, 'GetAll', 's', player]).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(reply))),
-    Effect.map(({ data: [props] }): State => {
+    Effect.flatMap(({ data: [props] }) => Effect.gen(function*() {
       const metadata = props.Metadata?.data ?? {};
       const title = Schema.decodeUnknownOption(string)(metadata['xesam:title']);
       const artist = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('as'), data: Schema.Array(Schema.String) }))(metadata['xesam:artist']);
+      const track = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('o'), data: Schema.String }))(metadata['mpris:trackid']);
+      const rate = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('d'), data: Schema.Number.check(Schema.isFinite(), Schema.isGreaterThan(0)) }))(props.Rate);
       return { status: props.PlaybackStatus.data, title: title._tag === 'Some' ? title.value.data : '', artists: artist._tag === 'Some' ? artist.value.data : [],
         canControl: props.CanControl.data, canNext: props.CanGoNext.data, canPrevious: props.CanGoPrevious.data, canPlay: props.CanPlay.data, canPause: props.CanPause.data, canSeek: props.CanSeek.data,
-        shuffle: props.Shuffle?.data ?? null, loop: props.LoopStatus?.data ?? null };
-    }), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: `État MPRIS ${name} invalide.` })),
+        shuffle: props.Shuffle?.data ?? null, loop: props.LoopStatus?.data ?? null,
+        trackId: track._tag === 'Some' ? track.value.data : null, durationMicros: microValue(metadata['mpris:length']), positionMicros: microValue(props.Position),
+        rate: rate._tag === 'Some' ? rate.value.data : 1, sampledAt: yield* Clock.currentTimeMillis } satisfies State;
+    })), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: `État MPRIS ${name} invalide.` })),
   );
   const refresh = Effect.gen(function*() { const result = yield* Effect.result(read); yield* Ref.set(cached, result); return yield* Effect.fromResult(result); });
   const current = Semaphore.withPermits(lock, 1)(refresh);

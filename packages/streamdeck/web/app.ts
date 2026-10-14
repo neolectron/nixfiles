@@ -137,6 +137,10 @@ function App() {
   const mixerActive = snapshot?.plugins.items.find((plugin) => plugin.id === 'audio-mixer')?.enabled ?? false;
   const columns = snapshot ? Math.max(...snapshot.keys.map((key) => key.column)) + 1 : 9;
   const turnPage = (direction: number) => { Effect.runFork(Api.page(direction).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) }))); };
+  const tapLcd = (dial: Snapshot['dials'][number]) => {
+    if (!snapshot || !dial.key) return;
+    Effect.runFork(Api.lcdTap(dial.index, dial.key, snapshot.page).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) })));
+  };
   return h('div', { className: 'app-shell' },
     h('header', { className: 'topbar' }, h('div', { className: 'brand' }, h(Icon, { name: 'deck', size: 27 }), h('h1', {}, 'Stream Deck')),
       h('div', { className: 'connection', role: 'status' }, h('span', { className: online ? 'status-dot online' : 'status-dot' }), online ? snapshot?.mock ? 'Deck simulé' : 'Connecté' : snapshot ? 'Reconnexion…' : 'Connexion…')),
@@ -152,7 +156,12 @@ function App() {
             empty: h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 })),
             onNavigate: (key) => { if (key.binding && ['open-folder', 'go-back', 'page-next', 'page-previous'].includes(key.binding.action)) Effect.runFork(Api.trigger(key.index, key.address).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) }))); },
           }) : h('div', { className: 'key-grid loading', 'aria-label': 'Chargement des touches' }, ...Array.from({ length: 36 }, (_, index) => h('button', { key: index, className: 'deck-key', disabled: true }, h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 }))))),
-          ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' }, lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel des volumes et du Master', draggable: false }) : null)),
+          ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' },
+            lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel du mixer et des cartes des applications', draggable: false }) : null,
+            ...(lcd.index === 0 ? snapshot?.dials ?? [] : []).filter((dial) => dial.interaction).map((dial) => h('button', {
+              key: dial.index, className: 'lcd-card-hit', style: { left: `${dial.x / lcd.width * 100}%`, width: `${dial.width / lcd.width * 100}%` },
+              title: `${dial.name} · ${dial.interaction}`, 'aria-label': `${dial.name} · ${dial.interaction}`, disabled: !online || !mixerActive, onClick: () => tapLcd(dial),
+            })))),
           h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, pressed: false, x: index * 200, width: 200 }))).map((dial) => h('button', {
             key: dial.index, className: `dial-control${selection.kind === 'dial' && selection.index === dial.index ? ' selected' : ''}${dial.pressed ? ' pressed' : ''}`,
             style: { width: `${dial.width / (snapshot?.lcds[0]?.width ?? 1200) * 100}%` },
