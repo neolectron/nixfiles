@@ -1,5 +1,5 @@
 import { NodeFileSystem, NodePath } from '@effect/platform-node';
-import { Effect, FileSystem, Layer, Path, Semaphore } from 'effect';
+import { Context, Effect, FileSystem, Layer, Option, Path, Semaphore } from 'effect';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { fromHtml } from '@takumi-rs/helpers/html';
 import type { ReactElement } from 'react';
@@ -21,14 +21,26 @@ export const make = Effect.gen(function*() {
     yield* Effect.tryPromise({ try: () => renderer.registerFont({ data, name: 'Liberation Sans', weight }), catch: failure });
   }
   const lock = yield* Semaphore.make(1);
+  const cache = new Map<string, Uint8Array>(); let bytes = 0; let renders = 0; let hits = 0;
   const raster = (view: ReactElement, size: Size, format: 'raw' | 'png') => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     if (!Number.isSafeInteger(size.width) || !Number.isSafeInteger(size.height) || size.width <= 0 || size.height <= 0 || size.width * size.height > 4_000_000) {
       return yield* Effect.fail(invalid('takumi', 'Invalid canvas dimensions.'));
     }
-    const parsed = yield* Effect.try({ try: () => fromHtml(renderToStaticMarkup(view)), catch: failure });
-    return yield* Effect.tryPromise({ try: () => renderer.render(parsed.node, { ...size, format, css: parsed.css, fontFamilies: ['Liberation Sans'] }), catch: failure });
+    const html = yield* Effect.try({ try: () => renderToStaticMarkup(view), catch: failure });
+    const key = `${size.width}/${size.height}/${format}/${html}`;
+    const existing = cache.get(key);
+    if (existing) { cache.delete(key); cache.set(key, existing); hits++; return Uint8Array.from(existing); }
+    const parsed = yield* Effect.try({ try: () => fromHtml(html), catch: failure });
+    renders++;
+    const result = yield* Effect.tryPromise({ try: () => renderer.render(parsed.node, { ...size, format, css: parsed.css, fontFamilies: ['Liberation Sans'] }), catch: failure });
+    if (result.length <= 8 * 1024 * 1024) {
+      while (cache.size && (cache.size >= 64 || bytes + result.length > 8 * 1024 * 1024)) { const first = cache.keys().next().value!; bytes -= cache.get(first)!.length; cache.delete(first); }
+      cache.set(key, Uint8Array.from(result)); bytes += result.length;
+    }
+    return result;
   }).pipe(Effect.uninterruptible));
   return {
+    stats: Effect.sync(() => ({ renders, hits, entries: cache.size, bytes })),
     png: (view: ReactElement, size: Size) => raster(view, size, 'png'),
     rgb: (view: ReactElement, size: Size) => Effect.gen(function*() {
       const rgba = yield* raster(view, size, 'raw');
@@ -41,3 +53,9 @@ export const make = Effect.gen(function*() {
     }),
   };
 }).pipe(Effect.mapError((cause) => cause instanceof StreamDeckError ? cause : failure(cause)), Effect.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)));
+
+export class ReactRenderer extends Context.Service<ReactRenderer, Effect.Success<typeof make>>()('@nixfiles/streamdeck/ReactRenderer') {
+  static readonly layer = Layer.effect(ReactRenderer, make);
+}
+/** Use the session renderer when supplied; standalone scripts keep a scoped fallback. */
+export const current = Effect.flatMap(Effect.serviceOption(ReactRenderer), Option.match({ onSome: Effect.succeed, onNone: () => make }));

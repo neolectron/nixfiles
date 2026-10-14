@@ -10,7 +10,7 @@ import { StreamDeckError, invalid } from './errors.ts';
 
 
 export const make = Effect.gen(function*() {
-  const renderer = yield* Takumi.make;
+  const renderer = yield* Takumi.current;
   const fs = yield* FileSystem.FileSystem; const path = yield* Path.Path;
   const entries = yield* Effect.forEach([['spotify', '#1ED760'], ['discord', '#8B83FF'], ['googlechrome', '#F7C65A']] as const, ([name, color]) => Effect.gen(function*() {
     const filename = yield* path.fromFileUrl(new URL(`../assets/icons/${name}.svg`, import.meta.url));

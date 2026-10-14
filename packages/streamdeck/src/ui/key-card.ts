@@ -11,6 +11,7 @@ export function KeyCard({ width, height, label, action, count, status }: {
     : h('svg', { width: 39, height: 39, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.5 },
       action === 'run-command'
         ? [h('path', { key: 'a', d: 'm4 6 6 6-6 6' }), h('path', { key: 'b', d: 'M13 18h7' })]
+        : action === 'plugin' ? h('path', { d: 'M9 3v5H4v8h5v5h7v-5h5V8h-5V3ZM9 8h7v8H9Z' })
         : action === 'open-folder' ? h('path', { d: 'M3 6h7l2 3h9v11H3ZM3 6V4h7l2 2h9v3' })
         : action === 'go-back' ? h('path', { d: 'm10 5-7 7 7 7M3 12h12a6 6 0 0 1 6 6' })
         : action === 'page-next' ? h('path', { d: 'm9 4 8 8-8 8' })

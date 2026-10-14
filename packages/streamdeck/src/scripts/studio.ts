@@ -1,20 +1,23 @@
 import { NodeHttpServer } from '@effect/platform-node';
-import { ByteSize, Console, Crypto, Effect, Path, Option, PubSub, Ref, Schedule, Schema, Semaphore, Stream } from 'effect';
+import { ByteSize, Console, Context, Crypto, Effect, Layer, Path, Option, PubSub, Ref, Schedule, Schema, Semaphore, Stream } from 'effect';
 import { HttpIncomingMessage, HttpRouter, HttpServerRequest, HttpServerResponse as Response } from 'effect/http';
 import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
 import * as DesktopApps from '../desktop-apps.ts';
 import * as Actions from '../studio-actions.ts';
+import { StudioError } from '../studio-errors.ts';
 import { Navigate, Organize, Trigger, UpdateBinding, UpdatePlugin, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import type { DeckEvent } from '../model.ts';
 import { slotsFor } from '../plugins/audio-mixer.ts';
 import * as AudioMixer from '../plugins/audio-mixer.ts';
+import * as Commands from '../plugins/commands.ts';
 import * as Shortcuts from '../plugins/shortcuts.ts';
 import * as Plugins from '../plugin-host.ts';
 import * as PluginSettings from '../plugin-settings.ts';
 import * as Layout from '../studio-layout.ts';
+import * as Takumi from '../takumi.ts';
 import * as PersonalPlugins from '../studio-plugins.ts';
 import type { RendererKind } from '../mixer-renderer.ts';
 
@@ -27,14 +30,16 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const input = yield* Ref.make<{ readonly pressed: ReadonlySet<number>; readonly pressedDials: ReadonlySet<number>; readonly sequence: number }>({ pressed: new Set(), pressedDials: new Set(), sequence: 0 });
   const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
   const lastEvent = yield* Ref.make('');
+  const renderer = Context.get(yield* Layer.build(Takumi.ReactRenderer.layer), Takumi.ReactRenderer);
   const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
   const settings = yield* PluginSettings.make(`${options.profile}.plugins.json`);
   const pluginLock = yield* Semaphore.make(1);
-  const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' }));
-  const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new Actions.StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
-  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage }));
-  yield* (options.configurePlugins ?? PersonalPlugins.configure)(host);
-  for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
+  const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
+  yield* host.install(Commands.plugin(applications));
+  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))) } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  yield* (options.configurePlugins ?? PersonalPlugins.configure)(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
   const actions = {
     save: (...args: Parameters<Shortcuts.Controller['save']>) => shortcuts.use((api) => api.save(...args)),
     press: (...args: Parameters<Shortcuts.Controller['press']>) => shortcuts.use((api) => api.press(...args)),
@@ -99,7 +104,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     yield* host.setEnabled(command.id, command.enabled);
     yield* settings.save(command.id, command.enabled).pipe(Effect.tapError(() => host.setEnabled(command.id, before.enabled).pipe(Effect.ignore)));
   }));
-  return { snapshot: readSnapshot, applications, actions, preview, plugins: host, setPlugin,
+  return { snapshot: readSnapshot, applications, actions, preview, plugins: host, setPlugin, rendererStats: renderer.stats,
     inputViews: Stream.fromPubSub(inputViews),
     changePage: audioPage,
     run: binding.run,
@@ -111,14 +116,14 @@ export type Controller = Effect.Success<ReturnType<typeof startStudio>>;
 export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) => Effect.gen(function*() {
   const router = yield* HttpRouter.make;
   const json = (body: unknown) => Response.jsonUnsafe(body, { headers: { 'cache-control': 'no-store' } });
-  const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Effect<A, E, R>) => effect.pipe(Effect.catch((error) => Effect.succeed(Response.jsonUnsafe({ message: error instanceof Error ? error.message : 'La requête a échoué.' }, { status: error instanceof Actions.StudioError || error instanceof Plugins.PluginError ? error.status : 400 }))));
+  const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Effect<A, E, R>) => effect.pipe(Effect.catch((error) => Effect.succeed(Response.jsonUnsafe({ message: error instanceof Error ? error.message : 'La requête a échoué.' }, { status: error instanceof StudioError || error instanceof Plugins.PluginError ? error.status : 400 }))));
   const mutate = <E, R>(body: Effect.Effect<Response.HttpServerResponse, E, R>) => recover(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     if (!origins.includes(request.headers.origin ?? '') || request.headers['x-streamdeck-studio'] !== '1') return Response.jsonUnsafe({ message: 'Origine de la requête refusée.' }, { status: 403 });
     return yield* body;
   }));
   yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
-  yield* router.add('GET', '/api/catalogue', json({ actions: Actions.catalogue, applications: controller.applications.map(({ id, name }) => ({ id, name })) }));
+  yield* router.add('GET', '/api/catalogue', Effect.map(controller.plugins.catalogue, (pluginActions) => json({ actions: Actions.catalogue, pluginActions, applications: controller.applications.map(({ id, name }) => ({ id, name })) })));
   yield* router.add('GET', '/api/events', Effect.succeed(Response.stream(
     Stream.merge(Stream.fromEffectSchedule(controller.snapshot, Schedule.spaced(150)), controller.inputViews).pipe(
       Stream.map((snapshot) => JSON.stringify(snapshot)), Stream.changes,
@@ -178,7 +183,10 @@ export const studio = (options: { port: number; profile: string; mock: boolean; 
   const root = yield* path.fromFileUrl(new URL('../../web', import.meta.url));
   const vite = yield* Effect.tryPromise(() => import('vite'));
   const server = yield* Effect.acquireRelease(Effect.tryPromise(() => vite.createServer({ configFile: false, root, server: { host: '127.0.0.1', port: options.port, strictPort: true },
-      plugins: [{ name: 'effect-studio-api', configureServer(server) {
+      plugins: [{ name: 'effect-studio-api', handleHotUpdate(context) {
+        // Node watch restarts shared backend modules; Vite reconnects after readiness.
+        if (['studio-contract.ts', 'ui/key-card.ts'].some((file) => context.file === path.resolve(root, `../src/${file}`))) return [];
+      }, configureServer(server) {
         server.middlewares.use((request, response, next) => request.url?.startsWith('/api/') ? handler(request, response) : next());
       } }],
     })), (server) => Effect.promise(() => {

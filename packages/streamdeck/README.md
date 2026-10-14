@@ -101,7 +101,7 @@ lifecycle and device state. See the [implementation evidence](../../docs/streamd
 
 ## Plugins, sources and React feedback
 
-The mixer and key shortcuts are scoped Effect plugins. **Fonctionnalités** in the
+The mixer, command/application execution and key shortcuts are scoped Effect plugins. **Fonctionnalités** in the
 editor enables/disables them independently and saves their preferences beside
 the profile. Disable stops their input handlers, tasks and child processes,
 closes their Layer resources, and clears only their owned displays. USB remains
@@ -400,3 +400,12 @@ the scripts as root or grant world-writable access. The narrow persistent exampl
 uses `TAG+="uaccess"` for `0fd9:00c6` before `73-seat-late.rules`, via
 `services.udev.packages`; integrating it belongs to the host configuration and
 the parent-managed Nix activation workflow. No NixOS activation was performed.
+
+
+Plugin actions are selectable through **Action d’un plugin**. Declare them with
+`Plugin.action({ input: Schema.Struct(...), defaults, run })`; the browser generates
+fields from that same schema and the backend validates before saving/executing.
+`SourceView.key/lcd` or `DeckDisplay.watchKey/watchLcd` connect an Effect source to
+React feedback with latest-frame coalescing. The studio shares one cached renderer
+across plugins; standalone scripts retain their own fallback. See the plugin
+guide for streaming action output and cancellation semantics.

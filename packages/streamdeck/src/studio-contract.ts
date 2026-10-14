@@ -6,16 +6,18 @@ export const actionParameters = {
   'launch-app': Schema.Struct({ application: Schema.NonEmptyString.annotate({ title: 'Application' }) }),
   'run-command': Schema.Struct({
     executable: Schema.NonEmptyString.check(Schema.isMaxLength(1024)).annotate({ title: 'Exécutable ou script' }),
-    arguments: Schema.Array(argument).annotate({ title: 'Arguments' }),
+    arguments: Schema.Array(argument).annotate({ title: 'Arguments', description: 'Tableau JSON : chaque élément est transmis comme un argument littéral.' }),
     directory: Schema.String.check(Schema.isMaxLength(4096)).annotate({ title: 'Dossier de travail' }),
   }),
   'open-folder': Schema.Struct({ folder: Schema.NonEmptyString, target: Schema.optional(Schema.NonEmptyString) }),
   'go-back': Schema.Struct({}),
   'page-next': Schema.Struct({ target: Schema.NonEmptyString }),
   'page-previous': Schema.Struct({ target: Schema.NonEmptyString }),
+  plugin: Schema.Struct({ plugin: Schema.NonEmptyString, command: Schema.NonEmptyString, input: Schema.Unknown }),
   counter: Schema.Struct({ start: Schema.Int.check(Schema.isBetween({ minimum: -9999, maximum: 9999 })).annotate({ title: 'Valeur de départ' }) }),
 } as const;
 export const ButtonBinding = Schema.Union([
+  Schema.Struct({ label: shortText, action: Schema.Literal('plugin'), parameters: actionParameters.plugin }),
   Schema.Struct({ label: shortText, action: Schema.Literal('launch-app'), parameters: actionParameters['launch-app'] }),
   Schema.Struct({ label: shortText, action: Schema.Literal('run-command'), parameters: actionParameters['run-command'] }),
   Schema.Struct({ label: shortText, action: Schema.Literal('counter'), parameters: actionParameters.counter }),
@@ -63,10 +65,11 @@ export interface ActionDefinition {
   readonly fields: ReadonlyArray<ActionField>; readonly defaults: ButtonBinding['parameters']; readonly schema: unknown;
 }
 export const Catalogue = Schema.Struct({
-  actions: Schema.Array(Schema.Struct({ id: Schema.Literals(['launch-app', 'run-command', 'counter', 'open-folder', 'go-back', 'page-next', 'page-previous']), name: Schema.String, description: Schema.String,
+  actions: Schema.Array(Schema.Struct({ id: Schema.Literals(['launch-app', 'run-command', 'counter', 'open-folder', 'go-back', 'page-next', 'page-previous', 'plugin']), name: Schema.String, description: Schema.String,
     fields: Schema.Array(Schema.Struct({ key: Schema.String, label: Schema.String, kind: Schema.Literals(['text', 'number', 'arguments', 'app', 'folder', 'zone']), hint: Schema.String })),
     defaults: Schema.Record(Schema.String, Schema.Unknown), schema: Schema.Unknown,
   })),
+  pluginActions: Schema.Array(Schema.Struct({ plugin: Schema.String, pluginName: Schema.String, id: Schema.String, name: Schema.String, description: Schema.String, schema: Schema.Unknown, defaults: Schema.Unknown })),
   applications: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
 });
 export type Catalogue = typeof Catalogue.Type;

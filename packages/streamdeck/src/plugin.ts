@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Stream, type Scope } from 'effect';
+import { Context, Effect, Layer, Schema, Stream, type Scope } from 'effect';
 import type { Device, StreamDeck } from './stream-deck.ts';
 
 export interface Controls {
@@ -16,6 +16,7 @@ export interface Definition<Api, E, R> {
   readonly name: string;
   readonly description: string;
   readonly controls: Controls | ((deck: Device) => Controls);
+  readonly actions?: ReadonlyArray<Action<Api>>;
   readonly supported?: (deck: Device) => boolean;
   readonly setup: Effect.Effect<Instance<Api, E, R>, E, R | StreamDeck | Scope.Scope>;
 }
@@ -35,3 +36,24 @@ export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(options: Omit<De
   const api = Context.get(services, options.service);
   return { api, ...(options.run ? { run: options.run(api) } : {}) };
 }) });
+
+export interface ActionInfo {
+  readonly id: string; readonly name: string; readonly description: string;
+  readonly schema: unknown; readonly defaults: unknown;
+}
+export interface Invocation { readonly output: (text: string) => Effect.Effect<void> }
+export interface Action<Api> {
+  readonly info: ActionInfo;
+  readonly validate: (input: unknown) => Effect.Effect<void, unknown>;
+  readonly execute: (api: Api, input: unknown, context: Invocation) => Effect.Effect<unknown, unknown, StreamDeck | Scope.Scope>;
+}
+/** Schema is the single source for decoded input, browser fields and runtime validation. */
+export const action = <Api, Input, Encoded, E>(options: {
+  readonly id: string; readonly name: string; readonly description: string;
+  readonly input: Schema.Codec<Input, Encoded>; readonly defaults: Encoded;
+  readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, StreamDeck | Scope.Scope>;
+}): Action<Api> => ({
+  info: { id: options.id, name: options.name, description: options.description, schema: Schema.toJsonSchemaDocument(options.input), defaults: options.defaults },
+  validate: (input) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.asVoid),
+  execute: (api, input, context) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.flatMap((value) => options.run(api, value, context))),
+});

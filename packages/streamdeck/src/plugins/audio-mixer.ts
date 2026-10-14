@@ -1,4 +1,4 @@
-import { Console, Context, Effect, Layer, Ref, Semaphore } from 'effect';
+import { Console, Context, Effect, Layer, Ref, Schema, Semaphore } from 'effect';
 import { Audio, type Application, type Change, type Master } from '../audio.ts';
 import * as Bindings from '../bindings.ts';
 import { StreamDeck } from '../stream-deck.ts';
@@ -165,5 +165,9 @@ export const plugin = (options: MixerOptions = {}) => Plugin.fromLayer({
   id: 'audio-mixer', name: 'Mixer audio', description: 'Volumes des applications et Master, mute et pagination tactile.',
   controls: (deck: import('../stream-deck.ts').Device) => ({ dials: deck.dials.map((dial) => dial.index), lcds: deck.lcds[0] ? [deck.lcds[0].index] : [] }),
   supported: (deck) => !!deck.lcds[0]?.pixelSize && deck.dials.length >= 2,
+  actions: [
+    Plugin.action({ id: 'page', name: 'Page audio', description: 'Parcourt les applications ; Master reste fixe.', input: Schema.Struct({ direction: Schema.Literals([-1, 1]).annotate({ title: 'Direction', description: '−1 : précédente ; 1 : suivante.' }) }), defaults: { direction: 1 }, run: (api: Controller, { direction }) => api.changePage(direction) }),
+    Plugin.action({ id: 'refresh', name: 'Actualiser les volumes', description: 'Relit les sources audio et leur volume.', input: Schema.Struct({}), defaults: {}, run: (api: Controller) => api.refresh }),
+  ],
   service: AudioMixer, layer: AudioMixer.layer(options), run: (api) => api.run,
 });
