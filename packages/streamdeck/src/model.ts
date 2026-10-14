@@ -24,10 +24,27 @@ export interface DeviceInfo {
   readonly productId: number;
   readonly controls: ReadonlyArray<Control>;
 }
-export type KeyDown = { readonly _tag: 'KeyDown'; readonly key: number };
-export type KeyUp = { readonly _tag: 'KeyUp'; readonly key: number };
-export type DialDown = { readonly _tag: 'DialDown'; readonly dial: number };
-export type DialUp = { readonly _tag: 'DialUp'; readonly dial: number };
+export interface InputOrigin {
+  readonly source: string;
+  readonly address?: string;
+  readonly revision?: number;
+}
+export type KeyDown = {
+  readonly origin?: InputOrigin;
+  readonly _tag: 'KeyDown';
+  readonly key: number;
+};
+export type KeyUp = { readonly origin?: InputOrigin; readonly _tag: 'KeyUp'; readonly key: number };
+export type DialDown = {
+  readonly origin?: InputOrigin;
+  readonly _tag: 'DialDown';
+  readonly dial: number;
+};
+export type DialUp = {
+  readonly origin?: InputOrigin;
+  readonly _tag: 'DialUp';
+  readonly dial: number;
+};
 export type DialRotate = {
   readonly _tag: 'DialRotate';
   readonly dial: number;
@@ -49,7 +66,19 @@ export type TouchSwipe = {
   readonly from: Position;
   readonly to: Position;
 };
+export type KeyCancel = {
+  readonly _tag: 'KeyCancel';
+  readonly key: number;
+  readonly origin?: InputOrigin;
+};
+export type DialCancel = {
+  readonly _tag: 'DialCancel';
+  readonly dial: number;
+  readonly origin?: InputOrigin;
+};
 export type DeckEvent =
+  | KeyCancel
+  | DialCancel
   | KeyDown
   | KeyUp
   | DialDown

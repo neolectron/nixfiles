@@ -6,6 +6,37 @@ remain untouched. This increment follows the approved preview/select/configure
 workflow and prioritizes application launch and scripts, because audio mute is
 already assigned to dial presses.
 
+## Browser input and optional hardware
+
+Studio now starts and keeps its real plugins running without USB. `DeckConnection`
+is the Effect service owning native acquisition, scoped closure and reconnecting
+once per second. `use` fails with a typed `DeckOffline`; callers choose their own
+handling. The separate `studio-device.ts` boundary handles that expected error to
+retain a virtual canvas and replays cached images and brightness before physical
+inputs resume. Metadata reads still fail while offline. The header distinguishes
+hardware disconnection from loss of the web server. This established profile uses
+`Stream Deck + XL` capabilities when starting offline; detected hardware supplies
+capabilities when available. A different model requires restarting with that device
+selected.
+
+Left mouse and keyboard presses execute the key's saved gesture. Pointer down/up,
+cancel, blur and hidden-tab cleanup share `web/use-key-input.ts` with the inspector's
+held test control. No gesture timing lives in React. Each adapter has its own owner,
+so another tab or inspector cannot release its press. Address and layout revision
+checks reject stale activation; stale release/cancel cannot clear a newer hold.
+The pencil appears on hover or keyboard focus; right click edits too. Editing does
+not dispatch a press. The number is the drag handle, avoiding action activation
+while rearranging. Alt + arrows still work.
+
+`studio-events.ts` broadcasts browser input to ordinary plugin subscriptions as
+well as the preview. `Bindings` recognizes semantic gestures for those plugins,
+separating owners and preserving cancellation contexts. Persisted Shortcuts use
+their validated action adapter once; they ignore the mirrored web event. Physical
+disconnection emits cancellation through the same library, including pending
+long/double gestures, while web input continues. Tests cover offline rendering and
+actions, native handle cleanup/reconnect and frame restoration, direct plugin
+bindings, independent browser owners and stale cancellation.
+
 ## Spotify track view on the LCD
 
 With Spotify enabled, tapping a Spotify/Spotifast card switches between volume
@@ -142,7 +173,8 @@ An isolated mock editor verifies browser double-click and single-click behavior;
 its local input API verifies held long-press dispatch and release. The real
 profile's actions and trigger choices are preserved.
 
-The key preview supports native desktop drag/drop and Alt + arrow keys. Dropping
+The key preview supports pointer dragging by the numbered corner and Alt + arrow
+keys. Pointer capture supports mouse and touch without native HTML drag/drop. Dropping
 onto an occupied slot exchanges shortcuts; a free slot moves the shortcut.
 The operation uses one atomic profile write, retains shortcut IDs/feedback and
 checks both slot addresses and the layout revision. Unsaved drafts, held/running
@@ -154,9 +186,8 @@ status during an exchange. The zones themselves retain their physical key sets.
 108 Stream Deck tests and both package typechecks pass after this increment.
 The real browser verified a counter move, an exchange with Spotify and an inverse
 keyboard move, without executing either action; the original arrangement was
-restored afterwards. The narrow viewport has no horizontal overflow. Native
-touchscreen drag/drop was not tested (this gesture uses the browser's desktop
-drag/drop support).
+restored afterwards. The narrow viewport has no horizontal overflow. The current pointer adapter was verified in the browser with forward/inverse
+moves and an unchanged action count; physical touchscreen dragging was not tested.
 
 Type checking passes for both workspace packages. The Stream Deck suite has
 90 passing tests, including exact preview pixels, partial LCD composition,

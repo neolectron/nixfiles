@@ -1,7 +1,15 @@
 import { invariant } from '../src/errors.ts';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type HTMLAttributes,
+  type PointerEvent,
+} from 'react';
 import type { Snapshot } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
+import { useKeyInput } from './use-key-input.ts';
 type Key = Snapshot['keys'][number];
 type Gesture = {
   key: Key;
@@ -9,7 +17,104 @@ type Gesture = {
   session: string;
 };
 const movable = (key: Key) => !key.navigation && key.status !== 'running' && !key.pressed;
-/** Native browser drag/drop, plus Alt + arrow keys. Selection never executes a shortcut. */
+/** Action and editing are sibling controls: editing can never bubble into a plugin press. */
+function DeckCell({
+  snapshot,
+  deckKey,
+  selected,
+  disabled,
+  onSelect,
+  onSnapshot,
+  onError,
+  cellProps,
+  dragHandle,
+  dragHandlers,
+  children,
+}: {
+  snapshot: Snapshot;
+  deckKey: Key;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: (index: number) => void;
+  onSnapshot: (snapshot: Snapshot) => void;
+  onError: (error: unknown) => void;
+  cellProps: HTMLAttributes<HTMLDivElement> & { 'data-deck-slot': number };
+  dragHandlers: HTMLAttributes<HTMLSpanElement>;
+  dragHandle: boolean;
+  children: ReactNode;
+}) {
+  const { pressed, handlers, cancel } = useKeyInput({
+    keyIndex: deckKey.index,
+    address: deckKey.address,
+    revision: snapshot.layout.revision,
+    disabled,
+    onSnapshot,
+    onError,
+  });
+  const edit = () => {
+    cancel();
+    onSelect(deckKey.index);
+  };
+  return (
+    <div
+      {...cellProps}
+      className={`${cellProps.className ?? ''}${pressed ? ' pressed' : ''}`}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        edit();
+      }}
+    >
+      <button
+        type="button"
+        className="deck-key-action"
+        data-deck-key={deckKey.index}
+        aria-label={`Touche ${deckKey.index + 1} · ${deckKey.binding?.label ?? snapshot.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(deckKey.index))?.name ?? 'libre'}`}
+        aria-pressed={pressed || deckKey.pressed}
+        disabled={disabled}
+        {...handlers}
+      >
+        {children}
+      </button>
+      <span
+        className={`key-number${dragHandle ? ' movable' : ''}`}
+        {...dragHandlers}
+        title="Glisser pour déplacer"
+        onPointerDown={(event) => {
+          cancel();
+          dragHandlers.onPointerDown?.(event);
+        }}
+      >
+        {deckKey.index + 1}
+      </span>
+      <button
+        type="button"
+        className="key-edit"
+        aria-label={`Modifier la touche ${deckKey.index + 1}`}
+        aria-pressed={selected}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          cancel();
+        }}
+        onClick={edit}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m16 3 5 5L8 21H3v-5L16 3Zm-3 3 5 5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+/** Pointer drag from a dedicated handle, plus Alt + arrow keys. Left presses use plugin gestures; pencil/context menu edit. */
 export function KeyGrid({
   snapshot,
   selected,
@@ -17,7 +122,7 @@ export function KeyGrid({
   disabledReason,
   onSelect,
   onSnapshot,
-  onNavigate,
+  interactive,
   empty,
 }: {
   snapshot: Snapshot;
@@ -27,9 +132,10 @@ export function KeyGrid({
   empty: ReactNode;
   onSelect: (index: number) => void;
   onSnapshot: (snapshot: Snapshot) => void;
-  onNavigate: (key: Key) => void;
+  interactive: boolean;
 }) {
   const drag = useRef<Gesture | null>(null);
+  const pointerDrag = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
   const saving = useRef(false);
   const [source, setSource] = useState<number | null>(null);
   const [target, setTarget] = useState<number | null>(null);
@@ -38,6 +144,7 @@ export function KeyGrid({
   const [error, setError] = useState('');
   const clear = () => {
     drag.current = null;
+    pointerDrag.current = null;
     setSource(null);
     setTarget(null);
   };
@@ -62,6 +169,15 @@ export function KeyGrid({
     revision: snapshot.layout.revision,
     session: snapshot.sessionId,
   });
+  const underPointer = (event: PointerEvent<HTMLSpanElement>) => {
+    const slot = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-deck-slot]')
+      ?.getAttribute('data-deck-slot');
+    return slot === null || slot === undefined
+      ? undefined
+      : snapshot.keys.find((key) => key.index === Number(slot));
+  };
   const exchange = async (from: Gesture, to: Key) => {
     clear();
     if (saving.current || !editable || !movable(to) || from.key.index === to.index) return;
@@ -101,80 +217,95 @@ export function KeyGrid({
     <div className="key-arrangement">
       <div className="key-grid" aria-label="Touches" aria-busy={busy}>
         {snapshot.keys.map((key) => (
-          <button
-            key={key.index}
-            data-deck-key={key.index}
-            className={`deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index ? ' drop-target' : ''}`}
-            aria-label={`Touche ${key.index + 1} · ${key.binding?.label ?? snapshot.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(key.index))?.name ?? 'libre'}`}
-            aria-pressed={selected === key.index}
-            aria-describedby="rearrange-help"
-            draggable={allowed && movable(key) && !!key.binding}
-            onClick={() => {
-              if (!saving.current && !drag.current) onSelect(key.index);
-            }}
-            onDoubleClick={() => {
-              if (allowed && !drag.current) onNavigate(key);
-            }}
-            onDragStart={(event) => {
-              if (!allowed || !movable(key) || !key.binding) {
+          <DeckCell
+            key={`${snapshot.sessionId}/${key.index}`}
+            snapshot={snapshot}
+            deckKey={key}
+            selected={selected === key.index}
+            disabled={!interactive || busy}
+            onSelect={onSelect}
+            onSnapshot={onSnapshot}
+            onError={(cause) =>
+              setError(cause instanceof Error ? cause.message : 'L’action a échoué.')
+            }
+            dragHandle={allowed && movable(key) && !!key.binding}
+            dragHandlers={{
+              onPointerDown: (event) => {
+                if (
+                  !allowed ||
+                  !movable(key) ||
+                  !key.binding ||
+                  event.button !== 0 ||
+                  !event.isPrimary
+                )
+                  return;
                 event.preventDefault();
-                return;
-              }
-              drag.current = gesture(key);
-              setSource(key.index);
-              setError('');
-              setNotice('');
-              event.dataTransfer.effectAllowed = 'move';
-              event.dataTransfer.setData('application/x-streamdeck-key', String(key.index));
+                event.currentTarget.setPointerCapture(event.pointerId);
+                drag.current = gesture(key);
+                pointerDrag.current = {
+                  id: event.pointerId,
+                  x: event.clientX,
+                  y: event.clientY,
+                  moving: false,
+                };
+                setError('');
+                setNotice('');
+              },
+              onPointerMove: (event) => {
+                const current = pointerDrag.current;
+                if (!current || current.id !== event.pointerId || !drag.current) return;
+                if (
+                  !current.moving &&
+                  Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6
+                )
+                  return;
+                current.moving = true;
+                setSource(drag.current.key.index);
+                const to = underPointer(event);
+                setTarget(
+                  to && movable(to) && to.index !== drag.current.key.index ? to.index : null,
+                );
+              },
+              onPointerUp: (event) => {
+                const current = pointerDrag.current;
+                const from = drag.current;
+                const to = underPointer(event);
+                if (current?.id === event.pointerId && current.moving && from && to)
+                  void exchange(from, to);
+                else clear();
+              },
+              onPointerCancel: clear,
+              onLostPointerCapture: clear,
             }}
-            onDragEnd={clear}
-            onDragOver={(event) => {
-              if (
-                !allowed ||
-                !drag.current ||
-                !movable(key) ||
-                drag.current.key.index === key.index
-              )
-                return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = 'move';
-              setTarget(key.index);
-            }}
-            onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                setTarget((previous) => (previous === key.index ? null : previous));
-            }}
-            onDrop={(event) => {
-              const from = drag.current;
-              if (!from) return;
-              event.preventDefault();
-              void exchange(from, key);
-            }}
-            onKeyDown={(event) => {
-              if (
-                !allowed ||
-                !movable(key) ||
-                !key.binding ||
-                !event.altKey ||
-                event.ctrlKey ||
-                event.metaKey ||
-                event.shiftKey
-              )
-                return;
-              const offset = {
-                ArrowLeft: [0, -1],
-                ArrowRight: [0, 1],
-                ArrowUp: [-1, 0],
-                ArrowDown: [1, 0],
-              }[event.key];
-              if (!offset) return;
-              event.preventDefault();
-              const to = snapshot.keys.find(
-                (item) =>
-                  item.row === key.row + invariant(offset[0], 'key-grid') &&
-                  item.column === key.column + invariant(offset[1], 'key-grid'),
-              );
-              if (to) void exchange(gesture(key), to);
+            cellProps={{
+              'data-deck-slot': key.index,
+              className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index ? ' drop-target' : ''}`,
+              onKeyDown: (event) => {
+                if (
+                  !allowed ||
+                  !movable(key) ||
+                  !key.binding ||
+                  !event.altKey ||
+                  event.ctrlKey ||
+                  event.metaKey ||
+                  event.shiftKey
+                )
+                  return;
+                const offset = {
+                  ArrowLeft: [0, -1],
+                  ArrowRight: [0, 1],
+                  ArrowUp: [-1, 0],
+                  ArrowDown: [1, 0],
+                }[event.key];
+                if (!offset) return;
+                event.preventDefault();
+                const to = snapshot.keys.find(
+                  (item) =>
+                    item.row === key.row + invariant(offset[0], 'key-grid') &&
+                    item.column === key.column + invariant(offset[1], 'key-grid'),
+                );
+                if (to) void exchange(gesture(key), to);
+              },
             }}
           >
             {key.revision ? (
@@ -186,13 +317,12 @@ export function KeyGrid({
             ) : (
               empty
             )}
-            <span className="key-number">{key.index + 1}</span>
-          </button>
+          </DeckCell>
         ))}
       </div>
       <p id="rearrange-help" className="rearrange-help">
         {disabledReason ??
-          'Glisse une touche pour la déplacer. Une case occupée échange les raccourcis. Au clavier : Alt + flèches.'}
+          'Glisse le numéro d’une touche pour la déplacer. Une case occupée échange les raccourcis. Au clavier : Alt + flèches.'}
       </p>
       {busy || notice ? (
         <p className="rearrange-status" role="status">

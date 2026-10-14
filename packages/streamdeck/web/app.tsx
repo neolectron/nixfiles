@@ -766,12 +766,14 @@ function App() {
           <Icon name="deck" size={27} />
           <h1>Stream Deck</h1>
         </div>
-        <div className="connection" role="status">
-          <span className={online ? 'status-dot online' : 'status-dot'} />
+        <div className="connection" role="status" title={snapshot?.connectionError ?? undefined}>
+          <span className={online && snapshot?.connected ? 'status-dot online' : 'status-dot'} />
           {online
             ? snapshot?.mock
               ? 'Deck simulé'
-              : 'Connecté'
+              : snapshot?.connected
+                ? 'Connecté'
+                : 'Déconnecté'
             : snapshot
               ? 'Reconnexion…'
               : 'Connexion…'}
@@ -783,8 +785,8 @@ function App() {
             <div>
               <h2>{snapshot?.model.replace(/^Mock /, '') ?? 'Ton deck'}</h2>
               <p>
-                Sélectionne une touche pour la configurer. Double-clique sur une touche de
-                navigation pour l’utiliser.
+                Appuie sur une touche pour l’utiliser. Pour la configurer : crayon au survol ou clic
+                droit.
               </p>
             </div>
             <span className="profile-name">Profil principal</span>
@@ -809,22 +811,7 @@ function App() {
                 empty=<span className="empty-key">
                   <Icon name="plus" size={22} />
                 </span>
-                onNavigate={(key) => {
-                  if (
-                    key.binding &&
-                    ['open-folder', 'go-back', 'page-next', 'page-previous'].includes(
-                      key.binding.action,
-                    )
-                  )
-                    Effect.runFork(
-                      Api.trigger(key.index, key.address).pipe(
-                        Effect.match({
-                          onSuccess: acceptSnapshot,
-                          onFailure: (candidateError) => setError(messageOf(candidateError)),
-                        }),
-                      ),
-                    );
-                }}
+                interactive={online}
               />
             ) : (
               <div className="key-grid loading" aria-label="Chargement des touches">

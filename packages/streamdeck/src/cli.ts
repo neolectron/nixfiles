@@ -1,9 +1,10 @@
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
-import { Console, Deferred, Effect, Fiber, Option, Path, Ref, Schema, Stream } from 'effect';
+import { Console, Deferred, Effect, Fiber, Layer, Option, Path, Ref, Schema, Stream } from 'effect';
 import { CliError, Command, Flag } from 'effect/cli';
 import * as Audio from './audio.ts';
 import * as Hid from './hid.ts';
 import * as Mock from './mock.ts';
+import * as StudioDevice from './studio-device.ts';
 import { StreamDeck, discover } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
 import { startHello } from './scripts/hello.ts';
@@ -73,7 +74,7 @@ const runDevice = (
         const deck = yield* StreamDeck;
         yield* Console.log(
           JSON.stringify({
-            kind: 'connected',
+            kind: kind === 'studio' ? 'studio-ready' : 'connected',
             path: deck.info.path,
             model: deck.info.model,
             buttons: deck.buttons.length,
@@ -167,7 +168,13 @@ const runDevice = (
       onSome: (path) => ({ path }),
     });
     yield* body.pipe(
-      Effect.provide(options.mock ? mock.layer(openOptions) : Hid.layer(openOptions)),
+      Effect.provide(
+        options.mock
+          ? mock.layer(openOptions)
+          : kind === 'studio'
+            ? StudioDevice.layer(openOptions).pipe(Layer.provide(Hid.driverLayer))
+            : Hid.layer(openOptions),
+      ),
     );
   });
 

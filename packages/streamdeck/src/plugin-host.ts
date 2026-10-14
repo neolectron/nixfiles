@@ -46,9 +46,12 @@ export interface Handle<Api> {
 const error = (id: string, reason: PluginError['reason'], message: string) =>
   new PluginError({ id, reason, message, status: reason === 'Failed' ? 500 : 409 });
 const owns = (controls: Controls, event: DeckEvent) =>
-  event._tag === 'KeyDown' || event._tag === 'KeyUp'
+  event._tag === 'KeyDown' || event._tag === 'KeyUp' || event._tag === 'KeyCancel'
     ? (controls.keys?.includes(event.key) ?? false)
-    : event._tag === 'DialDown' || event._tag === 'DialUp' || event._tag === 'DialRotate'
+    : event._tag === 'DialDown' ||
+        event._tag === 'DialUp' ||
+        event._tag === 'DialRotate' ||
+        event._tag === 'DialCancel'
       ? (controls.dials?.includes(event.dial) ?? false)
       : (controls.lcds?.includes(event.lcd) ?? false);
 /** A revocable view, sharing the one physical connection and its serialized writes. */

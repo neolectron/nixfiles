@@ -20,6 +20,9 @@ export interface Lcd extends Key {
 }
 export interface Device {
   readonly info: DeviceInfo;
+  readonly connected?: Effect.Effect<boolean>;
+  readonly connectionChanges?: import('effect').Stream.Stream<boolean>;
+  readonly connectionError?: Effect.Effect<string | null>;
   readonly buttons: ReadonlyArray<Control>;
   readonly dials: ReadonlyArray<Control>;
   readonly lcds: ReadonlyArray<Control>;
@@ -206,6 +209,9 @@ const make = (options: OpenOptions) =>
     };
     return StreamDeck.of({
       info: connection.info,
+      connected: connection.connected ?? Effect.succeed(true),
+      ...(connection.connectionChanges ? { connectionChanges: connection.connectionChanges } : {}),
+      connectionError: connection.connectionError ?? Effect.succeed(null),
       buttons: connection.info.controls.filter((control) => control.type === 'button'),
       dials: connection.info.controls.filter((control) => control.type === 'encoder'),
       lcds: connection.info.controls.filter((control) => control.type === 'lcd-segment'),

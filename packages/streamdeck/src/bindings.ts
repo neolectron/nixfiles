@@ -187,8 +187,8 @@ const router = <E, R>(
     const tasks = yield* Tasks.make<E, R>();
     const call = <Event>(handler: Handler<Event, E, R> | undefined, event: Event) =>
       invoke(handler, event, tasks.submit);
-    const heldKeys = new Map<number, Profile<E, R>>();
-    const heldDials = new Map<number, Profile<E, R>>();
+    const heldKeys = new Map<string, { profile: Profile<E, R>; context: string | undefined }>();
+    const heldDials = new Map<string, { profile: Profile<E, R>; context: string | undefined }>();
     const down = <Down extends KeyDown | DialDown, Up>(
       key: string,
       binding: PressBinding<Down, Up, E, R> | undefined,
@@ -203,6 +203,9 @@ const router = <E, R>(
       return gestures.down(key, {
         identity: profile,
         active,
+        ...(event.origin
+          ? { context: JSON.stringify([event.origin.address, event.origin.revision]) }
+          : {}),
         handlers: binding.trigger
           ? Gestures.activation(binding.trigger, handler(binding.onPress))
           : {
@@ -218,34 +221,54 @@ const router = <E, R>(
     const route = Stream.runForEach(events, (event) =>
       Effect.gen(function* () {
         let profile = yield* current;
+        const source = 'origin' in event ? (event.origin?.source ?? 'physical') : 'physical';
+        const channel =
+          'key' in event
+            ? `${source}/key/${event.key}`
+            : 'dial' in event
+              ? `${source}/dial/${event.dial}`
+              : '';
+        const context =
+          'origin' in event && event.origin
+            ? JSON.stringify([event.origin.address, event.origin.revision])
+            : undefined;
         if (event._tag === 'KeyDown') {
-          if (heldKeys.has(event.key)) profile = invariant(heldKeys.get(event.key), 'bindings');
-          else heldKeys.set(event.key, profile);
-        } else if (event._tag === 'KeyUp') {
-          profile = heldKeys.get(event.key) ?? profile;
-          heldKeys.delete(event.key);
+          if (heldKeys.has(channel)) profile = invariant(heldKeys.get(channel), 'bindings').profile;
+          else heldKeys.set(channel, { profile, context });
+        } else if (event._tag === 'KeyUp' || event._tag === 'KeyCancel') {
+          const held = heldKeys.get(channel);
+          if (held && held.context !== context) return;
+          profile = held?.profile ?? profile;
+          heldKeys.delete(channel);
         } else if (event._tag === 'DialDown') {
-          if (heldDials.has(event.dial)) profile = invariant(heldDials.get(event.dial), 'bindings');
-          else heldDials.set(event.dial, profile);
-        } else if (event._tag === 'DialUp') {
-          profile = heldDials.get(event.dial) ?? profile;
-          heldDials.delete(event.dial);
+          if (heldDials.has(channel))
+            profile = invariant(heldDials.get(channel), 'bindings').profile;
+          else heldDials.set(channel, { profile, context });
+        } else if (event._tag === 'DialUp' || event._tag === 'DialCancel') {
+          const held = heldDials.get(channel);
+          if (held && held.context !== context) return;
+          profile = held?.profile ?? profile;
+          heldDials.delete(channel);
         }
         if (profile.onEvent) yield* profile.onEvent(event);
         switch (event._tag) {
           case 'KeyDown':
-            yield* down(`key/${event.key}`, profile.buttons?.[event.key], event, profile);
+            yield* down(channel, profile.buttons?.[event.key], event, profile);
             break;
           case 'KeyUp':
-            yield* gestures.up(`key/${event.key}`);
+            yield* gestures.up(channel, context);
             yield* call(profile.buttons?.[event.key]?.onRelease, event);
             break;
           case 'DialDown':
-            yield* down(`dial/${event.dial}`, profile.knobs?.[event.dial], event, profile);
+            yield* down(channel, profile.knobs?.[event.dial], event, profile);
             break;
           case 'DialUp':
-            yield* gestures.up(`dial/${event.dial}`);
+            yield* gestures.up(channel, context);
             yield* call(profile.knobs?.[event.dial]?.onRelease, event);
+            break;
+          case 'KeyCancel':
+          case 'DialCancel':
+            yield* gestures.cancel(channel, context);
             break;
           case 'DialRotate':
             yield* call(profile.knobs?.[event.dial]?.onRotate, event);

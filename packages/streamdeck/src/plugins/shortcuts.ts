@@ -22,15 +22,30 @@ export const make = (options: Options) =>
       options.pluginActions,
     );
     const events = yield* deck.subscribe;
-    const route = Plugin.listen(events, (event) =>
-      event._tag === 'KeyDown'
-        ? actions
-            .keyInput(event.key, 'down')
-            .pipe(Effect.catch((error) => Effect.logWarning(error.message)))
-        : event._tag === 'KeyUp'
-          ? actions.keyInput(event.key, 'up')
-          : Effect.void,
-    );
+    const route = Plugin.listen(events, (event) => {
+      // Studio validates persisted web actions synchronously; their mirrored events serve other subscribers.
+      const origin = 'origin' in event ? event.origin : undefined;
+      if (origin?.source === 'web' || origin?.source.startsWith('web/')) return Effect.void;
+      if (event._tag === 'KeyDown')
+        return actions
+          .keyInput(
+            event.key,
+            'down',
+            origin?.address,
+            origin?.source ?? 'physical',
+            origin?.revision,
+          )
+          .pipe(Effect.catch((error) => Effect.logWarning(error.message)));
+      if (event._tag === 'KeyUp' || event._tag === 'KeyCancel')
+        return actions.keyInput(
+          event.key,
+          event._tag === 'KeyCancel' ? 'cancel' : 'up',
+          origin?.address,
+          origin?.source ?? 'physical',
+          origin?.revision,
+        );
+      return Effect.void;
+    });
     return {
       ...actions,
       run: Effect.raceFirst(

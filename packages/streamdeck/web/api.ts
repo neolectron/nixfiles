@@ -73,10 +73,15 @@ export const keyInput = (
   phase: 'down' | 'up' | 'cancel',
   address: string,
   revision: number,
+  owner?: string,
 ) =>
-  json('/api/key-input', 'POST', { key, phase, address, revision }).pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),
-  );
+  json('/api/key-input', 'POST', {
+    key,
+    phase,
+    address,
+    revision,
+    ...(owner ? { owner } : {}),
+  }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const organize = (command: Organize) =>
   json('/api/organize', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const navigate = (command: Navigate) =>

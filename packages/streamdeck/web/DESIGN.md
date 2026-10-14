@@ -1,7 +1,7 @@
 # Stream Deck editor
 
 Operate mode. A familiar device preview with an adjacent property inspector,
-following the user's approved preview/select/configure workflow. The hardware
+with left presses operating the deck and explicit editing controls. The hardware
 strip retains its existing visual authority; this document applies to the editor.
 
 Graphite surfaces suit the physical deck on Manuel's desktop. A warm pale accent
@@ -13,5 +13,7 @@ keys without modal interruption, and make saved/unsaved/error states explicit.
 Desktop: header, device preview at left, property inspector at right. Narrow
 screens: inspector below the preview; the grid remains nine columns. No decorative
 motion, metrics, marketing content or unfinished navigation. Physical knob
-selection explains the current mixer assignment. Preview selection never runs
-an action; execution has a separate, clearly named button.
+selection explains the current mixer assignment. Key faces invoke their configured simple/double/long gestures. The corner pencil
+(on hover or keyboard focus) and right click open editing without invoking an
+action. The numbered corner is a separate pointer drag handle; Alt + arrows also
+rearrange. USB disconnection changes the header status and leaves web actions live.

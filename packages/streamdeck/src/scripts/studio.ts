@@ -26,6 +26,7 @@ import {
 import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
+import * as Events from '../studio-events.ts';
 import * as DesktopApps from '../desktop-apps.ts';
 import * as Actions from '../studio-actions.tsx';
 import { StudioError } from '../studio-errors.ts';
@@ -91,7 +92,8 @@ export const startStudio = (options: {
     const original = yield* StreamDeck;
     const platform = yield* Effect.context<Crypto.Crypto | FileSystem.FileSystem | Path.Path>();
     const sessionId = yield* (yield* Crypto.Crypto).randomUUIDv4();
-    const preview = yield* Preview.make(original);
+    const events = yield* Events.make(original);
+    const preview = yield* Preview.make(events.device);
     const deck = preview.device;
     const applications = options.applications ?? (yield* DesktopApps.discover);
     const input = yield* Ref.make<{
@@ -100,6 +102,8 @@ export const startStudio = (options: {
       readonly sequence: number;
     }>({ pressed: new Set(), pressedDials: new Set(), sequence: 0 });
     const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
+    const heldKeys = new Map<string, number>();
+    const heldDials = new Map<string, number>();
     const lastEvent = yield* Ref.make('');
     const renderer = Context.get(
       yield* Layer.build(Takumi.ReactRenderer.layer),
@@ -227,34 +231,35 @@ export const startStudio = (options: {
       onEvent: (event: DeckEvent) =>
         Effect.gen(function* () {
           if (
-            event._tag === 'KeyDown' ||
-            event._tag === 'KeyUp' ||
+            'key' in event ||
             event._tag === 'DialDown' ||
-            event._tag === 'DialUp'
+            event._tag === 'DialUp' ||
+            event._tag === 'DialCancel'
           ) {
-            yield* Ref.update(input, (before) => {
-              const keyEvent = event._tag === 'KeyDown' || event._tag === 'KeyUp';
-              const next = new Set(keyEvent ? before.pressed : before.pressedDials);
-              const index = keyEvent ? event.key : event.dial;
-              if (event._tag === 'KeyDown' || event._tag === 'DialDown') next.add(index);
-              else next.delete(index);
-              return {
-                pressed: keyEvent ? next : before.pressed,
-                pressedDials: keyEvent ? before.pressedDials : next,
-                sequence: before.sequence + 1,
-              };
-            });
+            const keyEvent = 'key' in event;
+            const index = keyEvent ? event.key : event.dial;
+            const held = keyEvent ? heldKeys : heldDials;
+            const channel = `${event.origin?.source ?? 'physical'}/${index}`;
+            if (event._tag === 'KeyDown' || event._tag === 'DialDown') held.set(channel, index);
+            else held.delete(channel);
+            yield* Ref.update(input, (before) => ({
+              pressed: new Set(heldKeys.values()),
+              pressedDials: new Set(heldDials.values()),
+              sequence: before.sequence + 1,
+            }));
             yield* PubSub.publish(inputViews, yield* readSnapshot);
           }
           yield* Ref.set(
             lastEvent,
             event._tag === 'KeyDown'
               ? `Touche ${event.key + 1} · appui`
-              : event._tag === 'KeyUp'
+              : event._tag === 'KeyUp' || event._tag === 'KeyCancel'
                 ? `Touche ${event.key + 1} · relâchement`
                 : event._tag === 'DialRotate'
                   ? `Potard ${event.dial + 1} · ${event.delta > 0 ? '+' : ''}${event.delta}`
-                  : event._tag === 'DialDown' || event._tag === 'DialUp'
+                  : event._tag === 'DialDown' ||
+                      event._tag === 'DialUp' ||
+                      event._tag === 'DialCancel'
                     ? `Potard ${event.dial + 1} · ${event._tag === 'DialDown' ? 'appui' : 'relâchement'}`
                     : event._tag === 'TouchSwipe'
                       ? 'LCD · glissement'
@@ -311,6 +316,8 @@ export const startStudio = (options: {
         sessionId,
         model: deck.info.model,
         mock: options.mock ?? false,
+        connected: options.mock ? false : yield* deck.connected ?? Effect.succeed(true),
+        connectionError: yield* deck.connectionError ?? Effect.succeed(null),
         keys: deck.buttons.map((key) => {
           const slot = invariant(actionView.keys.get(key.index), 'studio');
           return {
@@ -409,8 +416,34 @@ export const startStudio = (options: {
         yield* settings.save('discord', true);
       }),
     );
+    const keyInput = (body: typeof KeyInput.Type) =>
+      Effect.gen(function* () {
+        const view = yield* readSnapshot;
+        const key = view.keys.find((candidate) => candidate.index === body.key);
+        if (!key) return yield* new StudioError({ status: 400, message: 'Touche inconnue.' });
+        if (
+          body.phase === 'down' &&
+          (body.address !== key.address || body.revision !== view.layout.revision)
+        )
+          return yield* new StudioError({
+            status: 409,
+            message: 'La disposition a changé. Recharge la touche.',
+          });
+        const source = body.owner ? `web/${body.owner}` : 'web';
+        const owner = view.plugins.items.find(
+          (plugin) => plugin.enabled && plugin.keys.includes(body.key),
+        );
+        if (owner?.id === 'shortcuts')
+          yield* actions.keyInput(body.key, body.phase, body.address, source, body.revision);
+        yield* events.emit({
+          _tag: body.phase === 'down' ? 'KeyDown' : body.phase === 'up' ? 'KeyUp' : 'KeyCancel',
+          key: body.key,
+          origin: { source, address: body.address, revision: body.revision },
+        });
+      });
     return {
       snapshot: readSnapshot,
+      keyInput,
       applications,
       actions,
       preview,
@@ -425,7 +458,22 @@ export const startStudio = (options: {
         mixer.use((api) =>
           api.tapDial(candidateInput.dial, candidateInput.application, candidateInput.page),
         ),
-      run: binding.run,
+      run: Effect.all(
+        [
+          binding.run,
+          Stream.runForEach(deck.connectionChanges ?? Stream.empty, (connected) =>
+            connected
+              ? Effect.void
+              : Effect.gen(function* () {
+                  for (const key of deck.buttons)
+                    yield* events.emit({ _tag: 'KeyCancel', key: key.index });
+                  for (const dial of deck.dials)
+                    yield* events.emit({ _tag: 'DialCancel', dial: dial.index });
+                }),
+          ),
+        ],
+        { concurrency: 'unbounded' },
+      ).pipe(Effect.asVoid),
     };
   });
 export type Controller = Effect.Success<ReturnType<typeof startStudio>>;
@@ -578,13 +626,7 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
           const body = yield* request.json.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(KeyInput, { onExcessProperty: 'error' })),
           );
-          yield* controller.actions.keyInput(
-            body.key,
-            body.phase,
-            body.address,
-            'web',
-            body.revision,
-          );
+          yield* controller.keyInput(body);
           return json(yield* controller.snapshot);
         }),
       ),

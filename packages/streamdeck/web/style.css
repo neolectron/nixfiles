@@ -201,9 +201,6 @@ small {
 .deck-key.pressed {
   background: #655136;
 }
-.deck-key[draggable='true'] {
-  cursor: grab;
-}
 .deck-key.dragging {
   opacity: 0.45;
   cursor: grabbing;
@@ -846,4 +843,60 @@ button.zone-edit-link {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* The whole face triggers its action; editing and dragging have dedicated controls. */
+.deck-key-action {
+  display: block;
+  border: 0;
+  border-radius: inherit;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: inherit;
+  touch-action: none;
+  user-select: none;
+}
+.key-edit {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 5px;
+  background: #181a20ed;
+  border: 1px solid #666c79;
+  color: #f2f3f5;
+  opacity: 0;
+  pointer-events: none;
+}
+.deck-key:hover .key-edit,
+.deck-key:focus-within .key-edit {
+  opacity: 1;
+  pointer-events: auto;
+}
+.key-number.movable {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.key-number.movable:active {
+  cursor: grabbing;
+}
+.deck-key-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.key-edit:hover {
+  background: #444958;
+}
+@media (hover: none) {
+  .key-edit {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
