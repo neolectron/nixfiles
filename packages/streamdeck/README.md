@@ -96,7 +96,7 @@ Effect engine and real audio mixer, even without a USB deck. Left clicks, double
 clicks and holds invoke the configured gestures through the shared plugin API.
 Use the pencil at the corner on hover (also available on keyboard focus), or right
 click, to edit a key; choose an application or command/script, then save. Drag its
-number to rearrange it without triggering its action. Alt + arrows also rearrange. Saving updates
+six-point corner handle to rearrange it without triggering its action. Alt + arrows also rearrange. Saving updates
 the physical key image and profile without executing the action. A physical press
 or **Tester l’action** uses the same handler. The inspector shows command output,
 errors and an **Arrêter la commande** control while a command runs. A counter is
@@ -113,7 +113,12 @@ Stream Deck + XL profile; when connected at startup, capabilities come from USB.
 Physical holds are canceled on disconnect; browser inputs remain independent. Held
 physical keys and pressed dials remain highlighted until release. Dials keep their live app/mute
 assignments; the web page arrows follow the same mixer pagination as LCD swipes,
-and Master stays pinned. Selecting a dial explains its current assignment; this
+and Master stays pinned. The knob preview rotates in the direction of physical
+encoder cranks, including at volume limits. Drag a knob horizontally (right to
+increase, left to decrease), scroll over it, or use left/right arrow keys to
+send the same encoder events from the browser. Vertical wheel up increases;
+wheel down decreases. A gesture retains its application/page identity, so
+pending input cannot spill onto a reassigned application. Selecting a dial explains its current assignment; this
 first editor does not yet reconfigure dial/touch behavior.
 
 The default profile is `packages/streamdeck/.studio/profile.json`, ignored by Git;

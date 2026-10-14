@@ -46,6 +46,7 @@ export type DialUp = {
   readonly dial: number;
 };
 export type DialRotate = {
+  readonly origin?: InputOrigin;
   readonly _tag: 'DialRotate';
   readonly dial: number;
   readonly delta: number;

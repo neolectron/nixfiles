@@ -12,6 +12,7 @@ import * as Fields from '../src/plugin-fields.ts';
 import { PluginFields } from './plugin-fields.tsx';
 import { PluginControls } from './plugin-controls.tsx';
 import { KeyGrid } from './key-grid.tsx';
+import { DialControl } from './dial-control.tsx';
 import { delay, type KeyTrigger } from '../src/press-trigger.ts';
 import './style.css';
 function Icon({
@@ -866,43 +867,36 @@ function App() {
                   master: index === 5,
                   name: null,
                   pressed: false,
+                  rotationSteps: 0,
+                  key: null,
+                  interaction: null,
+                  cardWidth: 200,
+                  volume: null,
+                  muted: false,
                   x: index * 200,
                   width: 200,
                 }))
               ).map((dial) => (
-                <button
+                <DialControl
                   key={dial.index}
-                  className={`dial-control${selection.kind === 'dial' && selection.index === dial.index ? ' selected' : ''}${dial.pressed ? ' pressed' : ''}`}
-                  style={{ width: `${(dial.width / (snapshot?.lcds[0]?.width ?? 1200)) * 100}%` }}
-                  aria-label={`Potard ${dial.index + 1} · ${dial.name ?? 'aucune application'}`}
-                  disabled={!snapshot}
-                  onClick={() => select({ kind: 'dial', index: dial.index })}
-                >
-                  <svg viewBox="0 0 64 64" className="knob" aria-hidden={true}>
-                    <circle
-                      cx={32}
-                      cy={32}
-                      r={27}
-                      fill="#2C2E35"
-                      stroke="#555863"
-                      strokeWidth={2}
-                    />
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <path
-                        key={i}
-                        d="M32 5v4"
-                        stroke="#6A6D78"
-                        strokeWidth={1}
-                        transform={`rotate(${i * 15} 32 32)`}
-                      />
-                    ))}
-                    <circle cx={32} cy={32} r={20} fill="#363942" />
-                    <path d="M32 14v8" stroke="#D8D9DF" strokeWidth={2} strokeLinecap="round" />
-                  </svg>
-                  <span>{dial.master ? 'Master' : `Potard ${dial.index + 1}`}</span>
-                </button>
+                  dial={dial}
+                  lcdWidth={snapshot?.lcds[0]?.width ?? 1200}
+                  selected={selection.kind === 'dial' && selection.index === dial.index}
+                  disabled={!snapshot || !online}
+                  page={snapshot?.page ?? 0}
+                  sessionId={snapshot?.sessionId ?? ''}
+                  onSnapshot={acceptSnapshot}
+                  onError={(cause) =>
+                    setError(cause instanceof Error ? cause.message : 'Le réglage a échoué.')
+                  }
+                  onSelect={(index) => select({ kind: 'dial', index })}
+                />
               ))}
             </div>
+            <p id="dial-help" className="rearrange-help">
+              Glisse un potard horizontalement ou utilise la molette pour régler le volume. Au
+              clavier : ← →.
+            </p>
           </div>
           <div className="preview-footer">
             <span>{online ? 'Aperçu en direct' : 'Reconnexion au moteur…'}</span>

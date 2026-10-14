@@ -1,5 +1,36 @@
 # First local Stream Deck editor
 
+## Dial interaction and visible rearrangement handles — 14 October 2026
+
+Snapshots now carry cumulative signed `rotationSteps` for each encoder. Immediate
+input snapshots update the web rotor with a 120 ms transform transition, including
+at gain limits and on unassigned dials. Positive cranks rotate clockwise; negative
+cranks rotate counterclockwise. No angle is inferred from volume or from event text.
+Reduced-motion mode preserves the orientation change without interpolation.
+
+The browser adapter converts horizontal displacement, wheel movement and
+left/right arrow keys into `DialRotate` events through Effect HTTP and the shared
+event source. Drag right / wheel up increases volume; drag left / wheel down
+decreases it. A drag does not select the dial. Queued gestures retain their session,
+application and page identity; stale requests fail with 409, and the mixer also
+revalidates the target when routing a queued event. Master remains pinned.
+
+Each movable key has a numbered, six-point button extending slightly over its
+top edge, with grab/grabbing cursors and keyboard focus. It is a sibling of the
+action face and edit button, so dragging never begins a press gesture. A narrow
+viewport scrolls the key grid locally instead of clipping the handles. The face
+continues to support short press, double tap and long press through the library.
+
+Verification: `pnpm check` passes **194 tests** (18 system, 154 deck, 22 keep-awake).
+New tests cover signed physical rotation beyond Master’s 150% ceiling, independent
+pressed state, the generic plugin event path, HTTP validation, foreign origins
+and stale targets. In an isolated virtual Studio, a long-press counter moved from
+key 9 to key 2 without incrementing; holding its face then incremented it once.
+Dragging the first demo dial 60 px right changed 20% to 40% and its rotor to 150°;
+dragging 30 px left decreased it, and wheel up increased it. Physical mock events
+also updated that same rotor. The real Studio remains on port 3900; browser
+inspection found no console warnings/errors, including wheel handling.
+
 Implemented in the isolated `task-11/nixfiles-streamdeck` checkout on
 `feat/streamdeck-usb-hello`. The user's main checkout and keep-awake integration
 remain untouched. This increment follows the approved preview/select/configure
@@ -25,7 +56,7 @@ held test control. No gesture timing lives in React. Each adapter has its own ow
 so another tab or inspector cannot release its press. Address and layout revision
 checks reject stale activation; stale release/cancel cannot clear a newer hold.
 The pencil appears on hover or keyboard focus; right click edits too. Editing does
-not dispatch a press. The number is the drag handle, avoiding action activation
+not dispatch a press. The numbered six-point button is the drag handle, avoiding action activation
 while rearranging. Alt + arrows still work.
 
 `studio-events.ts` broadcasts browser input to ordinary plugin subscriptions as
@@ -173,7 +204,7 @@ An isolated mock editor verifies browser double-click and single-click behavior;
 its local input API verifies held long-press dispatch and release. The real
 profile's actions and trigger choices are preserved.
 
-The key preview supports pointer dragging by the numbered corner and Alt + arrow
+The key preview supports pointer dragging by the numbered six-point corner handle and Alt + arrow
 keys. Pointer capture supports mouse and touch without native HTML drag/drop. Dropping
 onto an occupied slot exchanges shortcuts; a free slot moves the shortcut.
 The operation uses one atomic profile write, retains shortcut IDs/feedback and
