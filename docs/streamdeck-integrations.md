@@ -1,6 +1,6 @@
 # Application plugins
 
-The studio registers OBS, Discord, Discord screen sharing and Dot push-to-talk.
+The studio registers OBS, one Discord plugin and Dot push-to-talk.
 They start disabled and own no physical controls. Choose **Action d’un plugin**
 on a shortcut, select its feature/action and save it. Enable its feature once the
 corresponding connection is configured. Enabling establishes services; it does
@@ -99,9 +99,8 @@ The previously validated niri/wtype backend remains explicitly selectable with
 focuses Discord, sends its documented shortcut and restores focus. It cannot read
 voice state, so its feedback remains **HORS LIGNE**, never a guessed mute state.
 
-There is no screen-share operation in the documented RPC command catalogue.
-The separate **Discord · partage d’écran** plugin therefore uses an explicitly
-configured local bridge, rather than inventing a Discord RPC method:
+Discord's **Partager l’écran** action belongs to the same plugin as mute/deafen,
+with one activation toggle. It uses an explicitly configured local bridge:
 
 ```sh
 export STREAMDECK_DISCORD_SCREEN_SHARE='["/absolute/path/to/your-discord-bridge","share-screen"]'
@@ -109,8 +108,18 @@ export STREAMDECK_DISCORD_SCREEN_SHARE='["/absolute/path/to/your-discord-bridge"
 
 The bridge is your script/program that implements the operation or opens its
 selection dialog. It must return promptly. The deck does not click a consent
-dialog or select what to share. Without configuration, enabling explains what
-is missing. There is no shipped implementation of that application-specific bridge.
+dialog or select what to share. The bridge is resolved on activation but only
+runs when its action is executed. Without configuration, only the sharing action
+reports the missing script; voice controls remain usable. There is no shipped
+implementation of that application-specific bridge.
+
+Legacy `discord-screen-share/share-screen` shortcuts are renamed to
+`discord/share-screen` on load, including folders, other pages and pinned keys.
+Their identity, label and input remain intact. The next profile write persists
+the migration with an exact `.discord-share.backup` of the preceding file.
+The old activation toggle is merged into Discord and removed; enabling either
+former plugin keeps the unified feature enabled, and disabling it stays disabled
+after restart. Unrelated plugin preferences and OAuth credentials are preserved.
 
 ## Dot push-to-talk
 
@@ -171,7 +180,7 @@ to 64, expire after five seconds and are removed on cancellation. Keep secrets i
 the service Layer, not in action defaults. Use `Sources.callback` or native Streams
 for notifications; use `DeckDisplay` / `SourceView` for their React feedback.
 
-Validation: 100 Stream Deck tests and 22 keep-awake tests; both package type checks.
+Validation: 104 Stream Deck tests and 22 keep-awake tests; both package type checks.
 The added suite covers a real loopback OBS transport/authentication, failure and
 correlation, Discord state toggles, strict parameter-free actions, physical release
 after paging, stale web release, disable cleanup, partial starts, failed stops and
