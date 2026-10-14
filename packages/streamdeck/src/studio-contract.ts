@@ -266,6 +266,7 @@ export const Catalogue = Schema.Struct({
       schema: Schema.Unknown,
       defaults: Schema.Unknown,
       interaction: Schema.Literals(['press', 'hold']),
+      tile: Schema.optional(Schema.Struct({ label: Schema.String, icon: KeyFeedback.fields.icon })),
     }),
   ),
   applications: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),

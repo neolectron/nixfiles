@@ -6,6 +6,7 @@ import type { KeyFeedback } from '../key-feedback.ts';
 import * as Player from '@nixfiles/system-control/spotify.ts';
 import * as Lcd from './spotify-lcd.tsx';
 import { MixerCards } from '../mixer-cards.ts';
+import * as AppTiles from './application-tiles.ts';
 
 type Icon = KeyFeedback['icon'];
 const unavailable = (icon: Icon): KeyFeedback => ({ icon, text: 'HORS LIGNE', tone: 'neutral' });
@@ -60,12 +61,15 @@ export const plugin = Plugin.fromLayer({
     Spotify,
     Effect.gen(function* () {
       const shared = yield* Effect.serviceOption(Spotify);
-      if (Option.isSome(shared)) return shared.value;
-      return Context.get(yield* Layer.build(Spotify.layer), Spotify);
+      const api = Option.isSome(shared)
+        ? shared.value
+        : Context.get(yield* Layer.build(Spotify.layer), Spotify);
+      return { ...api, desktop: yield* AppTiles.desktop };
     }),
   ),
   run,
   actions: [
+    AppTiles.launch<Player.Controller & AppTiles.Applications>(AppTiles.spotify),
     transport(
       'play-pause',
       'Lecture / pause',

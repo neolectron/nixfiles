@@ -54,6 +54,12 @@ export interface ActionInfo {
   readonly schema: unknown;
   readonly defaults: unknown;
   readonly interaction: 'press' | 'hold';
+  /** A ready-to-assign tile, using this action's schema/defaults and live feedback. */
+  readonly tile?: Tile;
+}
+export interface Tile {
+  readonly label: string;
+  readonly icon: KeyFeedback['icon'];
 }
 export interface Invocation {
   readonly output: (text: string) => Effect.Effect<void>;
@@ -129,6 +135,7 @@ export const action = <Api, Input, Encoded, E, R>(options: {
   readonly input: Schema.Codec<Input, Encoded>;
   readonly defaults: Encoded;
   readonly interaction?: 'press' | 'hold';
+  readonly tile?: Tile;
   readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, R>;
   readonly unavailable?: KeyFeedback;
   readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, R>;
@@ -140,6 +147,7 @@ export const action = <Api, Input, Encoded, E, R>(options: {
     schema: Schema.toJsonSchemaDocument(options.input),
     defaults: options.defaults,
     interaction: options.interaction ?? 'press',
+    ...(options.tile ? { tile: options.tile } : {}),
   },
   validate: (input) =>
     Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
@@ -149,13 +157,27 @@ export const action = <Api, Input, Encoded, E, R>(options: {
     Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
       Effect.flatMap((value) => options.run(api, value, context)),
     ),
-  ...(options.feedback
+  ...(options.feedback || options.tile
     ? {
         feedback: (api: Api, input: unknown) =>
           Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
-            Effect.flatMap((value) => invariant(options.feedback, 'plugin')(api, value)),
+            Effect.flatMap((value) =>
+              options.feedback
+                ? options.feedback(api, value)
+                : Effect.succeed({
+                    icon: invariant(options.tile, 'plugin').icon,
+                    text: 'PRÊT',
+                    tone: 'neutral' as const,
+                  }),
+            ),
           ),
       }
     : {}),
-  ...(options.unavailable ? { unavailable: options.unavailable } : {}),
+  ...(options.unavailable
+    ? { unavailable: options.unavailable }
+    : options.tile
+      ? {
+          unavailable: { icon: options.tile.icon, text: 'DÉSACTIVÉ', tone: 'neutral' as const },
+        }
+      : {}),
 });

@@ -1,6 +1,6 @@
 # System control
 
-Effect v4 services for Linux audio, MPRIS players and Discord RPC. This package has
+Effect v4 services for Linux audio, MPRIS players, Discord RPC, desktop applications and OBS. This package has
 no dependency on Stream Deck, React or the Studio. Its Layers own polling,
 connections, reconnection and cleanup. Consumers never start a monitor.
 
@@ -40,6 +40,8 @@ Do not return a service from a finished scope and then use it elsewhere.
 | `Spotify` / `spotify.ts`    | Same playback operations; discovers Spotify / Spotifast, `forApplication(key)`, `applications`                                                 | `state`, `snapshot`, `observe`, fresh `current`                                       |
 | `MediaPlayers` / `media.ts` | `command` selects the active controllable MPRIS player                                                                                         | `state`, `snapshot`, `observe`, fresh `current`                                       |
 | `Discord` / `discord.ts`    | `set('mute' \| 'deaf', boolean)`, `toggle`, `reconnect`                                                                                        | `state` / `voice`, `snapshot`, `observe`, fresh `current`                             |
+| `Desktop` / `desktop.ts`    | `open(target)` launches an installed desktop ID or focuses its existing window; `status(target)`, `refresh`                                    | `snapshot`, `observe`, installed `applications`; niri window state                    |
+| `Obs` / `obs.ts`            | `request(requestType, requestData)` via obs-websocket 5                                                                                        | `state`, `snapshot`, `observe`; connected or typed unavailability                     |
 
 `state` fails with a typed `AudioError` or `IntegrationError` when unavailable.
 `snapshot` returns an Effect `Result`, and `observe` emits the current Result
@@ -56,9 +58,24 @@ they are not the managed service API.
 
 ## Compose once
 
-`runtime.ts` exports `integrationsLayer` (Spotify, media, Discord) and `layer`
+`runtime.ts` exports `integrationsLayer` (Spotify, media, Discord, Desktop) and `layer`
 (also Audio). These are compositions, not re-exports. The live implementation
 needs `pactl`, `busctl`, the desktop session bus and the usual Node platform services.
+Desktop additionally uses `niri` and `gio`; `DesktopBackend` is replaceable on another
+desktop or in tests. `Desktop.serviceLayer` consumes that boundary. Desktop state
+represents windows, including exact app IDs and `StartupWMClass`, rather than guessed
+process names. Discovery follows XDG precedence and never evaluates desktop `Exec`
+as a shell command. Its polling fiber ends with the service scope; launched GUI apps
+remain independent of that scope.
+
+OBS is opt-in via `Obs.layer` instead of starting in the shared default runtime.
+It uses `STREAMDECK_OBS_URL` (default `ws://127.0.0.1:4455`) and a redacted
+`STREAMDECK_OBS_PASSWORD`. It acquires a stable API immediately, even when OBS is
+offline, reconnects after a failed session with a one-second delay, and revokes
+operations on scope close. Offline requests fail with `IntegrationError`; rejected
+requests do not disable the service. Initialization/reconnection sends only protocol
+identification, never recording, streaming or camera commands. Tests can use
+`Obs.serviceLayer(options)` with a fake `JsonSocket`.
 Providing the same Layer object once at a root scope shares its instances;
 Effect memoization does not create a singleton between separate processes.
 

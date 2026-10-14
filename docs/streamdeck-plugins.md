@@ -12,6 +12,54 @@ at its root; presentation plugins reuse them. Disabling a presentation does not
 close a shared integration. Standalone plugins can still own their own service
 scope. See [the service API](../packages/system-control/README.md).
 
+## Export ready-to-assign key tiles
+
+An action can export a `tile` alongside its Schema, defaults and handler:
+
+```ts
+const launch = Plugin.action({
+  id: 'launch',
+  name: 'Ouvrir mon application',
+  description: 'Ouvre l’application ou active sa fenêtre existante.',
+  input: Plugin.NoInput,
+  defaults: {},
+  tile: { label: 'Mon app', icon: 'play' },
+  run: (api: MyController) => api.open,
+  feedback: (api) =>
+    Effect.map(api.running, (running) => ({
+      icon: 'play',
+      text: running ? 'OUVERT' : 'FERMÉ',
+      tone: running ? 'positive' : 'neutral',
+    })),
+});
+```
+
+Include this action in `actions` on `Plugin.define` / `Plugin.fromLayer`. It appears
+under **Tiles des plugins** in the key inspector, even when the plugin is disabled.
+Selecting it prepares the label, action and typed default parameters; saving never
+executes it. The usual trigger selector still supports short, long and double presses.
+The browser preview and hardware share `KeyCard` / `FeedbackIcon`. No plugin-specific
+editor component or USB writer is needed. Without `feedback`, `tile` supplies its
+icon with **PRÊT**; disabling uses **DÉSACTIVÉ**. A custom `unavailable` overrides that.
+
+Discord, Spotify / Spotifast, OBS and ChatGPT / Codex export launch tiles with their
+brand icons. `application-tiles.ts` is their small presentation adapter;
+`system-control/Desktop` owns XDG discovery, window state, launching and focus.
+The Spotify tile prefers an existing player, otherwise launches Spotifast when
+installed and falls back to Spotify. Launch tiles display **OUVERT**, **FERMÉ**,
+**NON INSTALLÉ**, or **ÉTAT INCONNU**. Open/closed refers to a matching niri window;
+an app running only in the tray has no open window. Window state refreshes every
+second through one shared Desktop service. A press rechecks windows before opening
+or focusing. Launching uses literal `gio launch` arguments and unreferences the
+launcher, so disabling the plugin does not terminate the user’s GUI application.
+
+ChatGPT / Codex launch tiles are separate from Dot push-to-talk: opening an app
+needs neither microphone capture nor a configured voice bridge. OBS activation
+is independent of WebSocket availability. Its managed system Layer owns background
+reconnects; offline RPC actions return `IntegrationError` and leave launch/configuration
+available. Launching OBS never starts recording. These are key-action presets,
+not the future LCD SurfaceHost/scene tile contract described in the architecture plan.
+
 ## Use the built-in plugins
 
 The editor's **Fonctionnalités** switches control **Mixer audio**, **Applications et scripts** and **Raccourcis**.

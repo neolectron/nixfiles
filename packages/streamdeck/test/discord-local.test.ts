@@ -1,6 +1,6 @@
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
-import { Cause, ConfigProvider, Deferred, Effect, Fiber, Layer } from 'effect';
+import { Cause, ConfigProvider, Deferred, Effect, Fiber, Layer, Schedule } from 'effect';
 import { DesktopKeys, makeDiscordKeys } from '../src/desktop-keys.ts';
 import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
@@ -51,7 +51,7 @@ it.live('explicit legacy auto mode uses local chords without OAuth and restores 
   Effect.scoped(
     Effect.gen(function* () {
       const mock = desktop();
-      const api = yield* Discord.configured.pipe(
+      const api: Discord.Controller = yield* Discord.configured.pipe(
         Effect.provide(Layer.mergeAll(mock.layer, DiscordTransport.layer, DiscordOAuth.layer)),
         Effect.provideService(
           ConfigProvider.ConfigProvider,
@@ -134,20 +134,22 @@ it.live('cancelling a shortcut restores the original window through its finalize
   ),
 );
 
-it.live('an explicitly requested RPC connection retains its configuration error', () =>
+it.live('an unconfigured RPC service activates while preserving its operation error', () =>
   Effect.scoped(
     Effect.gen(function* () {
-      const result = yield* Effect.result(
-        Discord.configured.pipe(
-          Effect.provide(
-            Layer.mergeAll(desktop().layer, DiscordTransport.layer, DiscordOAuth.layer),
-          ),
-          Effect.provideService(
-            ConfigProvider.ConfigProvider,
-            ConfigProvider.fromEnvRecord({ STREAMDECK_DISCORD_BACKEND: 'rpc' }),
-          ),
+      const api: Discord.Controller = yield* Discord.configured.pipe(
+        Effect.provide(Layer.mergeAll(desktop().layer, DiscordTransport.layer, DiscordOAuth.layer)),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          ConfigProvider.fromEnvRecord({ STREAMDECK_DISCORD_BACKEND: 'rpc' }),
         ),
       );
+      const result = yield* Effect.repeat(Effect.result(api.current), {
+        until: (result) =>
+          result._tag === 'Failure' &&
+          result.failure.message.includes('Connexion RPC Discord à configurer'),
+        schedule: Schedule.spaced(1),
+      }).pipe(Effect.timeout('1 second'));
       assert.strictEqual(result._tag, 'Failure');
       if (result._tag === 'Failure')
         assert.ok(result.failure.message.includes('Connexion RPC Discord à configurer'));

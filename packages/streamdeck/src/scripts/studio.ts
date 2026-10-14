@@ -29,7 +29,7 @@ import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
 import * as Events from '../studio-events.ts';
-import * as DesktopApps from '../desktop-apps.ts';
+import * as DesktopApps from '@nixfiles/system-control/desktop.ts';
 import * as Actions from '../studio-actions.tsx';
 import { StudioError } from '../studio-errors.ts';
 import {

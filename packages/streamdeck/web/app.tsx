@@ -9,6 +9,7 @@ import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.tsx';
 import { TargetPreview, zoneLabel } from './zone-map.tsx';
 import * as Fields from '../src/plugin-fields.ts';
+import { PluginTiles } from './plugin-tiles.tsx';
 import { PluginFields } from './plugin-fields.tsx';
 import { PluginControls } from './plugin-controls.tsx';
 import { KeyGrid } from './key-grid.tsx';
@@ -114,6 +115,12 @@ function KeyInspector({
   const [notice, setNotice] = useState('');
   const dirty = JSON.stringify(draft) !== saved;
   const definition = catalogue.actions.find((action) => action.id === draft.action);
+  const draftTile =
+    draft.action === 'plugin'
+      ? catalogue.pluginActions.find(
+          (action) => action.plugin === draft.values.plugin && action.id === draft.values.command,
+        )?.tile
+      : undefined;
   const heldAction =
     selected.binding?.action === 'plugin' &&
     catalogue.pluginActions.find(
@@ -278,6 +285,25 @@ function KeyInspector({
       </div>
       <p className="inspector-intro">Choisis ce que fait cette touche.</p>
       <form onSubmit={submit}>
+        <PluginTiles
+          catalogue={catalogue}
+          busy={busy}
+          onChoose={(action) => {
+            setDraft({
+              ...draft,
+              action: 'plugin',
+              label: action.tile?.label ?? action.name,
+              values: {
+                plugin: action.plugin,
+                command: action.id,
+                ...Fields.draft(action.schema, action.defaults),
+              },
+              activation: action.interaction === 'hold' ? 'press' : draft.activation,
+            });
+            setError('');
+            setNotice('');
+          }}
+        />
         <label className="field">
           <span>Action</span>
           <select
@@ -574,7 +600,13 @@ function KeyInspector({
                   : 0
               }
               status="idle"
-              feedback={dirty ? null : selected.feedback}
+              feedback={
+                dirty
+                  ? draftTile
+                    ? { icon: draftTile.icon, tone: 'neutral', text: 'À ENREGISTRER' }
+                    : null
+                  : selected.feedback
+              }
             />
             <span>Aperçu de l’affectation</span>
           </div>
