@@ -2,8 +2,8 @@
 
 ## Device heading and plugin sidebar — 14 October 2026
 
-The global navbar is removed. The connection dot/status precedes the device name
-above its preview. The name comes from HID discovery/open metadata; an offline
+The global navbar is removed. The connection dot precedes the device name, with
+its status label below the name, above the preview. The name comes from HID discovery/open metadata; an offline
 canvas no longer claims to be a detected + XL. Before discovery it says Stream Deck,
 then keeps the most recently detected model through a disconnection. Detection and
 reconnection fixtures cover Mini, XL and + names without changing the device profile.
