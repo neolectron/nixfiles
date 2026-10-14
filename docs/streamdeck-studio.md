@@ -13,6 +13,10 @@ already assigned to dial presses.
 - `studio-actions.ts`: persisted bindings, scoped execution, cancellation and
   key feedback. Desktop applications launch through `gio launch`; commands use
   Effect's process service with literal argv and bounded captured output.
+- `studio-layout.ts`: pure projections and validation for disjoint zones, nested
+  folders, independent page cursors and fixed tiles. Stable shortcut IDs preserve
+  running jobs and feedback through moves and navigation. Automatic Return tiles
+  remain available on every folder page; cyclic folder links are rejected.
 - `deck-preview.ts`: decorates the existing device, records successful RGB writes
   and composes LCD regions. PNG encoding is lazy and cached by revision; there is
   one HID owner and no second hardware subscription for the browser.
@@ -34,10 +38,15 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-53 passing tests, including exact preview pixels, partial LCD composition,
+60 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.
+Navigation tests also cover exact legacy backup/migration, nested folders and
+cycle rejection, independent zone pages, fixed navigation buttons, stale slot
+addresses, physical LCD pagination with pinned Master, hidden command completion,
+empty-page behavior when pinning a shortcut, and folder capacity guards that
+preserve both Return and a content slot.
 The 22 keep-awake tests also pass. Frozen pnpm installation and Nix flake checks
 passed after the dependency changes.
 
@@ -56,14 +65,30 @@ immediate physical input rather than the last-event footer. An automated test
 checks both held and released snapshots for keys and dials without relying on
 polling. Manuel confirmed that the key highlight follows the physical hold.
 
+For the folder/pagination increment, the real profile was organized through the
+editor: **Raccourcis** owns keys 1–9, **Outils** is on key 3 and contains Hello CLI,
+and fixed **Page − / Page +** tiles on keys 10/11 target Raccourcis. Its second
+page contains an inert **Page 2** counter. Terminal remains in its original root
+slot. The exact previous profile is backed up inside the ignored `.studio/`
+directory. Manuel confirmed the physical sequence next page, previous page,
+folder, Hello CLI and Return: only the first row changes while pagination tiles
+and the real LCD mixer remain in place. The mock browser also verified creation,
+move, double-click folder opening, counters, targeted paging and pinning.
+
 Desktop and 390-pixel mobile views were inspected in a real browser; mobile has
 no horizontal overflow. Backend watch restarts release the HID handle and HTTP
 connections before reopening. The real editor remains running in the
 **Stream Deck Studio Dev** terminal; the temporary mock editor was stopped.
 
+The in-app browser can land on a connection error when its Vite reload races a
+Node watch restart after shared TypeScript edits. The backend recovers; reopening
+the localhost page restores the editor. This development friction is tracked as
+papercut `p_c81bdc5370`; it does not affect the verified hardware navigation.
+
 ## Current boundaries
 
-One saved profile, three built-in actions and existing audio dial/touch behavior.
+One saved profile, seven built-in actions, nested folders, independent key zones,
+fixed shortcuts and pagination of either key content or the existing LCD mixer.
 Dial/touch rebinding, custom icon picking, profile switching, context rules and
 Elgato-compatible plugin hosting remain later increments. The desktop catalogue
 reads `.desktop` files in standard XDG application directories at startup.

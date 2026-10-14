@@ -561,3 +561,98 @@ small{
 .dial-control.pressed .knob circle:nth-last-child(2){
   fill:#486b4a
 }
+.layout-controls{
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid var(--line)
+}
+.zone-navigation{
+  display:flex;
+  flex-direction:column;
+  gap:16px
+}
+.zone-navigation-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+.zone-path{
+  font-size:13px;
+  min-width:0;
+  overflow-wrap:anywhere
+}
+.zone-path>button{
+  border-color:transparent;
+  background:transparent;
+  padding:5px 0;
+  font-weight:700;
+  color:var(--accent)
+}
+.zone-page-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  font-size:12px
+}
+.zone-page-actions button{
+  padding:7px 9px
+}
+.page-number{
+  min-width:40px;
+  text-align:center;
+  font-variant-numeric:tabular-nums
+}
+.organization-details{
+  margin-top:18px
+}
+.organization-details summary{
+  cursor:pointer;
+  font-size:14px;
+  color:#c4c8d1;
+  padding:6px 0
+}
+.organization-details summary:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:3px
+}
+.organization-forms{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:24px;
+  margin-top:20px
+}
+.organization-forms .field{
+  margin-top:14px
+}
+.field-hint{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
+  margin-top:8px
+}
+.shortcut-organization{
+  border-top:1px solid var(--line);
+  margin-top:24px;
+  padding-top:22px
+}
+.pin-field{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-size:13px;
+  line-height:1.5;
+  margin:14px 0 20px
+}
+.pin-field input{
+  width:auto;
+  accent-color:var(--accent);
+  margin-top:3px
+}
+.zone-range{
+  display:block;
+  font-size:11px;
+  margin:1px 0 3px
+}

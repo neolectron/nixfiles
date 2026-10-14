@@ -83,8 +83,9 @@ The default profile is `packages/streamdeck/.studio/profile.json`, ignored by Gi
 use `--profile /absolute/path.json` and `--port 3901` to select another profile or
 port. Writes use an adjacent temporary file and atomic rename, with mode `0600`.
 Concurrent stale edits are rejected. A malformed existing profile stops startup
-instead of being replaced. Unconfigured keys keep their old physical images,
-which HID cannot read back; the editor marks them as free until it writes them.
+instead of being replaced. Legacy profiles initially preserve unknown physical
+images, which HID cannot read back. Once the layout is managed by a version 2
+profile, empty keys are explicitly cleared, including after a restart.
 
 The server binds only to loopback and checks the origin and a custom header on
 mutations. Closing the browser leaves the deck engine running. Commands belong
@@ -97,6 +98,38 @@ and TypeScript modules on demand with HMR; no build script or emitted JS is adde
 The shared [key card](src/ui/key-card.ts) and [volume card](src/ui/volume-card.ts)
 are pure React views. Effect owns HTTP, SSE, validation, persistence, child process
 lifecycle and device state. See the [implementation evidence](../../docs/streamdeck-studio.md).
+
+## Folders and partial pagination
+
+Below the preview, open **Organiser les dossiers et les zones**. Select a free
+key and create a named folder. Select any existing shortcut and use the
+inspector's **Déplacer vers** field to move it into that folder or another zone.
+Application, command, counter, folder and navigation shortcuts all use this same
+mechanism. Folders can be nested; cycles are rejected. Double-click a navigation
+tile in the editor, or press it on the hardware, to use it. A folder reserves the
+first non-fixed key for **Retour** on every page; it cannot trap navigation.
+
+A zone owns an explicit set of keys, for example `1-9` for the first row or
+`1-9, 19-27` for two rows. Creating a zone takes those keys from the main zone
+while preserving their shortcuts on every existing page. The main zone must keep
+at least one non-fixed key. Each zone navigates its own folder/page independently;
+its controls below the preview show the key ranges and breadcrumb. **Ajouter une
+page** creates a persistent empty page in that zone's current folder or root.
+
+Assign **Page suivante** or **Page précédente** to any key and choose its target:
+the key's own zone, another named zone, or **Mixer audio LCD**. Paging wraps around
+at the ends. **Fixer sur toutes les pages et dossiers de cette zone** keeps a
+shortcut at its physical key while that zone navigates. Fixed keys reduce the
+capacity available for page content; folders also reserve one key for Return.
+The LCD target uses the existing audio pagination and keeps Master pinned.
+
+Profile version 1 is read without changing its file. The first configuration
+write saves an exact adjacent `.v1.backup` before atomically writing version 2.
+Shortcuts have stable IDs: moves and navigation preserve their live counters,
+command output and scoped jobs. Completed jobs redraw only their currently
+visible tile. Navigation history resets to each zone's root on restart, while
+folders, pages, fixed keys and assignments persist. Edits and web triggers include
+a slot address so an old editor cannot affect a replacement tile after navigation.
 
 ## App audio mixer
 

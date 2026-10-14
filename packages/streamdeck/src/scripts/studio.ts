@@ -6,7 +6,7 @@ import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
 import * as DesktopApps from '../desktop-apps.ts';
 import * as Actions from '../studio-actions.ts';
-import { Trigger, UpdateBinding, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
+import { Navigate, Organize, Trigger, UpdateBinding, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import type { DeckEvent } from '../model.ts';
 import { startMixer, slotsFor } from './audio-mixer.ts';
@@ -18,12 +18,13 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const preview = yield* Preview.make(original);
   const deck = preview.device;
   const applications = options.applications ?? (yield* DesktopApps.discover);
-  const actions = yield* Actions.make(deck, options.profile, applications);
   const input = yield* Ref.make<{ readonly pressed: ReadonlySet<number>; readonly pressedDials: ReadonlySet<number>; readonly sequence: number }>({ pressed: new Set(), pressedDials: new Set(), sequence: 0 });
   const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
   const lastEvent = yield* Ref.make('');
   const mixer = deck.lcds[0]?.pixelSize && deck.dials.length >= 2
     ? yield* startMixer({ renderer: options.renderer ?? 'react' }).pipe(Effect.provideService(StreamDeck, deck)) : undefined;
+  const actions = yield* Actions.make(deck, options.profile, applications, mixer
+    ? (direction) => mixer.changePage(direction).pipe(Effect.mapError((error) => new Actions.StudioError({ message: error.message, status: 500 }))) : undefined);
   const binding = yield* Bindings.start({
     buttons: Object.fromEntries(deck.buttons.map((key) => [key.index, { onPress: actions.press(key.index).pipe(Effect.catch((error) => Effect.logWarning(error.message))) }])),
     onEvent: (event: DeckEvent) => Effect.gen(function*() {
@@ -45,18 +46,21 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   }).pipe(Effect.provideService(StreamDeck, deck));
   const readSnapshot: Effect.Effect<Snapshot> = Effect.gen(function*() {
     const inputView = yield* Ref.get(input);
-    const profile = yield* actions.profile; const states = yield* actions.states;
+    const actionView = yield* actions.view;
     const frames = yield* preview.frames;
     const mix = mixer ? yield* mixer.state : undefined;
     const slots = mixer ? slotsFor(deck.dials, deck.lcds[0]!) : [];
     const appSlots = slots.slice(0, -1); const page = mix?.page ?? 0;
-    return { sessionId, model: deck.info.model, mock: options.mock ?? false,
-      keys: deck.buttons.map((key) => ({ index: key.index, row: key.row ?? 0, column: key.column ?? key.index,
+    return { layout: actionView.layout, sessionId, model: deck.info.model, mock: options.mock ?? false,
+      keys: deck.buttons.map((key) => {
+        const slot = actionView.keys.get(key.index)!;
+        return { index: key.index, row: key.row ?? 0, column: key.column ?? key.index,
         width: key.pixelSize?.width ?? 112, height: key.pixelSize?.height ?? 112,
-        binding: profile.buttons[String(key.index)] ?? null, revision: frames.get(`key/${key.index}`)?.revision ?? 0,
-        pressed: inputView.pressed.has(key.index), count: states.get(key.index)?.count ?? 0,
-        status: states.get(key.index)?.status ?? 'idle', detail: states.get(key.index)?.detail ?? '',
-      })),
+        id: slot.entry?.id ?? null, address: slot.address, zone: slot.zone, pinned: slot.pinned, navigation: slot.virtual,
+        binding: slot.entry?.binding ?? null, revision: frames.get(`key/${key.index}`)?.revision ?? 0,
+        pressed: inputView.pressed.has(key.index), count: slot.state.count,
+        status: slot.state.status, detail: slot.state.detail,
+      }; }),
       lcds: deck.lcds.map((lcd) => ({ index: lcd.index, width: lcd.pixelSize!.width, height: lcd.pixelSize!.height, revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0 })),
       dials: slots.map((slot, i) => {
         const master = i === slots.length - 1;
@@ -100,12 +104,12 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
   yield* router.add('PUT', '/api/binding', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(UpdateBinding, { onExcessProperty: 'error' })));
-    yield* controller.actions.save(body.key, body.binding, body.expected); return json(yield* controller.snapshot);
+    yield* controller.actions.save(body.key, body.binding, body.expected, body.address); return json(yield* controller.snapshot);
   })));
   yield* router.add('POST', '/api/trigger', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Trigger, { onExcessProperty: 'error' })));
-    yield* controller.actions.press(body.key); return json(yield* controller.snapshot);
+    yield* controller.actions.press(body.key, body.address); return json(yield* controller.snapshot);
   })));
   yield* router.add('POST', '/api/page', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
@@ -115,7 +119,17 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
   yield* router.add('POST', '/api/cancel', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Trigger, { onExcessProperty: 'error' })));
-    yield* controller.actions.cancel(body.key); return json(yield* controller.snapshot);
+    yield* controller.actions.cancel(body.key, body.address); return json(yield* controller.snapshot);
+  })));
+  yield* router.add('POST', '/api/organize', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Organize, { onExcessProperty: 'error' })));
+    yield* controller.actions.organize(body); return json(yield* controller.snapshot);
+  })));
+  yield* router.add('POST', '/api/navigate', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Navigate, { onExcessProperty: 'error' })));
+    yield* controller.actions.navigate(body); return json(yield* controller.snapshot);
   })));
   return router.asHttpEffect().pipe(Effect.provideService(HttpIncomingMessage.MaxBodySize, ByteSize.bytes(65536)));
 });

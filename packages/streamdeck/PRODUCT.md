@@ -30,6 +30,10 @@ First editor actions: launch an installed application, run a script/CLI, and
 a visual counter for testing. Saving a binding never executes it.
 App/master mute remains on the existing dials. No implicit microphone or
 recording activation. Configuration stays in the isolated clone by default.
+Named folders can contain any shortcut and nested folders. Disjoint key zones
+navigate independently; pagination actions target a zone or the LCD audio mixer.
+Fixed shortcuts remain available through navigation, and folders always provide
+a Return key. Existing profiles migrate with a backup and preserve assignments.
 
 ## Brand Commitments
 
