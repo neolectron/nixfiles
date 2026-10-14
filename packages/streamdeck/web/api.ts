@@ -1,14 +1,7 @@
 import { Data, Effect, Result, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
-import {
-  Catalogue,
-  Snapshot,
-  type ButtonBinding,
-  type Navigate,
-  type Organize,
-  type DialInput,
-} from '../src/studio-contract.ts';
+import { Catalogue, Snapshot, type DialInput, type UpdateProfile } from '../src/studio-contract.ts';
 import type { AppInput } from '@nixfiles/system-control/discord-contract.ts';
 class RequestError extends Data.TaggedError('RequestError')<{
   readonly message: string;
@@ -50,15 +43,8 @@ export const dialInput = (input: typeof DialInput.Type) =>
 export const catalogue = json('/api/catalogue').pipe(
   Effect.flatMap(Schema.decodeUnknownEffect(Catalogue)),
 );
-export const save = (
-  key: number,
-  binding: unknown,
-  expected: ButtonBinding | null,
-  address: string,
-) =>
-  json('/api/binding', 'PUT', { key, binding, expected, address }).pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),
-  );
+export const saveProfile = (input: typeof UpdateProfile.Type) =>
+  json('/api/profile', 'PUT', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const cancel = (key: number, address: string) =>
   json('/api/cancel', 'POST', { key, address }).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),
@@ -85,10 +71,6 @@ export const keyInput = (
     revision,
     ...(owner ? { owner } : {}),
   }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
-export const organize = (command: Organize) =>
-  json('/api/organize', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
-export const navigate = (command: Navigate) =>
-  json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const setPlugin = (id: string, enabled: boolean, expected: boolean) =>
   json('/api/plugin', 'POST', { id, enabled, expected }).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),

@@ -7,8 +7,10 @@ import {
   type HTMLAttributes,
   type PointerEvent,
 } from 'react';
-import type { Snapshot } from '../src/studio-contract.ts';
+import type { Snapshot, Organize, Navigate } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
+import { KeyCard } from '../src/ui/key-card.tsx';
+import { Effect } from 'effect';
 import { useKeyInput } from './use-key-input.ts';
 import { DragGrip } from './drag-grip.tsx';
 type Key = Snapshot['keys'][number];
@@ -18,6 +20,24 @@ type Gesture = {
   session: string;
 };
 const movable = (key: Key) => !key.navigation && key.status !== 'running' && !key.pressed;
+const draftNavigation = (key: Key): Navigate | null => {
+  const binding = key.binding;
+  if (!binding) return null;
+  if (binding.action === 'go-back') return { zone: key.zone, operation: 'back' };
+  if (
+    binding.action !== 'open-folder' &&
+    binding.action !== 'page-next' &&
+    binding.action !== 'page-previous'
+  )
+    return null;
+  const target = binding.parameters.target ?? 'current';
+  if (target === 'audio') return null;
+  const zone = target === 'current' ? key.zone : target;
+  return binding.action === 'open-folder'
+    ? { zone, operation: 'open', folder: binding.parameters.folder }
+    : { zone, operation: binding.action === 'page-next' ? 'next' : 'previous' };
+};
+
 /** Action and editing are sibling controls: editing can never bubble into a plugin press. */
 function DeckCell({
   snapshot,
@@ -31,6 +51,7 @@ function DeckCell({
   dragHandle,
   dragHandlers,
   children,
+  onDraftNavigate,
 }: {
   snapshot: Snapshot;
   deckKey: Key;
@@ -46,6 +67,7 @@ function DeckCell({
   dragHandlers: HTMLAttributes<HTMLButtonElement>;
   dragHandle: boolean;
   children: ReactNode;
+  onDraftNavigate?: () => void;
 }) {
   const { pressed, handlers, cancel } = useKeyInput({
     keyIndex: deckKey.index,
@@ -74,8 +96,8 @@ function DeckCell({
         data-deck-key={deckKey.index}
         aria-label={`Touche ${deckKey.index + 1} · ${deckKey.binding?.label ?? snapshot.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(deckKey.index))?.name ?? 'libre'}`}
         aria-pressed={pressed || deckKey.pressed}
-        disabled={disabled}
-        {...handlers}
+        disabled={disabled && !onDraftNavigate}
+        {...(onDraftNavigate ? { onClick: onDraftNavigate } : handlers)}
       >
         {children}
       </button>
@@ -136,6 +158,9 @@ export function KeyGrid({
   interactive,
   empty,
   tileTarget = null,
+  draft = false,
+  onOrganize,
+  onNavigate,
 }: {
   snapshot: Snapshot;
   selected: number | null;
@@ -146,6 +171,9 @@ export function KeyGrid({
   onSnapshot: (snapshot: Snapshot) => void;
   interactive: boolean;
   tileTarget?: number | null;
+  draft?: boolean;
+  onOrganize: (command: Organize) => Effect.Effect<Snapshot, unknown>;
+  onNavigate: (command: Navigate) => Effect.Effect<Snapshot, unknown>;
 }) {
   const drag = useRef<Gesture | null>(null);
   const pointerDrag = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
@@ -203,8 +231,8 @@ export function KeyGrid({
     setError('');
     setNotice('');
     try {
-      const next = await Api.run(
-        Api.organize({
+      await Api.run(
+        onOrganize({
           operation: 'exchange',
           source: from.key.index,
           target: to.index,
@@ -213,10 +241,10 @@ export function KeyGrid({
           revision: from.revision,
         }),
       );
-      onSnapshot(next);
+
       onSelect(to.index);
       setNotice(
-        `« ${invariant(from.key.binding, 'key-grid').label} » déplacé vers la touche ${to.index + 1}.`,
+        `« ${invariant(from.key.binding, 'key-grid').label} » déplacé vers la touche ${to.index + 1} dans le brouillon.`,
       );
       document.querySelector<HTMLButtonElement>(`[data-deck-key="${to.index}"]`)?.focus();
     } catch (cause) {
@@ -242,6 +270,18 @@ export function KeyGrid({
               onError={(cause) =>
                 setError(cause instanceof Error ? cause.message : 'L’action a échoué.')
               }
+              {...(draft && allowed && draftNavigation(key)
+                ? {
+                    onDraftNavigate: () => {
+                      void Api.run(onNavigate(invariant(draftNavigation(key), 'key-grid'))).catch(
+                        (cause) =>
+                          setError(
+                            cause instanceof Error ? cause.message : 'La navigation a échoué.',
+                          ),
+                      );
+                    },
+                  }
+                : {})}
               dragHandle={allowed && movable(key) && !!key.binding}
               dragHandlers={{
                 onPointerDown: (event) => {
@@ -323,7 +363,21 @@ export function KeyGrid({
                 },
               }}
             >
-              {key.revision ? (
+              {draft && key.binding ? (
+                <svg width="100%" height="100%" viewBox="0 0 100 100" aria-hidden={true}>
+                  <foreignObject width={100} height={100}>
+                    <KeyCard
+                      width={100}
+                      height={100}
+                      label={key.binding.label}
+                      action={key.binding.action}
+                      count={key.count}
+                      status={key.status}
+                      feedback={key.feedback}
+                    />
+                  </foreignObject>
+                </svg>
+              ) : !draft && key.revision ? (
                 <img
                   src={`/api/image/key/${key.index}?session=${snapshot.sessionId}&revision=${key.revision}`}
                   alt=""
@@ -343,7 +397,7 @@ export function KeyGrid({
       ) : null}
       {busy || notice ? (
         <p className="rearrange-status" role="status">
-          {busy ? 'Enregistrement du déplacement…' : notice}
+          {busy ? 'Préparation du déplacement…' : notice}
         </p>
       ) : null}
       {error ? (

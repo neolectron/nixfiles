@@ -1,7 +1,7 @@
 import { invariant } from '../src/errors.ts';
 import { useState, type FormEvent } from 'react';
 import { Effect } from 'effect';
-import type { Snapshot } from '../src/studio-contract.ts';
+import type { Snapshot, Organize, Navigate } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
 import { keyRanges, zoneLabel, ZoneMap, TargetPreview } from './zone-map.tsx';
 type KeyView = Snapshot['keys'][number];
@@ -9,8 +9,8 @@ type Props = {
   snapshot: Snapshot;
   selected: KeyView | undefined;
   online: boolean;
-  dirty: boolean;
-  onSnapshot: (snapshot: Snapshot) => void;
+  locked: boolean;
+  onOrganize: (command: Organize) => Effect.Effect<Snapshot, unknown>;
 };
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'La disposition n’a pas pu être modifiée.';
@@ -32,6 +32,7 @@ function ZoneEditor({
   id,
   disabled,
   run,
+  onOrganize,
   close,
 }: {
   snapshot: Snapshot;
@@ -39,6 +40,7 @@ function ZoneEditor({
   disabled: boolean;
   run: (effect: Effect.Effect<Snapshot, unknown>) => Promise<void>;
   close: () => void;
+  onOrganize: (command: Organize) => Effect.Effect<Snapshot, unknown>;
 }) {
   const existing = snapshot.layout.zones.find((zone) => zone.id === id);
   const [name, setName] = useState('');
@@ -53,7 +55,7 @@ function ZoneEditor({
       onSubmit={(event) => {
         event.preventDefault();
         void run(
-          Api.organize(
+          onOrganize(
             existing
               ? { operation: 'resize-zone', zone: id, keys, revision: snapshot.layout.revision }
               : {
@@ -101,7 +103,7 @@ function ZoneEditor({
           className="primary"
           disabled={disabled || !keys.length || (!existing && !name.trim())}
         >
-          {existing ? 'Enregistrer la zone' : 'Créer la zone'}
+          {existing ? 'Appliquer au brouillon' : 'Créer la zone'}
         </button>
         <button type="button" onClick={close}>
           Fermer
@@ -110,7 +112,14 @@ function ZoneEditor({
     </form>
   );
 }
-export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }: Props) {
+export function LayoutControls({
+  snapshot,
+  selected,
+  online,
+  locked,
+  onOrganize,
+  onNavigate,
+}: Props & { onNavigate: (command: Navigate) => Effect.Effect<Snapshot, unknown> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [folderName, setFolderName] = useState('');
@@ -118,12 +127,12 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
   const [editing, setEditing] = useState<string | null>(null);
   const [renameId, setRenameId] = useState('');
   const [rename, setRename] = useState('');
-  const disabled = busy || dirty || !online;
+  const disabled = busy || locked || !online;
   const run = async (effect: Effect.Effect<Snapshot, unknown>) => {
     setBusy(true);
     setError('');
     try {
-      onSnapshot(await Api.run(effect));
+      await Api.run(effect);
     } catch (candidateError) {
       setError(message(candidateError));
     } finally {
@@ -134,7 +143,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
     event.preventDefault();
     if (selected)
       void run(
-        Api.organize({
+        onOrganize({
           operation: 'create-folder',
           key: selected.index,
           name: folderName.trim(),
@@ -151,7 +160,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
             <div className="zone-path">
               <button
                 disabled={disabled}
-                onClick={() => void run(Api.navigate({ zone: zone.id, operation: 'root' }))}
+                onClick={() => void run(onNavigate({ zone: zone.id, operation: 'root' }))}
                 title="Revenir à la racine de cette zone"
               >
                 {zone.name}
@@ -175,7 +184,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
               {zone.folder ? (
                 <button
                   disabled={disabled}
-                  onClick={() => void run(Api.navigate({ zone: zone.id, operation: 'back' }))}
+                  onClick={() => void run(onNavigate({ zone: zone.id, operation: 'back' }))}
                   aria-label={`Retour dans ${zone.name}`}
                 >
                   Retour
@@ -184,7 +193,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
               <button
                 disabled={disabled || zone.pages < 2}
                 aria-label={`Page précédente · ${zone.name}`}
-                onClick={() => void run(Api.navigate({ zone: zone.id, operation: 'previous' }))}
+                onClick={() => void run(onNavigate({ zone: zone.id, operation: 'previous' }))}
               >
                 <Arrow previous={true} />
               </button>
@@ -195,7 +204,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
               <button
                 disabled={disabled || zone.pages < 2}
                 aria-label={`Page suivante · ${zone.name}`}
-                onClick={() => void run(Api.navigate({ zone: zone.id, operation: 'next' }))}
+                onClick={() => void run(onNavigate({ zone: zone.id, operation: 'next' }))}
               >
                 <Arrow />
               </button>
@@ -203,7 +212,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
                 disabled={disabled}
                 onClick={() =>
                   void run(
-                    Api.organize({
+                    onOrganize({
                       operation: 'add-page',
                       zone: zone.id,
                       revision: snapshot.layout.revision,
@@ -225,6 +234,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
           id={editing}
           disabled={disabled}
           run={run}
+          onOrganize={onOrganize}
           close={() => setEditing(null)}
         />
       ) : null}
@@ -284,7 +294,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
               onSubmit={(event) => {
                 event.preventDefault();
                 void run(
-                  Api.organize({
+                  onOrganize({
                     operation: 'rename-folder',
                     id: renameId,
                     name: rename.trim(),
@@ -339,21 +349,20 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
           {error}
         </p>
       ) : null}
-      {dirty ? <p className="field-hint">Modifications non enregistrées.</p> : null}
     </section>
   );
 }
-export function ShortcutOrganization({ snapshot, selected, online, dirty, onSnapshot }: Props) {
+export function ShortcutOrganization({ snapshot, selected, online, locked, onOrganize }: Props) {
   const [destination, setDestination] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   if (!selected?.id || selected.navigation) return null;
-  const disabled = busy || dirty || !online;
+  const disabled = busy || locked || !online;
   const run = async (effect: Effect.Effect<Snapshot, unknown>) => {
     setBusy(true);
     setError('');
     try {
-      onSnapshot(await Api.run(effect));
+      await Api.run(effect);
     } catch (candidateError) {
       setError(message(candidateError));
     } finally {
@@ -370,7 +379,7 @@ export function ShortcutOrganization({ snapshot, selected, online, dirty, onSnap
           disabled={disabled}
           onChange={(event) =>
             void run(
-              Api.organize({
+              onOrganize({
                 operation: 'pin',
                 key: selected.index,
                 value: (event.currentTarget as HTMLInputElement).checked,
@@ -385,7 +394,7 @@ export function ShortcutOrganization({ snapshot, selected, online, dirty, onSnap
         onSubmit={(event) => {
           event.preventDefault();
           void run(
-            Api.organize({
+            onOrganize({
               operation: 'move',
               id: invariant(selected.id, 'layout-controls'),
               destination,

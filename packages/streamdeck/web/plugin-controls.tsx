@@ -69,6 +69,7 @@ export function PluginControls({
   snapshot,
   online,
   dirty,
+  locked,
   catalogue,
   tileTarget,
   onChooseTile,
@@ -79,6 +80,7 @@ export function PluginControls({
   snapshot: Snapshot;
   online: boolean;
   dirty: boolean;
+  locked: boolean;
   catalogue: Catalogue | undefined;
   tileTarget: number | null;
   onChooseTile: (action: Catalogue['pluginActions'][number]) => void;
@@ -140,7 +142,7 @@ export function PluginControls({
                 plugin={plugin}
                 catalogue={catalogue}
                 tileTarget={tileTarget}
-                busy={!online || !!busy || connecting || dirty}
+                busy={!online || !!busy || connecting || locked}
                 onChooseTile={onChooseTile}
                 onDropTile={onDropTile}
                 onTileTarget={onTileTarget}
@@ -157,7 +159,7 @@ export function PluginControls({
                 {plugin.id === 'discord' ? (
                   <DiscordConnection
                     snapshot={snapshot}
-                    disabled={!online || !!busy || dirty}
+                    disabled={!online || !!busy || dirty || locked}
                     onSnapshot={onSnapshot}
                     onBusy={setConnecting}
                   />
@@ -170,7 +172,9 @@ export function PluginControls({
               type="checkbox"
               aria-label={`Activer ${plugin.name}`}
               checked={plugin.enabled}
-              disabled={!online || !!busy || connecting || dirty || plugin.phase === 'unsupported'}
+              disabled={
+                !online || !!busy || connecting || dirty || locked || plugin.phase === 'unsupported'
+              }
               onChange={(event) =>
                 void toggle(plugin, (event.currentTarget as HTMLInputElement).checked)
               }

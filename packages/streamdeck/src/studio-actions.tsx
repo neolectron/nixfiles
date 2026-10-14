@@ -1,11 +1,23 @@
 import { invariant } from './errors.ts';
-import { Crypto, Deferred, Effect, Fiber, FileSystem, Path, Ref, Schema, Semaphore } from 'effect';
+import {
+  Crypto,
+  Deferred,
+  Effect,
+  Equal,
+  Fiber,
+  FileSystem,
+  Path,
+  Ref,
+  Schema,
+  Semaphore,
+} from 'effect';
 import * as Commands from './plugins/commands.ts';
 import { StudioError } from './studio-errors.ts';
 import {
   ButtonBinding,
   Profile,
   StoredProfile,
+  Navigation as NavigationSchema,
   actionParameters,
   type ActionDefinition,
   type ApplicationEntry,
@@ -198,6 +210,7 @@ export const make = (
     yield* checked(() => Layout.validate(loaded, deviceKeys));
     const model = yield* Ref.make({
       profile: loaded,
+      configurationRevision: 0,
       navigation: {} as Layout.Navigation,
       revision: 0,
     });
@@ -244,6 +257,11 @@ export const make = (
       const feedback = yield* Ref.get(feedbacks);
       const projection = Layout.project(current.profile, current.navigation, current.revision);
       return {
+        configuration: {
+          profile: current.profile,
+          navigation: current.navigation,
+          revision: current.configurationRevision,
+        },
         layout: projection.layout,
         keys: new Map(
           [...projection.keys].map(([key, slot]) => [
@@ -358,6 +376,7 @@ export const make = (
             profile: validated,
             navigation,
             revision: before.revision + 1,
+            configurationRevision: before.configurationRevision + 1,
           }));
           legacyText = undefined;
           previousDiscordText = undefined;
@@ -429,6 +448,75 @@ export const make = (
           yield* repaint(slot.zone);
         }),
       );
+    const saveProfile = (
+      input: unknown,
+      navigation: Layout.Navigation,
+      expectedRevision: number,
+      expectedProfile?: Profile,
+    ) =>
+      Semaphore.withPermits(
+        lock,
+        1,
+      )(
+        Effect.gen(function* () {
+          const before = yield* Ref.get(model);
+          if (
+            before.configurationRevision !== expectedRevision ||
+            (expectedProfile && !Equal.equals(before.profile, expectedProfile))
+          )
+            return yield* Effect.fail(
+              invalid(
+                'La configuration a changé dans un autre éditeur. Annule ou recharge avant d’enregistrer.',
+                409,
+              ),
+            );
+          const next = yield* Schema.decodeUnknownEffect(Profile)(input);
+          yield* checked(() => Layout.validate(next, deviceKeys));
+          const validatedNavigation =
+            yield* Schema.decodeUnknownEffect(NavigationSchema)(navigation);
+          yield* checked(() => Layout.validateNavigation(next, validatedNavigation));
+          if (jobs.size || releases.size)
+            return yield* Effect.fail(
+              invalid(
+                'Relâche les touches et arrête les actions en cours avant d’enregistrer.',
+                409,
+              ),
+            );
+          const previousEntries = new Map(
+            Layout.entries(before.profile).map((entry) => [entry.id, entry]),
+          );
+          const changed = Layout.entries(next).filter(
+            (entry) =>
+              JSON.stringify(entry.binding) !==
+              JSON.stringify(previousEntries.get(entry.id)?.binding),
+          );
+          for (const { binding } of changed) {
+            yield* validateTrigger(binding);
+            if (
+              binding.action === 'launch-app' &&
+              !applications.some((app) => app.id === binding.parameters.application)
+            )
+              return yield* Effect.fail(
+                invalid('Application introuvable. Choisis une application dans la liste.'),
+              );
+            if (binding.action === 'plugin')
+              yield* (
+                pluginActions?.validate(
+                  binding.parameters.plugin,
+                  binding.parameters.command,
+                  binding.parameters.input,
+                ) ?? Effect.fail(invalid('Les actions de plugins ne sont pas disponibles.'))
+              );
+          }
+          yield* commit(next, validatedNavigation);
+          for (const entry of changed)
+            yield* setState(entry.id, {
+              ...emptyState,
+              count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0,
+            });
+          yield* repaint();
+        }),
+      );
     const organize = (command: Organize) =>
       Semaphore.withPermits(
         lock,
@@ -440,8 +528,6 @@ export const make = (
             return yield* Effect.fail(
               invalid('La disposition a changé. Recharge-la avant de continuer.', 409),
             );
-          const next = Layout.copy(before.profile);
-          let navigation = before.navigation;
           if (command.operation === 'exchange') {
             const from = yield* currentKey(command.source, command.sourceAddress);
             const to = yield* currentKey(command.target, command.targetAddress);
@@ -457,98 +543,16 @@ export const make = (
                 invalid('Relâche les touches et arrête leurs actions avant de les déplacer.', 409),
               );
             if (command.source === command.target || from.entry?.id === to.entry?.id) return;
-            yield* checked(() => Layout.exchange(next, navigation, command.source, command.target));
-          } else if (command.operation === 'create-folder') {
-            const slot = yield* currentKey(command.key, command.address);
-            if (slot.entry || slot.virtual)
-              return yield* Effect.fail(
-                invalid('Sélectionne une touche libre pour créer un dossier.'),
-              );
-            const id = yield* crypto.randomUUIDv4();
-            next.folders.push({ id, name: command.name, items: [] });
-            const entryId = yield* crypto.randomUUIDv4();
-            yield* checked(() =>
-              Layout.replace(next, navigation, command.key, {
-                id: entryId,
-                binding: {
-                  label: command.name,
-                  action: 'open-folder',
-                  parameters: { folder: id, target: command.target ?? 'current' },
-                },
-              }),
-            );
-          } else if (command.operation === 'move')
-            yield* checked(() => Layout.move(next, command.id, command.destination));
-          else if (command.operation === 'create-zone') {
-            const id = yield* crypto.randomUUIDv4();
-            yield* checked(() => Layout.createZone(next, id, command.name, command.keys));
-          } else if (command.operation === 'resize-zone') {
-            yield* checked(() => Layout.resizeZone(next, command.zone, command.keys));
-            navigation = Layout.navigate(next, navigation, { zone: 'deck', operation: 'root' });
-            navigation = Layout.navigate(next, navigation, {
-              zone: command.zone,
-              operation: 'root',
-            });
-          } else if (command.operation === 'rename-folder') {
-            const folder = next.folders.find(
-              (candidateFolder) => candidateFolder.id === command.id,
-            );
-            if (!folder) return yield* Effect.fail(invalid('Dossier introuvable.'));
-            folder.name = command.name;
-            for (const entry of Layout.entries(next))
-              if (
-                entry.binding.action === 'open-folder' &&
-                entry.binding.parameters.folder === folder.id
-              ) {
-                const replacement = {
-                  ...entry,
-                  binding: { ...entry.binding, label: command.name },
-                }; // Keep folder tiles named after their destination.
-                for (const owner of [...next.zones, ...next.folders])
-                  for (const [i, item] of owner.items.entries())
-                    if (item?.id === entry.id) owner.items[i] = replacement;
-                for (const zone of next.zones)
-                  for (const [key, item] of Object.entries(zone.pinned))
-                    if (item.id === entry.id) zone.pinned[key] = replacement;
-              }
-          } else if (command.operation === 'pin') {
-            const slot = yield* currentKey(command.key, command.address);
-            if (!slot.entry || slot.virtual)
-              return yield* Effect.fail(invalid('Choisis un raccourci pour le fixer.'));
-            const zone = invariant(
-              next.zones.find((candidateZone) => candidateZone.id === slot.zone),
-              'studio-actions',
-            );
-            if (command.value && !slot.pinned) {
-              yield* checked(() => Layout.replace(next, navigation, command.key, null));
-              zone.pinned[String(command.key)] = slot.entry;
-            } else if (!command.value && slot.pinned) {
-              delete zone.pinned[String(command.key)];
-              const items = Layout.container(
-                next,
-                zone.id,
-                Layout.position(navigation, zone.id).folder,
-              ).items as Array<Entry | null>;
-              const hole = items.indexOf(null);
-              if (hole < 0) items.push(slot.entry);
-              else items[hole] = slot.entry;
-            }
-          } else {
-            const zone = next.zones.find((candidateZone) => candidateZone.id === command.zone);
-            if (!zone) return yield* Effect.fail(invalid('Zone introuvable.'));
-            const current = Layout.position(navigation, zone.id);
-            const size = Layout.capacity(zone, current.folder);
-            if (size < 1)
-              return yield* Effect.fail(invalid('Cette zone n’a pas de place disponible.'));
-            const owner = Layout.container(
-              next,
-              zone.id,
-              current.folder,
-            ) as Layout.MutableProfile['folders'][number];
-            const page = Layout.pageCount(next, zone, current.folder);
-            owner.minimumPages = page + 1;
-            navigation = { ...navigation, [zone.id]: { ...current, page } };
           }
+          const next = Layout.copy(before.profile);
+          const ids = {
+            entry: yield* crypto.randomUUIDv4(),
+            folder: yield* crypto.randomUUIDv4(),
+            zone: yield* crypto.randomUUIDv4(),
+          };
+          const navigation = yield* checked(() =>
+            Layout.organize(next, before.navigation, command, ids),
+          );
           yield* commit(next, navigation);
           yield* repaint();
         }),
@@ -782,6 +786,7 @@ export const make = (
       entryStates: Ref.get(states),
       view,
       save,
+      saveProfile,
       press,
       release,
       keyInput: input.input,

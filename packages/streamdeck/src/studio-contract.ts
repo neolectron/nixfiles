@@ -119,6 +119,29 @@ export const Profile = Schema.Struct({
 });
 export type Profile = typeof Profile.Type;
 export const StoredProfile = Schema.Union([LegacyProfile, Profile]);
+const LayoutPosition = Schema.Struct({
+  folder: Schema.NullOr(Schema.String),
+  page: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+export const Navigation = Schema.Record(
+  Schema.String,
+  Schema.Struct({
+    ...LayoutPosition.fields,
+    history: Schema.Array(LayoutPosition).check(Schema.isMaxLength(32)),
+  }),
+);
+export const Configuration = Schema.Struct({
+  profile: Profile,
+  navigation: Navigation,
+  revision: Schema.Int,
+});
+export const UpdateProfile = Schema.Struct({
+  profile: Profile,
+  navigation: Navigation,
+  expectedRevision: Schema.Int,
+  expectedProfile: Profile,
+  sessionId: Schema.NonEmptyString,
+});
 export const UpdateBinding = Schema.Struct({
   key: Schema.Int,
   binding: Schema.NullOr(ButtonBinding),
@@ -303,6 +326,7 @@ const PluginStatus = Schema.Struct({
   lcds: Schema.Array(Schema.Int),
 });
 export const Snapshot = Schema.Struct({
+  configuration: Configuration,
   discordConnection: PublicConnection,
   plugins: Schema.Struct({ revision: Schema.Int, items: Schema.Array(PluginStatus) }),
   layout: LayoutView,
