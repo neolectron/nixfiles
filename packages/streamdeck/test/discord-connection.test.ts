@@ -1,9 +1,12 @@
 import { assert, it } from '@effect/vitest';
 import { NodeServices, NodeSocketServer } from '@effect/platform-node';
 import { ConfigProvider, Deferred, Effect, Fiber, FileSystem, Layer, Redacted } from 'effect';
-import { authorize, DiscordOAuth, make } from '../src/discord-connection.ts';
+import { authorize, DiscordOAuth, make, makeOAuth } from '../src/discord-connection.ts';
+import { HttpClient, HttpClientResponse, type HttpClientRequest } from 'effect/http';
 import { Decoder, DiscordTransport, encode } from '../src/discord-ipc.ts';
 import { IntegrationError, type Message } from '../src/json-socket.ts';
+import { RedirectUri } from '../src/discord-contract.ts';
+import { rpcError } from '../src/discord-rpc-error.ts';
 
 const transport = (denied = false) => {
   const sent: Array<Message> = []; let closed = 0;
@@ -30,11 +33,44 @@ it.effect('IPC decodes split/coalesced frames and bounds frame lengths', () => E
 
 it.live('authorization is interactive, scoped and only requests rpc/identify', () => Effect.gen(function*() {
   const fake = transport(); assert.strictEqual(yield* authorize('123456').pipe(Effect.provide(fake.layer)), 'temporary-code');
-  assert.deepStrictEqual(fake.sent[0]!.args, { client_id: '123456', scopes: ['rpc', 'identify'] }); assert.strictEqual(fake.closed(), 1);
+  assert.deepStrictEqual(fake.sent[0]!.args, { client_id: '123456', scopes: ['rpc', 'identify'], redirect_uri: RedirectUri }); assert.strictEqual(fake.closed(), 1);
   const denied = transport(true); const result = yield* Effect.result(authorize('123456').pipe(Effect.provide(denied.layer)));
   assert.strictEqual(result._tag, 'Failure'); assert.strictEqual(denied.closed(), 1);
   if (result._tag === 'Failure') assert.ok(!result.failure.message.includes('DO NOT EXPOSE'));
 }).pipe(Effect.provide(NodeServices.layer)));
+
+it.effect('RPC diagnostics distinguish a missing redirect from refused scopes and never echo arbitrary payloads', () => Effect.sync(() => {
+  const missing = rpcError('AUTHORIZE', { code: 5000, message: 'OAuth2 Error: invalid_request: Missing "redirect_uri" in request.' });
+  assert.ok(missing.message.includes('(5000)')); assert.ok(missing.message.includes('URI de redirection')); assert.ok(!missing.message.includes('testeur'));
+  assert.ok(rpcError('AUTHORIZE', { code: 5000, message: 'OAuth2 Error: invalid_scope: private-secret' }).message.includes('Scopes OAuth refusés'));
+  assert.ok(rpcError('AUTHENTICATE', { code: 4009, message: 'private-access-token' }).message.includes('Jeton OAuth invalide'));
+  assert.ok(rpcError('AUTHORIZE', { code: 4007 }).message.includes('Application ID invalide'));
+  assert.strictEqual(rpcError('AUTHORIZE', { code: 9999, message: 'DO NOT EXPOSE', token: 'private-token' }).message, 'Discord RPC AUTHORIZE (9999) : Commande refusée par Discord.');
+}));
+
+it.live('OAuth code exchange uses the registered redirect URI; refresh grants omit it and errors redact credentials', () => Effect.gen(function*() {
+  const sent: Array<HttpClientRequest.HttpClientRequest> = [];
+  const client = HttpClient.make((request) => Effect.sync(() => {
+    sent.push(request);
+    return HttpClientResponse.fromWeb(request, new Response(JSON.stringify({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  }));
+  const oauth = yield* makeOAuth.pipe(Effect.provideService(HttpClient.HttpClient, client));
+  yield* oauth.exchange('123456', Redacted.make('private-secret'), { code: 'one-time-code' });
+  yield* oauth.exchange('123456', Redacted.make('private-secret'), { refresh: Redacted.make('old-refresh') });
+  const body = (index: number) => {
+    const request = sent[index]!; assert.strictEqual(request.method, 'POST'); assert.strictEqual(request.url, 'https://discord.com/api/oauth2/token');
+    assert.strictEqual(request.body._tag, 'Uint8Array');
+    if (request.body._tag !== 'Uint8Array') throw new Error('Expected encoded form');
+    assert.strictEqual(request.body.contentType, 'application/x-www-form-urlencoded');
+    return new URLSearchParams(new TextDecoder().decode(request.body.body));
+  };
+  assert.strictEqual(body(0).get('redirect_uri'), RedirectUri); assert.strictEqual(body(0).get('code'), 'one-time-code');
+  assert.strictEqual(body(1).get('redirect_uri'), null); assert.strictEqual(body(1).get('refresh_token'), 'old-refresh');
+  const rejected = HttpClient.make((request) => Effect.succeed(HttpClientResponse.fromWeb(request, new Response('private-secret one-time-code', { status: 400 }))));
+  const failing = yield* makeOAuth.pipe(Effect.provideService(HttpClient.HttpClient, rejected));
+  const result = yield* Effect.result(failing.exchange('123456', Redacted.make('private-secret'), { code: 'one-time-code' }));
+  assert.strictEqual(result._tag, 'Failure'); if (result._tag === 'Failure') { assert.ok(!result.failure.message.includes('private-secret')); assert.ok(!result.failure.message.includes('one-time-code')); }
+}));
 
 it.live('native IPC sends a handshake, handles fragmented READY and answers PING before scoped authorization closes', () => Effect.scoped(Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem; const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'discord-ipc-' }); const file = `${directory}/discord-ipc-0`;

@@ -6,6 +6,7 @@ import { commandFromConfig } from './command-bridge.ts';
 import { DesktopKeys, makeDiscordKeys } from '../desktop-keys.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 import { DiscordConnection, DiscordOAuth } from '../discord-connection.ts';
+import { rpcError } from '../discord-rpc-error.ts';
 
 const settings = Schema.Struct({ mute: Schema.Boolean, deaf: Schema.Boolean });
 export type VoiceState = typeof settings.Type;
@@ -22,7 +23,7 @@ export const make = (options: { readonly clientId: string; readonly accessToken:
     }
     if (typeof message.nonce === 'string') {
       const data = typeof message.data === 'object' && message.data !== null && !Array.isArray(message.data) ? message.data as Record<string, unknown> : {};
-      yield* replies.reply(message.nonce, message.evt === 'ERROR' ? new IntegrationError({ message: 'Discord a refusé la commande RPC. Vérifie les autorisations de l’application.' }) : data);
+      yield* replies.reply(message.nonce, message.evt === 'ERROR' ? rpcError(typeof message.cmd === 'string' && /^[A-Z_]+$/.test(message.cmd) ? message.cmd : 'COMMAND', data) : data);
     }
   }));
   yield* Effect.raceFirst(Deferred.await(ready), connection.failure).pipe(Effect.timeout('5 seconds'));
@@ -33,7 +34,7 @@ export const make = (options: { readonly clientId: string; readonly accessToken:
   }).pipe(Effect.mapError((error) => error instanceof IntegrationError ? error : new IntegrationError({ message: 'La requête RPC Discord a échoué.' })));
   yield* request('AUTHENTICATE', { access_token: Redacted.value(options.accessToken) });
   yield* request('SUBSCRIBE', {}, 'VOICE_SETTINGS_UPDATE');
-  const current = request('GET_VOICE_SETTINGS').pipe(Effect.flatMap(Schema.decodeUnknownEffect(settings)), Effect.mapError(() => new IntegrationError({ message: 'Réglages vocaux Discord indisponibles.' })));
+  const current = request('GET_VOICE_SETTINGS').pipe(Effect.flatMap(Schema.decodeUnknownEffect(settings)), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'Réglages vocaux Discord indisponibles.' })));
   const toggle = (field: 'mute' | 'deaf') => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     const before = yield* current;
     yield* request('SET_VOICE_SETTINGS', { [field]: !before[field] });

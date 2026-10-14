@@ -45,8 +45,10 @@ Discord restricts unapproved RPC applications to approved testers.
 ### Connect from the studio
 
 1. Open **Fonctionnalités → Connexion Discord** at `http://127.0.0.1:3900`.
-2. Create an application in the linked Discord Developer Portal. Make sure your
-   account has RPC tester access or the application has Discord approval.
+2. Create an application in the linked Discord Developer Portal. Under
+   **OAuth2 → Redirects**, register exactly `http://127.0.0.1:3900/` and save.
+   The authorization request and code exchange use this same loopback URI.
+   Your account/application also needs the RPC access required by Discord.
 3. Copy **Application ID** and **OAuth2 → Client secret** into the local form,
    then choose **Enregistrer l’application**. Never send the secret in chat.
 4. Keep Discord Desktop open and choose **Autoriser dans Discord**. Approve the
@@ -167,7 +169,7 @@ to 64, expire after five seconds and are removed on cancellation. Keep secrets i
 the service Layer, not in action defaults. Use `Sources.callback` or native Streams
 for notifications; use `DeckDisplay` / `SourceView` for their React feedback.
 
-Validation: 97 Stream Deck tests and 22 keep-awake tests; both package type checks.
+Validation: 100 Stream Deck tests and 22 keep-awake tests; both package type checks.
 The added suite covers a real loopback OBS transport/authentication, failure and
 correlation, Discord state toggles, strict parameter-free actions, physical release
 after paging, stale web release, disable cleanup, partial starts, failed stops and
@@ -183,3 +185,12 @@ oversized-frame rejection, private file mode/persistence, token refresh and
 secret-free public state/errors. HTTP tests reject cross-origin connection writes
 and authorization and check sanitized schema errors. No real Discord OAuth call
 or voice-setting change was made during these tests.
+
+Live authorization diagnosis on 2026-10-14 returned RPC code **5000**, with
+OAuth `invalid_request` and `Missing "redirect_uri" in request`. The previous
+message incorrectly attributed every RPC error to tester/approval access.
+Diagnostics now retain the numeric code and distinguish redirect, scope,
+client-ID, token and permission failures without echoing arbitrary remote data.
+This observed refusal does not establish whether the application has RPC access.
+The configured credentials remain private; the pending setup step is registering
+the loopback redirect and retrying user authorization.
