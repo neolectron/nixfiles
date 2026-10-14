@@ -187,3 +187,41 @@ It reuses CLI authentication and the text adapter's command/model environment
 overrides. Jobs are ephemeral, bounded to ten minutes, with no detached process;
 output/temp files belong to the job scope. MCP/app/plugin integrations are disabled
 per invocation using the same configuration boundary as the selection adapter.
+
+## Dot call control
+
+`DotCall.layer` in `dot-call.ts` offers `call`, `hangup`, `toggle`, `state`,
+`snapshot`, `observe`, `refresh` and `view` (status plus `elapsedSeconds`). Inject
+`DotCallBackend` into `DotCall.serviceLayer` to bind a real client API. Every read
+and command response is validated. Acquisition, observation and refreshing never
+start calls. Controls serialize and read fresh state; `call` is idempotent,
+`hangup` targets the current call ID, and an idle hangup is a no-op. Offline state
+is typed and recoverable. A scoped one-second poll follows external changes.
+The timer uses the actual connection timestamp, never the button-press time.
+
+The default adapter is **unconfigured**: the installed OpenAI app has no identified
+external control/status interface. It reports unavailability without failing
+plugin activation. Custom adapters can configure all three JSON argv environment
+variables: `STREAMDECK_DOT_CALL`, `STREAMDECK_DOT_HANGUP`, `STREAMDECK_DOT_STATUS`.
+Each command must return one of these objects on stdout:
+
+```json
+{"phase":"idle","callId":null,"startedAt":null}
+{"phase":"connecting","callId":"call-123","startedAt":null}
+{"phase":"active","callId":"call-123","startedAt":1792010000000}
+{"phase":"ending","callId":"call-123","startedAt":1792010000000}
+```
+
+`startedAt` is Unix milliseconds from the actual connection, required when active.
+The status command must be read-only. The hangup command receives the expected
+call ID appended as one literal argv argument; the adapter must refuse to hang
+up a different/replacement call. Commands finish promptly (five-second timeout)
+and their processes are scoped. The service never fabricates a connected state
+or confirmed hangup after a failed command. These bridges are extension points,
+not provided OpenAI executables.
+
+Closing the service stops its monitor and revokes retained operations. Calls are
+owned by the external application and survive observer/plugin shutdown; only an
+explicit hangup changes that lifecycle. This differs from hold-to-talk's temporary
+capture session. No audio processing, microphone permissions, credentials or
+private OpenAI app storage are managed by this service.

@@ -1,6 +1,10 @@
 import type { KeyFeedback } from '../key-feedback.ts';
 import { BrandIcon, isBrandIcon } from './brand-icon.tsx';
 const mediaIcons: Partial<Record<KeyFeedback['icon'], string>> = {
+  phone:
+    'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2Z',
+  'phone-end':
+    'M3 15v4h5v-5a15 15 0 0 1 8 0v5h5v-4a2 2 0 0 0-.6-1.4 12 12 0 0 0-16.8 0A2 2 0 0 0 3 15Z',
   play: 'm7 4 14 8-14 8Z',
   pause: 'M6 4h4v16H6ZM14 4h4v16h-4Z',
   stop: 'M5 5h14v14H5Z',

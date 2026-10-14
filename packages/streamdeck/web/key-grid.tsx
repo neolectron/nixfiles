@@ -95,7 +95,7 @@ function DeckCell({
         type="button"
         className="deck-key-action"
         data-deck-key={deckKey.index}
-        aria-label={`Touche ${deckKey.index + 1} · ${deckKey.binding?.label ?? snapshot.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(deckKey.index))?.name ?? 'libre'}`}
+        aria-label={`Touche ${deckKey.index + 1} · ${deckKey.feedback?.label ?? deckKey.binding?.label ?? snapshot.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(deckKey.index))?.name ?? 'libre'}`}
         aria-pressed={pressed || deckKey.pressed}
         disabled={disabled && !onDraftNavigate}
         {...(onDraftNavigate ? { onClick: onDraftNavigate } : handlers)}

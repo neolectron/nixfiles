@@ -649,3 +649,36 @@ never detach processes. Prompt text goes through stdin; temporary output is
 removed on success, failure or cancellation. MCP servers, apps, plugins and web
 search are disabled for these invocations without changing global Codex settings.
 The selected-text transformation retains its stricter tool-free instructions.
+
+## Dot call tiles
+
+**ChatGPT / Codex** exports **Appeler le dot**, **Raccrocher** and **Appel du dot**.
+The first tile toggles call/hangup and changes its visible and accessible label to
+**Raccrocher le dot** while connecting or connected. The explicit hangup tile
+never starts a call. The status tile is read-only; pressing it refreshes state.
+All three follow the same system service, including calls started or ended in
+another interface. Active calls display `mm:ss`, or `h:mm:ss` for long calls,
+using the backend's actual connection timestamp. A requested call has no timer
+until the backend confirms it is active. Preparing or saving tiles never calls.
+
+The presentation is ready, but **the installed OpenAI Dot app is not connected**.
+Its public documentation describes calls from its conversation/profile UI; no
+usable external start/hangup/status API was identified. Until a backend is
+provided, tiles show **À CONNECTER** and invoking controls fails with a typed
+availability error. Enabling the OpenAI plugin still works for its other actions.
+No microphone or real call was activated during implementation or tests.
+
+`system-control/DotCall` owns state, polling, duration and serialized controls.
+Inject `DotCallBackend` into `DotCall.serviceLayer` for a native application API;
+the OpenAI plugin reuses a provided `DotCall` service. An optional literal-command
+adapter accepts JSON argv arrays `STREAMDECK_DOT_CALL`, `STREAMDECK_DOT_HANGUP` and
+`STREAMDECK_DOT_STATUS`. These variables configure a user-supplied adapter; they
+are **not** built-in OpenAI commands. Every bridge command must return one status
+JSON object. See the system-control README for the contract.
+
+The external application owns its call. Disabling the plugin stops observation
+and revokes controls; it does not hang up a call that may have been started
+elsewhere. **Raccrocher** is the explicit end-call action. Existing **Dot ·
+push-to-talk** and its hold/release cleanup remain separate and unchanged.
+
+Reference: [OpenAI Dot calls](https://learn.chatgpt.com/docs/dots/channels#chatgpt-and-voice).
