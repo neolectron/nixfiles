@@ -1,16 +1,17 @@
 import { createElement } from 'react';
-import { Crypto, Data, Effect, Fiber, FileSystem, Path, Ref, Schema, Semaphore, Stream } from 'effect';
-import { ChildProcess, ChildProcessSpawner } from 'effect/process';
+import { Crypto, Effect, Fiber, FileSystem, Path, Ref, Schema, Semaphore } from 'effect';
+import * as Commands from './plugins/commands.ts';
+import { StudioError } from './studio-errors.ts';
 import { ButtonBinding, Profile, StoredProfile, actionParameters, type ActionDefinition, type ApplicationEntry, type BindingStatus, type Entry, type Navigate, type Organize } from './studio-contract.ts';
 import * as Layout from './studio-layout.ts';
 import type { Device } from './stream-deck.ts';
 import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.ts';
 
-export class StudioError extends Data.TaggedError('StudioError')<{ readonly message: string; readonly status: number }> {}
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A>(run: () => A) => Effect.try({ try: run, catch: (error) => invalid(error instanceof Error ? error.message : 'Organisation invalide.') });
 export const catalogue: ReadonlyArray<ActionDefinition> = [
+  { id: 'plugin', name: 'Action d’un plugin', description: 'Exécute une action déclarée par un plugin, avec ses paramètres validés.', defaults: { plugin: '', command: '', input: {} }, schema: Schema.toJsonSchemaDocument(actionParameters.plugin), fields: [] },
   { id: 'launch-app', name: 'Lancer une application', description: 'Ouvre une application installée sur ce bureau.', defaults: { application: '' }, schema: Schema.toJsonSchemaDocument(actionParameters['launch-app']),
     fields: [{ key: 'application', label: 'Application', kind: 'app', hint: '' }] },
   { id: 'run-command', name: 'Exécuter une commande', description: 'Lance un exécutable ou un script avec ses arguments.', defaults: { executable: '', arguments: [], directory: '' }, schema: Schema.toJsonSchemaDocument(actionParameters['run-command']),
@@ -26,11 +27,11 @@ export interface KeyState { readonly count: number; readonly status: BindingStat
 const emptyState: KeyState = { count: 0, status: 'idle', detail: '' };
 
 /** One scoped owner for stable shortcuts, navigation, persistence and execution. */
-export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>) => Effect.gen(function*() {
+export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>, pluginActions?: { validate: (plugin: string, command: string, input: unknown) => Effect.Effect<void, StudioError>; invoke: (plugin: string, command: string, input: unknown, context?: import('./plugin.ts').Invocation) => Effect.Effect<unknown, StudioError> }) => Effect.gen(function*() {
   const scope = yield* Effect.scope;
   const fs = yield* FileSystem.FileSystem; const path = yield* Path.Path;
-  const processes = yield* ChildProcessSpawner.ChildProcessSpawner; const crypto = yield* Crypto.Crypto;
-  const renderer = yield* Takumi.make; const lock = yield* Semaphore.make(1);
+  const commands = pluginActions ? undefined : yield* Commands.make(applications); const crypto = yield* Crypto.Crypto;
+  const renderer = yield* Takumi.current; const lock = yield* Semaphore.make(1);
   const deviceKeys = deck.buttons.filter((key) => key.pixelSize).map((key) => key.index);
   const originalText = (yield* fs.exists(profileFile)) ? yield* fs.readFileString(profileFile) : undefined;
   const stored = originalText === undefined ? undefined : yield* Schema.decodeUnknownEffect(Schema.fromJsonString(StoredProfile))(originalText);
@@ -96,6 +97,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     if (expected !== undefined && JSON.stringify(slot.entry?.binding ?? null) !== JSON.stringify(expected)) return yield* Effect.fail(invalid('Cette affectation a changé dans un autre éditeur. Recharge la touche avant d’enregistrer.', 409));
     const binding = input === null ? undefined : yield* Schema.decodeUnknownEffect(ButtonBinding)(input);
     if (binding?.action === 'launch-app' && !applications.some((app) => app.id === binding.parameters.application)) return yield* Effect.fail(invalid('Application introuvable. Choisis une application dans la liste.'));
+    if (binding?.action === 'plugin') yield* pluginActions?.validate(binding.parameters.plugin, binding.parameters.command, binding.parameters.input) ?? Effect.fail(invalid('Les actions de plugins ne sont pas disponibles.'));
     const before = yield* Ref.get(model); const next = Layout.copy(before.profile);
     const entry = binding ? { id: slot.entry?.id ?? (yield* crypto.randomUUIDv4()), binding } : null;
     yield* checked(() => Layout.replace(next, before.navigation, key, entry));
@@ -158,17 +160,16 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     if (state.status === 'running') return yield* Effect.fail(invalid('Cette commande est déjà en cours.', 409));
     if (binding.action === 'counter') { yield* setState(entry.id, { ...state, count: state.count + 1, status: 'success' }); yield* paintEntry(entry.id); return; }
     yield* setState(entry.id, { ...state, status: 'running', detail: '' }); yield* paintEntry(entry.id);
-    const application = binding.action === 'launch-app' ? applications.find((app) => app.id === binding.parameters.application) : undefined;
-    const command = binding.action === 'launch-app' ? application ? ChildProcess.make('gio', ['launch', application.file], { stdin: 'ignore' }) : undefined
-      : ChildProcess.make(binding.parameters.executable, binding.parameters.arguments, { stdin: 'ignore', ...(binding.parameters.directory ? { cwd: binding.parameters.directory } : {}) });
     const job = Effect.scoped(Effect.gen(function*() {
-      if (!command) return yield* Effect.fail(invalid('Application introuvable.'));
-      const handle = yield* processes.spawn(command);
-      const output = (stream: typeof handle.stdout) => Stream.runForEach(Stream.decodeText(stream), (text) => Ref.update(states, (all) => {
+      const output = (text: string) => Ref.update(states, (all) => {
         const current = all.get(entry.id) ?? state; return new Map([...all, [entry.id, { ...current, detail: (current.detail + text).slice(-4096) }]]);
-      }));
-      const [, , code] = yield* Effect.all([output(handle.stdout), output(handle.stderr), handle.exitCode], { concurrency: 'unbounded' });
-      if (code !== 0) return yield* Effect.fail(invalid(`La commande s’est terminée avec le code ${code}.`));
+      });
+      const context = { output };
+      const result = binding.action === 'plugin'
+        ? yield* pluginActions?.invoke(binding.parameters.plugin, binding.parameters.command, binding.parameters.input, context) ?? Effect.fail(invalid('Les actions de plugins ne sont pas disponibles.'))
+        : pluginActions ? yield* pluginActions.invoke('commands', binding.action, binding.parameters, context) : yield* commands!.run(binding.action, binding.parameters, output);
+      const detail = yield* Effect.try({ try: () => (typeof result === 'string' ? result : result === undefined ? 'Action terminée.' : JSON.stringify(result) ?? String(result)).slice(-4096), catch: () => invalid('Le résultat de l’action n’est pas sérialisable.') });
+      yield* Ref.update(states, (all) => { const current = all.get(entry.id) ?? state; return new Map([...all, [entry.id, { ...current, detail }]]); });
     })).pipe(Effect.matchEffect({
       onSuccess: () => Semaphore.withPermits(lock, 1)(Effect.gen(function*() { const current = (yield* Ref.get(states)).get(entry.id) ?? state; yield* setState(entry.id, { ...current, status: 'success' }); yield* paintEntry(entry.id); })),
       onFailure: (error) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() { const current = (yield* Ref.get(states)).get(entry.id) ?? state; yield* setState(entry.id, { ...current, status: 'error', detail: `${current.detail}\n${error.message}`.trim().slice(-4096) }); yield* paintEntry(entry.id); })),

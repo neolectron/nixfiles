@@ -2,7 +2,7 @@ import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Scope, Semaph
 import { invalid } from './errors.ts';
 import { StreamDeck, type Device } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
-import type { Controls, Definition } from './plugin.ts';
+import type { ActionInfo, Invocation, Controls, Definition } from './plugin.ts';
 
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string; readonly message: string; readonly status: number;
@@ -44,7 +44,7 @@ const ownedDevice = (deck: Device, controls: Controls, active: () => boolean): D
 
 export const make = Effect.gen(function*() {
   const deck = yield* StreamDeck; const owner = yield* Effect.scope; const lock = yield* Semaphore.make(1);
-  type Record = { status: Status; set: (enabled: boolean) => Effect.Effect<void, PluginError>; stop: Effect.Effect<void> };
+  type Record = { status: Status; set: (enabled: boolean) => Effect.Effect<void, PluginError>; stop: Effect.Effect<void>; actions: ReadonlyArray<ActionInfo>; validate: (action: string, input: unknown) => Effect.Effect<void, PluginError>; invoke: (action: string, input: unknown, context: Invocation) => Effect.Effect<unknown, PluginError> };
   const records = new Map<string, Record>(); let revision = 0;
   const locked = <A, E, R>(effect: Effect.Effect<A, E, R>) => Semaphore.withPermits(lock, 1)(effect);
   const clear = (controls: Controls) => Effect.forEach([
@@ -60,17 +60,25 @@ export const make = Effect.gen(function*() {
       for (const [kind, indices, available] of [['key', controls.keys, deck.buttons], ['dial', controls.dials, deck.dials], ['lcd', controls.lcds, deck.lcds]] as const) {
         if (indices?.some((index) => !available.some((control) => control.index === index))) return yield* Effect.fail(error(definition.id, 'Unsupported', `Unknown ${kind} control.`));
       }
-      let scope: Scope.Closeable | undefined; let api: { readonly value: Api; readonly device: Device } | undefined; let active = false;
+      const declared = definition.actions ?? [];
+      if (new Set(declared.map((action) => action.info.id)).size !== declared.length || declared.some((action) => !/^[a-z][a-z0-9.-]*$/.test(action.info.id))) return yield* Effect.fail(error(definition.id, 'Conflict', 'Action IDs must be unique within the plugin.'));
+      for (const action of declared) yield* action.validate(action.info.defaults).pipe(Effect.mapError((cause) => error(definition.id, 'Failed', `Invalid defaults for ${action.info.id}: ${String(cause)}`)));
+      let scope: Scope.Closeable | undefined; let api: { readonly value: Api; readonly device: Device } | undefined; let active = false; let cleanupDetail = '';
       const supported = definition.supported?.(deck) ?? true;
-      const record: Record = { status: { id: definition.id, name: definition.name, description: definition.description, enabled: false, phase: supported ? 'disabled' : 'unsupported', detail: supported ? '' : 'Ce modèle ne possède pas les contrôles nécessaires.', keys: controls.keys ?? [], dials: controls.dials ?? [], lcds: controls.lcds ?? [] }, set: () => Effect.void, stop: Effect.void };
+      const record: Record = { status: { id: definition.id, name: definition.name, description: definition.description, enabled: false, phase: supported ? 'disabled' : 'unsupported', detail: supported ? '' : 'Ce modèle ne possède pas les contrôles nécessaires.', keys: controls.keys ?? [], dials: controls.dials ?? [], lcds: controls.lcds ?? [] }, set: () => Effect.void, stop: Effect.void, actions: declared.map((action) => action.info), validate: () => Effect.void, invoke: () => Effect.void };
       const status = (phase: Status['phase'], detail = '') => Effect.sync(() => { record.status = { ...record.status, enabled: phase === 'enabled', phase, detail }; revision++; });
       const stop = Effect.gen(function*() {
         const closing = scope; scope = undefined; active = false; api = undefined;
-        if (closing) { yield* Scope.close(closing, Exit.void); yield* clear(controls); }
+        if (closing) {
+          const exit = yield* Scope.close(closing, Exit.void).pipe(Effect.exit);
+          cleanupDetail = Exit.isFailure(exit) ? Cause.pretty(exit.cause) : '';
+          if (cleanupDetail) yield* Effect.logWarning('Plugin cleanup failed', definition.id, cleanupDetail);
+          yield* clear(controls);
+        }
       });
       record.stop = stop;
       record.set = (enabled) => Effect.uninterruptibleMask((restore) => Effect.gen(function*() {
-        if (!enabled) { yield* stop; yield* status(supported ? 'disabled' : 'unsupported'); return; }
+        if (!enabled) { yield* stop; yield* status(supported ? cleanupDetail ? 'error' : 'disabled' : 'unsupported', cleanupDetail); return; }
         if (active) return;
         if (!supported) return yield* Effect.fail(error(definition.id, 'Unsupported', record.status.detail));
         const conflict = [...records.values()].find((other) => other !== record && other.status.enabled && (controls.keys?.some((index) => other.status.keys.includes(index)) || controls.dials?.some((index) => other.status.dials.includes(index)) || controls.lcds?.some((index) => other.status.lcds.includes(index))));
@@ -95,16 +103,31 @@ export const make = Effect.gen(function*() {
         }
       }));
       records.set(definition.id, record); revision++;
-      return { id: definition.id, current: Effect.sync(() => active && api !== undefined ? Option.some(api.value) : Option.none()),
+      const handle = { id: definition.id, current: Effect.sync(() => active && api !== undefined ? Option.some(api.value) : Option.none()),
         use: <A, E2, R2>(f: (api: Api) => Effect.Effect<A, E2, R2>) => Effect.flatMap(locked(Effect.gen(function*() {
           if (!active || api === undefined || !scope) return yield* Effect.fail(error(definition.id, 'Disabled', `Active ${definition.name} pour utiliser cette fonctionnalité.`));
           const current = api;
           return yield* Effect.forkIn(Effect.suspend(() => f(current.value)).pipe(Effect.provideService(StreamDeck, current.device), Scope.provide(scope)), scope);
         })), (fiber) => Fiber.join(fiber).pipe(Effect.ensuring(Fiber.interrupt(fiber)))),
       } satisfies Handle<Api>;
+      record.validate = (id, input) => Effect.suspend(() => {
+        const action = declared.find((action) => action.info.id === id);
+        return action ? action.validate(input).pipe(Effect.mapError((cause) => error(definition.id, 'Failed', `Paramètres invalides pour ${action.info.name}: ${String(cause)}`))) : Effect.fail(error(definition.id, 'Unknown', 'Action de plugin introuvable.'));
+      });
+      record.invoke = (id, input, context) => Effect.gen(function*() {
+        yield* record.validate(id, input);
+        const action = declared.find((action) => action.info.id === id)!;
+        const result = yield* handle.use((api) => action.execute(api, input, context)).pipe(Effect.exit);
+        if (Exit.isFailure(result)) return yield* Effect.fail(error(definition.id, 'Failed', Cause.pretty(result.cause)));
+        return result.value;
+      });
+      return handle;
     }));
   });
-  return { install, snapshot: Effect.sync(() => ({ revision, items: [...records.values()].map((record) => record.status) })),
+  return { install, catalogue: Effect.sync(() => [...records.values()].flatMap((record) => record.actions.map((action) => ({ ...action, plugin: record.status.id, pluginName: record.status.name })))),
+    validateAction: (plugin: string, action: string, input: unknown) => Effect.suspend(() => records.get(plugin)?.validate(action, input) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
+    invoke: (plugin: string, action: string, input: unknown, context: Invocation = { output: () => Effect.void }) => Effect.suspend(() => records.get(plugin)?.invoke(action, input, context) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
+    snapshot: Effect.sync(() => ({ revision, items: [...records.values()].map((record) => record.status) })),
     // Run lifecycle changes outside the plugin being stopped, including self-disable.
     setEnabled: (id: string, enabled: boolean) => Effect.flatMap(Effect.forkIn(locked(Effect.suspend(() => records.get(id)?.set(enabled) ?? Effect.fail(error(id, 'Unknown', 'Plugin introuvable.')))), owner), Fiber.join) };
 });

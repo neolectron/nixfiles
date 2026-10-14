@@ -8,9 +8,9 @@ Other plugins keep running and the physical connection stays open.
 
 ## Use the built-in plugins
 
-The editor's **Fonctionnalités** switches control **Mixer audio** and **Raccourcis**.
+The editor's **Fonctionnalités** switches control **Mixer audio**, **Applications et scripts** and **Raccourcis**.
 Their enabled preferences are atomically saved with mode `0600` alongside the key
-profile, in `<profile>.plugins.json`. Existing profiles default to both enabled.
+profile, in `<profile>.plugins.json`. Existing profiles default to all three enabled.
 New personal plugins default to disabled. Unsupported hardware and source errors
 are visible in the editor. Two plugins cannot claim the same key, dial or LCD;
 disable the current owner before enabling its replacement.
@@ -111,7 +111,7 @@ plugin code executes with the same OS privileges as the application.
 
 ## Render a React view
 
-`DeckDisplay.layer` provides a Takumi renderer with the existing bundled fonts.
+`DeckDisplay.layer` uses the studio’s shared Takumi renderer with the bundled fonts, or constructs a fallback in standalone scripts.
 Inside a plugin, build that Layer and use `key(index, element)`, `lcd(index,
 element)` or `region(index, { x, y, width, height }, element)`. Key/LCD dimensions
 come from the claimed device; preview and physical feedback use the same pixels.
@@ -128,5 +128,66 @@ reports. The mixer keeps its existing partial-region cache and gesture batching.
 This is an in-process TypeScript/Effect plugin API with runtime activation and
 saved preferences. Personal plugins are registered in source and edited with
 Node watch; external Elgato `.sdPlugin` bundles and SDK WebSocket clients need
-an adapter. The editor configures the existing shortcut catalogue and plugin
-activation; custom plugin services/actions are scripted through their typed API.
+an adapter. The editor configures both the existing shortcut catalogue and declared plugin actions. Custom plugin services also expose their typed scripting API.
+
+
+## Declare actions once, configure them in the editor
+
+Add actions to `Plugin.define` or `Plugin.fromLayer`. Their Schema drives decoded
+parameter types, validation and the generated browser form:
+
+```ts
+const increase = Plugin.action({
+  id: 'increase', name: 'Increase', description: 'Add to the feature counter.',
+  input: Schema.Struct({ amount: Schema.Int.annotate({ title: 'Amount' }) }),
+  defaults: { amount: 1 },
+  run: (feature: MyFeatureApi, { amount }) => feature.increase(amount),
+});
+// In the plugin definition: actions: [increase]
+```
+
+Select **Action d’un plugin** on any key, then choose its plugin and action.
+Scalar strings/numbers, booleans and literal choices become typed controls;
+arrays/structured values use a JSON editor. Nested schemas and references retain
+JSON fallback. Backend validation remains authoritative, including custom checks.
+Actions can be saved while their plugin is disabled; enable it to execute them.
+Invalid input is rejected before saving or executing. Results appear in the key
+inspector. The optional third callback argument has `output(text)` for streaming
+feedback. Cancelling the key or disabling its plugin interrupts scoped work.
+A disabled target ends the shortcut with visible feedback instead of keeping it
+in a running state.
+
+The built-in mixer exposes page navigation and refresh. **Applications et
+scripts** exposes CLI/app launches; existing launch-app/run-command shortcuts
+use that same service while keeping their saved bindings and familiar fields.
+It owns no physical controls, so it can run alongside the key and LCD plugins.
+Disabling it cancels its command processes; other key actions remain usable.
+
+## A source-to-view plugin in a few lines
+
+```ts
+import * as SourceView from '../plugins/source-view.ts';
+
+const status = SourceView.key(0, {
+  id: 'status', name: 'Status',
+  source: Sources.poll(readStatus, '1 second'),
+  view: (state, size) => h('div', {
+    style: { width: size.width, height: size.height, color: '#e2e3e8' },
+  }, state.title),
+});
+yield* host.install(status);
+```
+
+`SourceView.lcd` works similarly. The typed API exposes the latest received state
+as an Option. `DeckDisplay.watchKey/watchLcd` can also be used inside a larger
+feature. Visual sources buffer only their latest pending frame and default to
+40 ms between frames; pass `frameMillis` to tune it. This coalesces replaceable
+visual state. Use `Plugin.listen` for commands/gestures where every event matters.
+Repeated identical key/LCD frames are not sent over USB. Region writes invalidate
+whole-LCD frame deduplication, so a subsequent full redraw stays correct.
+
+The session renderer has a 64-entry / 8 MiB image-buffer cache, a serialized native
+renderer, immutable cache copies and `stats` for local diagnosis. The studio’s
+`rendererStats` exposes renders/hits/cache usage. Schema/action catalogues refresh
+on a new server session. Shared backend HMR reloads wait for Vite’s readiness
+reconnection, while browser-only modules keep normal updates.

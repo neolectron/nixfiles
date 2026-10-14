@@ -38,7 +38,7 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-70 passing tests, including exact preview pixels, partial LCD composition,
+77 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.
@@ -88,14 +88,16 @@ no horizontal overflow. Backend watch restarts release the HID handle and HTTP
 connections before reopening. The real editor remains running in the
 **Stream Deck Studio Dev** terminal; the temporary mock editor was stopped.
 
-The in-app browser can land on a connection error when its Vite reload races a
-Node watch restart after shared TypeScript edits. The backend recovers; reopening
-the localhost page restores the editor. This development friction is tracked as
-papercut `p_c81bdc5370`; it does not affect the verified hardware navigation.
+Shared TypeScript edits previously raced Vite reloads against Node watch shutdown.
+The Vite hook now defers reloads for the shared contract/key-card modules until its
+readiness reconnection; browser-only modules retain normal HMR. A real key-card
+change restarted the hardware server while the existing browser tab stayed on
+localhost and returned to **Connecté**, with Terminal and the mixer intact.
+This resolves the observed papercut `p_c81bdc5370`.
 
 ## Current boundaries
 
-One saved profile, seven built-in actions, nested folders, independent key zones,
+One saved profile, built-in shortcuts and declared plugin actions, nested folders, independent key zones,
 fixed shortcuts and pagination of either key content or the existing LCD mixer.
 Dial/touch rebinding, custom icon picking, profile switching, context rules and
 Elgato-compatible plugin hosting remain later increments. The desktop catalogue
@@ -135,4 +137,35 @@ was rejected explicitly, then the clock/React plugin replaced Raccourcis while
 the mixer kept running. Re-enabling Raccourcis restored a saved counter through
 the same browser session. Desktop and mobile inspection found no horizontal
 overflow. The real editor remains on port 3900 with its original shortcuts and
-both production features enabled; the example stays disabled.
+all three production features enabled; the example stays disabled.
+
+
+## Action and rendering consolidation
+
+Plugin actions declare an Effect Schema once; the host validates defaults/inputs,
+exports a static catalogue and dispatches each call in its plugin activation
+scope. The studio projects primitive/choice fields and uses lossless JSON for
+structured parameters. Persisted plugin bindings use plugin/action IDs and input,
+with the same stale-address and profile guards. Existing CLI/application bindings
+delegate to the Commands service/plugin, retaining literal argv, incremental
+bounded stdout/stderr and process cleanup. They remain configurable and stored in
+their original shape. Cancelling a command or disabling its owning plugin releases
+its process without stopping the mixer or shortcut router.
+
+The studio builds a single ReactRenderer Layer for the session. Mixer/key/source
+plugins use its serialized 64-entry / 8 MiB raster cache with copied buffers;
+DeckDisplay deduplicates key/full-LCD writes and invalidates full-LCD stamps on
+region changes. SourceView key/LCD factories and watch helpers coalesce visual
+state with a sliding pending frame and explicit timing. Command streams retain
+Plugin.listen ordering/backpressure. A failed finalizer is reported while control
+ownership is released. Plugin-action tests cover schema field round trips, invalid
+save rejection, physical and web dispatch, disabled/long action feedback,
+command cancellation, cache buffer protection, region invalidation, coalescing
+and cleanup faults. Effect CLI and native `.ts` execution remain the entry points.
+
+Browser validation saved a Commands plugin action, generated its parameter fields,
+executed `printf` and displayed **Hello depuis Effect** in the inspector. Desktop
+and 390-pixel views were inspected; the mobile page has no horizontal overflow.
+The temporary mock editor was stopped, while the real editor remains on port 3900
+with its original profile and real audio applications. All 77 Stream Deck tests,
+22 keep-awake tests and both package type checks pass.
