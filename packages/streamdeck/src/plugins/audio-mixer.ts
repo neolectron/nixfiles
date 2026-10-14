@@ -124,6 +124,8 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
       const next = new Map(changes); const previous = next.get(key) ?? { delta: 0, toggles: 0 };
       next.set(key, { delta: previous.delta + delta, toggles: previous.toggles + toggles }); return next;
     });
+    const app = view.apps.find((app) => app.key === key);
+    if (app && extensions && (delta || toggles) && (yield* extensions.adjust(app, { delta, toggles }))) yield* render(view);
   }));
   const flush = Effect.gen(function*() {
     const changes = yield* Ref.getAndSet(pending, new Map());

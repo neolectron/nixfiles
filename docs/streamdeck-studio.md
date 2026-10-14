@@ -14,6 +14,11 @@ plugin registers scoped content with `MixerCards`; the audio mixer remains the
 sole LCD writer and owns paging and dial volume/mute. The browser preview invokes
 the same tap API, guarded by the displayed application and page. Spotify actions
 also resolve Spotifast automatically.
+Rotation now immediately shows the volume gauge, retaining the selected track
+view for restoration after 1.5 seconds of inactivity and the next mixer refresh.
+Clock-controlled tests cover renewed deadlines, independent players and explicit
+touch choices; a mixer test verifies redraw before audio flush and excludes empty
+dials and Master from application notifications.
 
 The real Stream Deck test confirmed both view transitions and continuing knob
 volume control. Desktop and narrow browser previews were checked, including long
@@ -99,7 +104,7 @@ plugin forwards raw events once, removing the former nested binding recognizer.
 The browser imports the serializable Schema/defaults from `press-trigger.ts`
 without pulling in the runtime timer engine.
 
-147 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+149 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.

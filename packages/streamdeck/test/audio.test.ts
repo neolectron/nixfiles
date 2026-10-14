@@ -4,6 +4,7 @@ import { Deferred, Effect, Fiber, Layer } from 'effect';
 import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
 import * as Cards from '../src/mixer-cards.ts';
+import * as Image from '../src/image.ts';
 import type { Control } from '../src/model.ts';
 import { assign, slotsFor, make as startMixer } from '../src/plugins/audio-mixer.ts';
 import { card } from '../src/mixer-display.ts';
@@ -190,6 +191,28 @@ test('mixer startup only renders; batched ticks and clicks change the app actual
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
   assert.strictEqual(deck.closes, 1);
 });
+
+it.effect('mixer notifies only the displayed application and redraws adjustment feedback before audio flush', () => Effect.scoped(Effect.gen(function*() {
+  const deck = Mock.make(); const cards = yield* Cards.make;
+  const notifications: Array<[string, { delta: number; toggles: number }]> = [];
+  const changes: string[] = []; let track = true;
+  yield* cards.register({ id: 'feedback', matches: () => true,
+    frame: (_, size) => Effect.succeed(track ? { stamp: 'track', draw: Image.solid(size, [17, 23, 31]) } : undefined),
+    onAdjust: (app, change) => Effect.sync(() => { notifications.push([app.key, change]); track = false; }),
+  });
+  yield* Effect.gen(function*() {
+    const mixer = yield* startMixer(); const initialWrites = deck.writes.length;
+    yield* mixer.adjustDial(0, 1);
+    assert.deepStrictEqual(notifications, [['player', { delta: 2, toggles: 0 }]]);
+    assert.strictEqual(deck.writes.length, initialWrites + 1);
+    assert.deepStrictEqual(changes, []);
+    yield* mixer.adjustDial(1, 1); yield* mixer.adjustDial(5, 1);
+    assert.strictEqual(notifications.length, 1);
+    yield* mixer.flush; assert.deepStrictEqual(changes, ['player']);
+  }).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provide(Layer.mergeAll(deck.layer(), Layer.succeed(Audio, {
+    list: Effect.succeed([app('player')]), change: (key) => Effect.sync(() => { changes.push(key); }), ...masterMock,
+  }))));
+})));
 
 it.effect('retained cards preserve a live application alias, slot and volume when its stream disappears', () => Effect.scoped(Effect.gen(function*() {
   const deck = Mock.make(); const cards = yield* Cards.make;

@@ -1,6 +1,7 @@
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Schedule, Scope } from 'effect';
+import { TestClock } from 'effect/testing';
 import * as Mpris from '../src/mpris.ts';
 import * as Player from '../src/plugins/spotify-player.ts';
 import * as Spotify from '../src/plugins/spotify.ts';
@@ -57,6 +58,28 @@ it.live('Spotify card toggles without transport commands, freezes on pause and d
   yield* Scope.close(owner, yield* Effect.exit(Effect.void));
   assert.strictEqual(yield* cards.frame(spotifyApp, { width: 216, height: 100 }), undefined);
   assert.strictEqual(yield* frame.draw, undefined); assert.strictEqual(yield* cards.tap(spotifyApp), false);
+})).pipe(Effect.provide(NodeServices.layer)));
+
+it.effect('rotation temporarily reveals volume, renews the timeout and preserves explicit view choices', () => Effect.scoped(Effect.gen(function*() {
+  const source = yield* fixture; const api = yield* Player.make().pipe(Effect.provide(source.layer));
+  const cards = yield* Cards.make; const renderer = yield* Takumi.make;
+  yield* SpotifyLcd.register(api).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provideService(Takumi.ReactRenderer, renderer));
+  const frame = cards.frame(spotifyApp, { width: 216, height: 100 });
+  yield* cards.tap(spotifyApp); assert.ok(yield* frame);
+  yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 }); assert.strictEqual(yield* frame, undefined);
+  yield* TestClock.adjust(1000);
+  yield* cards.adjust(spotifyApp, { delta: -2, toggles: 0 });
+  yield* TestClock.adjust(1000); assert.strictEqual(yield* frame, undefined);
+  yield* TestClock.adjust(500); assert.ok(yield* frame);
+  // Other applications and mute clicks do not hide this player's track.
+  yield* cards.adjust({ ...spotifyApp, key: 'spotify' }, { delta: 2, toggles: 0 }); assert.ok(yield* frame);
+  yield* cards.adjust(spotifyApp, { delta: 0, toggles: 1 }); assert.ok(yield* frame);
+  yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 });
+  yield* cards.tap(spotifyApp); yield* TestClock.adjust(1500); assert.strictEqual(yield* frame, undefined);
+  yield* cards.tap(spotifyApp); assert.ok(yield* frame);
+  yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 });
+  yield* cards.tap(spotifyApp); yield* cards.tap(spotifyApp); assert.ok(yield* frame);
+  assert.ok(source.requests.every((args) => args[8] === 'GetAll'));
 })).pipe(Effect.provide(NodeServices.layer)));
 
 it.live('physical LCD tap and web tap share Spotify view state, retain paused cards and keep other controls', () => Effect.scoped(Effect.gen(function*() {
