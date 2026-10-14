@@ -1,9 +1,9 @@
 import { invariant } from '../src/errors.ts';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HeldAction } from './held-action.tsx';
 import { Effect, Fiber, Schedule } from 'effect';
-import type { ActionId, ButtonBinding, Catalogue, Snapshot } from '../src/studio-contract.ts';
+import type { ActionId, Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.tsx';
 import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.tsx';
@@ -15,7 +15,9 @@ import { EditorTabs, type EditorTab } from './editor-tabs.tsx';
 import { DeckHeading } from './deck-heading.tsx';
 import { KeyGrid } from './key-grid.tsx';
 import { DialControl } from './dial-control.tsx';
-import { delay, type KeyTrigger } from '../src/press-trigger.ts';
+import type { KeyTrigger } from '../src/press-trigger.ts';
+import { draftOf, type Draft } from './key-draft.ts';
+import { useProfileEditor } from './use-profile-editor.ts';
 import './style.css';
 function Icon({
   name,
@@ -52,97 +54,40 @@ type Selection = {
   kind: 'key' | 'dial';
   index: number;
 };
-type Draft = {
-  action: ActionId | '';
-  label: string;
-  values: Record<string, string>;
-  activation: KeyTrigger['type'];
-  milliseconds: string;
-};
-const draftOf = (binding: ButtonBinding | null, catalogue: Catalogue): Draft => {
-  const activation = {
-    activation: binding?.trigger?.type ?? 'press',
-    milliseconds: String(binding?.trigger ? delay(binding.trigger) || 600 : 600),
-  };
-  if (binding?.action === 'plugin') {
-    const { plugin, command, input } = binding.parameters;
-    const action = catalogue.pluginActions.find(
-      (currentAction) => currentAction.plugin === plugin && currentAction.id === command,
-    );
-    return {
-      ...activation,
-      action: 'plugin',
-      label: binding.label,
-      values: { plugin, command, ...Fields.draft(action?.schema, input) },
-    };
-  }
-  return {
-    ...activation,
-    action: binding?.action ?? '',
-    label: binding?.label ?? '',
-    values: Object.fromEntries(
-      Object.entries(
-        binding?.action === 'open-folder'
-          ? { ...binding.parameters, target: binding.parameters.target ?? 'current' }
-          : (binding?.parameters ?? {}),
-      ).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)]),
-    ),
-  };
-};
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : 'La requête a échoué.';
-type TileChoice = {
-  readonly action: Catalogue['pluginActions'][number];
-  readonly index: number;
-  readonly address: string;
-};
 function KeyInspector({
   selected,
   catalogue,
   snapshot,
   online,
   onSnapshot,
-  onDirty,
-  tileChoice,
-  onTileConsumed,
+  draft,
+  onDraft,
+  onOrganize,
+  onNavigate,
+  dirty,
+  busy,
 }: {
   selected: KeyView;
   catalogue: Catalogue;
   snapshot: Snapshot;
   online: boolean;
   onSnapshot: (snapshot: Snapshot) => void;
-  onDirty: (dirty: boolean) => void;
-  tileChoice: TileChoice | null;
-  onTileConsumed: () => void;
+  draft: Draft;
+  onDraft: (draft: Draft) => void;
+  onOrganize: (
+    command: import('../src/studio-contract.ts').Organize,
+  ) => Effect.Effect<Snapshot, unknown>;
+  onNavigate: (
+    command: import('../src/studio-contract.ts').Navigate,
+  ) => Effect.Effect<Snapshot, unknown>;
+  dirty: boolean;
+  busy: boolean;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => draftOf(selected.binding, catalogue));
-  const [saved, setSaved] = useState(() => JSON.stringify(draftOf(selected.binding, catalogue)));
-  const [baseline, setBaseline] = useState(selected.binding);
-  const [baselineAddress, setBaselineAddress] = useState(selected.address);
-  const [busy, setBusy] = useState(false);
+  const setDraft = onDraft;
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  useEffect(() => {
-    if (!tileChoice) return;
-    if (tileChoice.index === selected.index && tileChoice.address === selected.address) {
-      const { action } = tileChoice;
-      setDraft((current) => ({
-        ...current,
-        action: 'plugin',
-        label: action.tile?.label ?? action.name,
-        values: {
-          plugin: action.plugin,
-          command: action.id,
-          ...Fields.draft(action.schema, action.defaults),
-        },
-        activation: action.interaction === 'hold' ? 'press' : current.activation,
-      }));
-      setError('');
-      setNotice('');
-    }
-    onTileConsumed();
-  }, [tileChoice, selected.index, selected.address, onTileConsumed]);
-  const dirty = JSON.stringify(draft) !== saved;
+  const [testing, setTesting] = useState(false);
   const definition = catalogue.actions.find((action) => action.id === draft.action);
   const draftTile =
     draft.action === 'plugin'
@@ -169,116 +114,16 @@ function KeyInspector({
     !selected.binding ||
     dirty ||
     busy ||
+    testing ||
     !online ||
     (selected.binding.action === 'plugin' &&
       !snapshot.plugins.items.find(
         (plugin) =>
           selected.binding?.action === 'plugin' && plugin.id === selected.binding.parameters.plugin,
       )?.enabled);
-  useEffect(() => {
-    onDirty(dirty || busy);
-  }, [dirty, busy, onDirty]);
-  const bindingVersion = JSON.stringify(selected.binding);
-  const externalBinding = useRef({ version: bindingVersion, address: selected.address });
-  useEffect(() => {
-    if (
-      externalBinding.current.version === bindingVersion &&
-      externalBinding.current.address === selected.address
-    )
-      return;
-    if (!dirty && !busy) {
-      const next = draftOf(selected.binding, catalogue);
-      setDraft(next);
-      setSaved(JSON.stringify(next));
-      setBaseline(selected.binding);
-      setBaselineAddress(selected.address);
-      externalBinding.current = { version: bindingVersion, address: selected.address };
-    }
-  }, [bindingVersion, selected.address, selected.binding, catalogue, dirty, busy]);
-  const parameters = Object.fromEntries(
-    (definition?.fields ?? []).map((field) => [
-      field.key,
-      field.kind === 'number'
-        ? Number(draft.values[field.key] ?? 0)
-        : field.kind === 'arguments'
-          ? draft.values[field.key]
-            ? invariant(draft.values[field.key], 'app').split('\n')
-            : []
-          : (draft.values[field.key] ?? ''),
-    ]),
-  );
-  const binding = () => {
-    const action =
-      draft.action === 'plugin'
-        ? {
-            action: 'plugin',
-            label: draft.label || 'Action d’un plugin',
-            parameters: {
-              plugin: draft.values.plugin ?? '',
-              command: draft.values.command ?? '',
-              input: Fields.input(
-                catalogue.pluginActions.find(
-                  (candidateAction) =>
-                    candidateAction.plugin === draft.values.plugin &&
-                    candidateAction.id === draft.values.command,
-                )?.schema,
-                draft.values,
-              ),
-            },
-          }
-        : draft.action
-          ? {
-              action: draft.action,
-              label: draft.label || invariant(definition, 'app').name,
-              parameters,
-            }
-          : null;
-    return action && draft.activation !== 'press'
-      ? { ...action, trigger: { type: draft.activation, milliseconds: Number(draft.milliseconds) } }
-      : action;
-  };
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      const candidateSnapshot = await Api.run(
-        Api.save(selected.index, binding(), baseline, baselineAddress),
-      );
-      const next = draftOf(
-        invariant(
-          candidateSnapshot.keys.find((key) => key.index === selected.index),
-          'app',
-        ).binding,
-        catalogue,
-      );
-      setDraft(next);
-      setSaved(JSON.stringify(next));
-      setBaseline(
-        invariant(
-          candidateSnapshot.keys.find((key) => key.index === selected.index),
-          'app',
-        ).binding,
-      );
-      setBaselineAddress(
-        invariant(
-          candidateSnapshot.keys.find((key) => key.index === selected.index),
-          'app',
-        ).address,
-      );
-      onSnapshot(candidateSnapshot);
-      setNotice('Affectation enregistrée.');
-    } catch (candidateError) {
-      setError(messageOf(candidateError));
-    } finally {
-      setBusy(false);
-    }
-  };
   const test = async () => {
-    setBusy(true);
+    setTesting(true);
     setError('');
-    setNotice('');
     try {
       onSnapshot(
         await Api.run(
@@ -287,18 +132,24 @@ function KeyInspector({
             : Api.trigger(selected.index, selected.address),
         ),
       );
-      setNotice(selected.status === 'running' ? 'Commande arrêtée.' : 'Action déclenchée.');
     } catch (candidateError) {
       setError(messageOf(candidateError));
     } finally {
-      setBusy(false);
+      setTesting(false);
     }
   };
   if (selected.navigation)
     return (
       <section className="inspector">
         <h2>Retour du dossier</h2>
-        <button disabled={busy || !online} onClick={test}>
+        <button
+          disabled={busy || !online}
+          onClick={() => {
+            void Api.run(onNavigate({ zone: selected.zone, operation: 'back' })).catch((cause) =>
+              setError(messageOf(cause)),
+            );
+          }}
+        >
           Revenir
         </button>
       </section>
@@ -309,7 +160,7 @@ function KeyInspector({
         <h2 id="inspector-title">{`Touche ${selected.index + 1}`}</h2>
         <span className="coordinate">{`${selected.row + 1} : ${selected.column + 1}`}</span>
       </div>
-      <form onSubmit={submit}>
+      <form onSubmit={(event) => event.preventDefault()}>
         <label className="field">
           <span>Action</span>
           <select
@@ -333,7 +184,6 @@ function KeyInspector({
                 ),
               });
               setError('');
-              setNotice('');
             }}
           >
             <option value="">Aucune action</option>
@@ -616,45 +466,6 @@ function KeyInspector({
             <span>Aperçu de l’affectation</span>
           </div>
         ) : null}
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="primary"
-            disabled={
-              !dirty ||
-              busy ||
-              !online ||
-              !!invalidTrigger ||
-              selected.status === 'running' ||
-              baselineAddress !== selected.address
-            }
-          >
-            <Icon name="save" size={17} />
-            {busy ? 'En cours…' : 'Enregistrer'}
-          </button>
-          <button
-            type="button"
-            disabled={!dirty || busy}
-            onClick={() => {
-              setDraft(draftOf(selected.binding, catalogue));
-              setSaved(JSON.stringify(draftOf(selected.binding, catalogue)));
-              setBaseline(selected.binding);
-              setBaselineAddress(selected.address);
-              setError('');
-              setNotice('');
-            }}
-          >
-            Annuler
-          </button>
-        </div>
-        <p className="save-state" role="status">
-          {dirty ? 'Modifications non enregistrées' : notice || 'Affectation à jour'}
-        </p>
-        {dirty && baselineAddress !== selected.address ? (
-          <p className="error" role="alert">
-            La touche a changé de page. Annule pour charger son contenu actuel.
-          </p>
-        ) : null}
         {error ? (
           <p className="error" role="alert">
             {error}
@@ -689,8 +500,8 @@ function KeyInspector({
         snapshot={invariant(snapshot, 'editor-snapshot')}
         selected={selected}
         online={online}
-        dirty={dirty || busy}
-        onSnapshot={onSnapshot}
+        locked={busy}
+        onOrganize={onOrganize}
       />
       {selected.detail ? (
         <div className="command-result">
@@ -708,17 +519,15 @@ function KeyInspector({
   );
 }
 function App() {
-  const [snapshot, setSnapshot] = useState<Snapshot>();
+  const [liveSnapshot, setLiveSnapshot] = useState<Snapshot>();
   const [catalogue, setCatalogue] = useState<Catalogue>();
   const [online, setOnline] = useState(false);
   const [error, setError] = useState('');
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 });
-  const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState<EditorTab>('edit');
-  const [tileChoice, setTileChoice] = useState<TileChoice | null>(null);
   const [tileTarget, setTileTarget] = useState<number | null>(null);
   const acceptSnapshot = (value: Snapshot) =>
-    setSnapshot((previous) =>
+    setLiveSnapshot((previous) =>
       previous?.sessionId === value.sessionId &&
       (previous.inputSequence > value.inputSequence ||
         previous.plugins.revision > value.plugins.revision ||
@@ -727,6 +536,9 @@ function App() {
         ? previous
         : value,
     );
+  const editor = useProfileEditor(liveSnapshot, catalogue, acceptSnapshot);
+  const snapshot = editor.snapshot;
+  const dirty = editor.dirty;
   useEffect(() => {
     const watcher = Effect.runFork(
       Api.observe(
@@ -754,15 +566,12 @@ function App() {
     return () => {
       Effect.runFork(Fiber.interrupt(loader));
     };
-  }, [snapshot?.sessionId]);
+  }, [liveSnapshot?.sessionId]);
   const select = (next: Selection) => {
     if (selection.kind === next.kind && selection.index === next.index) {
       setTab('edit');
       return;
     }
-    if (dirty && !window.confirm('Abandonner les modifications non enregistrées ?')) return;
-    setDirty(false);
-    setTileChoice(null);
     setSelection(next);
     setTab('edit');
   };
@@ -782,14 +591,26 @@ function App() {
       !target ||
       !online ||
       !shortcutsActive ||
-      dirty ||
+      editor.busy ||
       target.navigation ||
       target.pressed ||
       target.status === 'running'
     )
       return;
     select({ kind: 'key', index: target.index });
-    setTileChoice({ action, index: target.index, address: target.address });
+    const before =
+      editor.form(target) ?? draftOf(target.binding, invariant(catalogue, 'editor-catalogue'));
+    editor.edit(target, {
+      ...before,
+      action: 'plugin',
+      label: action.tile?.label ?? action.name,
+      values: {
+        plugin: action.plugin,
+        command: action.id,
+        ...Fields.draft(action.schema, action.defaults),
+      },
+      activation: action.interaction === 'hold' ? 'press' : before.activation,
+    });
     setTileTarget(null);
     setTab('edit');
   };
@@ -820,28 +641,63 @@ function App() {
       <main className="workspace">
         <section className="preview-panel" aria-label="Aperçu du deck">
           <DeckHeading snapshot={snapshot} online={online} />
+          <div className="configuration-save">
+            <span role="status">
+              {!snapshot
+                ? 'Chargement…'
+                : editor.busy
+                  ? 'Enregistrement…'
+                  : dirty
+                    ? 'Modifications non enregistrées'
+                    : 'Configuration enregistrée'}
+            </span>
+            <button
+              type="button"
+              className="primary"
+              disabled={!dirty || !online || editor.busy || !shortcutsActive}
+              onClick={() => void editor.save()}
+            >
+              <Icon name="save" size={17} />
+              Enregistrer
+            </button>
+            <button type="button" disabled={!dirty || editor.busy} onClick={editor.discard}>
+              Annuler
+            </button>
+          </div>
+          {editor.conflict ? (
+            <p className="error" role="alert">
+              La configuration a changé ailleurs. Ton brouillon est conservé ; annule ou recharge
+              avant d’enregistrer.
+            </p>
+          ) : null}
+          {editor.error ? (
+            <p className="error" role="alert">
+              {editor.error}
+            </p>
+          ) : null}
           <div className="device" style={{ '--columns': columns } as import('react').CSSProperties}>
             {snapshot ? (
               <KeyGrid
                 snapshot={invariant(snapshot, 'editor-snapshot')}
                 tileTarget={tileTarget}
                 selected={selection.kind === 'key' ? selection.index : null}
-                editable={online && shortcutsActive && !dirty}
+                editable={online && shortcutsActive && !editor.busy}
+                draft={dirty}
+                onOrganize={editor.organize}
+                onNavigate={editor.navigate}
                 disabledReason={
-                  dirty
-                    ? 'Modifications non enregistrées.'
-                    : !online
-                      ? 'Moteur déconnecté.'
-                      : !shortcutsActive
-                        ? 'Raccourcis désactivé.'
-                        : undefined
+                  !online
+                    ? 'Moteur déconnecté.'
+                    : !shortcutsActive
+                      ? 'Raccourcis désactivé.'
+                      : undefined
                 }
                 onSelect={(index) => select({ kind: 'key', index })}
                 onSnapshot={acceptSnapshot}
                 empty=<span className="empty-key">
                   <Icon name="plus" size={22} />
                 </span>
-                interactive={online}
+                interactive={online && !dirty && !editor.busy}
               />
             ) : (
               <div className="key-grid loading" aria-label="Chargement des touches">
@@ -948,8 +804,9 @@ function App() {
               snapshot={invariant(snapshot, 'editor-snapshot')}
               selected={selectedKey}
               online={online && shortcutsActive}
-              dirty={dirty}
-              onSnapshot={acceptSnapshot}
+              locked={editor.busy}
+              onOrganize={editor.organize}
+              onNavigate={editor.navigate}
             />
           ) : null}
           {error ? (
@@ -967,6 +824,7 @@ function App() {
                 snapshot={snapshot}
                 online={online}
                 dirty={dirty}
+                locked={editor.busy}
                 catalogue={catalogue}
                 tileTarget={
                   selectedKey &&
@@ -1021,9 +879,12 @@ function App() {
               snapshot={invariant(snapshot, 'editor-snapshot')}
               online={online}
               onSnapshot={acceptSnapshot}
-              onDirty={setDirty}
-              tileChoice={tileChoice}
-              onTileConsumed={() => setTileChoice(null)}
+              draft={editor.form(selectedKey) ?? draftOf(selectedKey.binding, catalogue)}
+              onDraft={(draft) => editor.edit(selectedKey, draft)}
+              onOrganize={editor.organize}
+              onNavigate={editor.navigate}
+              dirty={dirty}
+              busy={editor.busy}
             />
           ) : selectedDial ? (
             <section className="inspector dial-inspector">

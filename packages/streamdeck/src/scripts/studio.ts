@@ -40,6 +40,7 @@ import {
   Organize,
   Trigger,
   UpdateBinding,
+  UpdateProfile,
   UpdatePlugin,
   type ApplicationEntry,
   type Snapshot,
@@ -198,6 +199,8 @@ export const startStudio = (options: {
             Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)),
           );
     const actions = {
+      saveProfile: (...args: Parameters<Shortcuts.Controller['saveProfile']>) =>
+        shortcuts.use((api) => api.saveProfile(...args)),
       save: (...args: Parameters<Shortcuts.Controller['save']>) =>
         shortcuts.use((api) => api.save(...args)),
       press: (...args: Parameters<Shortcuts.Controller['press']>) =>
@@ -231,6 +234,23 @@ export const startStudio = (options: {
       0,
     );
     const fallbackView = {
+      configuration: {
+        profile: {
+          version: 2 as const,
+          zones: [
+            {
+              id: 'deck',
+              name: 'Zone principale',
+              keys: deck.buttons.map((key) => key.index),
+              items: [],
+              pinned: {},
+            },
+          ],
+          folders: [],
+        },
+        navigation: {},
+        revision: 0,
+      },
       layout: emptyLayout.layout,
       keys: new Map(
         [...emptyLayout.keys].map(([key, slot]) => [
@@ -338,6 +358,7 @@ export const startStudio = (options: {
       return {
         discordConnection: yield* discordConnection.publicState,
         plugins: yield* host.snapshot,
+        configuration: actionView.configuration,
         layout: actionView.layout,
         sessionId,
         model: (yield* deck.detectedModel ?? Effect.succeed(deck.info.model)) ?? 'Stream Deck',
@@ -647,6 +668,34 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
             contentType: 'image/png',
             headers: { 'cache-control': 'no-store' },
           });
+        }),
+      ),
+    );
+    yield* router.add(
+      'PUT',
+      '/api/profile',
+      mutate(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const body = yield* request.json.pipe(
+            Effect.flatMap(
+              Schema.decodeUnknownEffect(UpdateProfile, { onExcessProperty: 'error' }),
+            ),
+          );
+          if (body.sessionId !== (yield* controller.snapshot).sessionId)
+            return yield* Effect.fail(
+              new StudioError({
+                message: 'Le moteur a redémarré. Annule ou recharge avant d’enregistrer.',
+                status: 409,
+              }),
+            );
+          yield* controller.actions.saveProfile(
+            body.profile,
+            body.navigation,
+            body.expectedRevision,
+            body.expectedProfile,
+          );
+          return json(yield* controller.snapshot);
         }),
       ),
     );

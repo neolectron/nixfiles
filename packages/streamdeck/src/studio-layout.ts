@@ -1,5 +1,5 @@
 import { invariant } from './errors.ts';
-import type { Entry, LayoutView, Navigate, Profile } from './studio-contract.ts';
+import type { Entry, LayoutView, Navigate, Organize, Profile } from './studio-contract.ts';
 const free = (list: ReadonlyArray<number>, pinned: Readonly<Record<string, Entry>>) =>
   list.filter((key) => !pinned[String(key)]);
 type Position = {
@@ -456,4 +456,96 @@ export const resizeZone = (
   target.keys = keys;
   // Empty pages explicitly created by the user remain navigable after a resize.
   main.minimumPages = target.minimumPages = Math.max(...sources.map((source) => source.pages));
+};
+
+export const validateNavigation = (profile: Profile, navigation: Navigation) => {
+  for (const [id, current] of Object.entries(navigation)) {
+    if (!profile.zones.some((zone) => zone.id === id))
+      throw new Error('Zone de navigation introuvable.');
+    for (const cursor of [current, ...current.history])
+      if (cursor.folder !== null && !profile.folders.some((folder) => folder.id === cursor.folder))
+        throw new Error('Dossier de navigation introuvable.');
+  }
+};
+
+/** The same pure layout operation powers browser drafts and the persisted controller. */
+export const organize = (
+  profile: MutableProfile,
+  before: Navigation,
+  command: Organize,
+  ids: { entry: string; folder: string; zone: string },
+): Navigation => {
+  let navigation = before;
+  const key = (index: number, address: string) => {
+    const slot = project(profile, navigation, 0).keys.get(index);
+    if (!slot || slot.address !== address) throw new Error('La page ou la touche a changé.');
+    return slot;
+  };
+  if (command.operation === 'exchange') {
+    key(command.source, command.sourceAddress);
+    key(command.target, command.targetAddress);
+    exchange(profile, navigation, command.source, command.target);
+  } else if (command.operation === 'create-folder') {
+    const slot = key(command.key, command.address);
+    if (slot.entry || slot.virtual)
+      throw new Error('Sélectionne une touche libre pour créer un dossier.');
+    profile.folders.push({ id: ids.folder, name: command.name, items: [] });
+    replace(profile, navigation, command.key, {
+      id: ids.entry,
+      binding: {
+        label: command.name,
+        action: 'open-folder',
+        parameters: { folder: ids.folder, target: command.target ?? 'current' },
+      },
+    });
+  } else if (command.operation === 'move') move(profile, command.id, command.destination);
+  else if (command.operation === 'create-zone')
+    createZone(profile, ids.zone, command.name, command.keys);
+  else if (command.operation === 'resize-zone') {
+    resizeZone(profile, command.zone, command.keys);
+    navigation = navigate(profile, navigation, { zone: 'deck', operation: 'root' });
+    navigation = navigate(profile, navigation, { zone: command.zone, operation: 'root' });
+  } else if (command.operation === 'rename-folder') {
+    const folder = profile.folders.find((candidateFolder) => candidateFolder.id === command.id);
+    if (!folder) throw new Error('Dossier introuvable.');
+    folder.name = command.name;
+    const renamed = (entry: Entry | null) =>
+      entry?.binding.action === 'open-folder' && entry.binding.parameters.folder === folder.id
+        ? { ...entry, binding: { ...entry.binding, label: command.name } }
+        : entry;
+    for (const owner of [...profile.zones, ...profile.folders])
+      owner.items = owner.items.map(renamed);
+    for (const zone of profile.zones)
+      for (const [index, entry] of Object.entries(zone.pinned))
+        zone.pinned[index] = invariant(renamed(entry), 'studio-layout');
+  } else if (command.operation === 'pin') {
+    const slot = key(command.key, command.address);
+    if (!slot.entry || slot.virtual) throw new Error('Choisis un raccourci pour le fixer.');
+    const zone = invariant(
+      profile.zones.find((candidateZone) => candidateZone.id === slot.zone),
+      'studio-layout',
+    );
+    if (command.value && !slot.pinned) {
+      replace(profile, navigation, command.key, null);
+      zone.pinned[String(command.key)] = slot.entry;
+    } else if (!command.value && slot.pinned) {
+      delete zone.pinned[String(command.key)];
+      const items = container(profile, zone.id, position(navigation, zone.id).folder)
+        .items as Array<Entry | null>;
+      const hole = items.indexOf(null);
+      if (hole < 0) items.push(slot.entry);
+      else items[hole] = slot.entry;
+    }
+  } else {
+    const zone = profile.zones.find((candidateZone) => candidateZone.id === command.zone);
+    if (!zone) throw new Error('Zone introuvable.');
+    const current = position(navigation, zone.id);
+    if (capacity(zone, current.folder) < 1)
+      throw new Error('Cette zone n’a pas de place disponible.');
+    const owner = container(profile, zone.id, current.folder) as MutableProfile['folders'][number];
+    const page = pageCount(profile, zone, current.folder);
+    owner.minimumPages = page + 1;
+    navigation = { ...navigation, [zone.id]: { ...current, page } };
+  }
+  return navigation;
 };

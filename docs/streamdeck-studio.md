@@ -1,5 +1,42 @@
 # First local Stream Deck editor
 
+## Local configuration draft and explicit Save
+
+One **Enregistrer / Annuler** control above the device owns layout and key
+configuration changes. Key forms survive selection changes, including incomplete
+fields. Dragging existing keys or plugin tiles, pinning, moving shortcuts, creating
+or resizing zones, creating/renaming folders and adding pages only alter the local
+preview. Folder, Return and key-page controls navigate that draft without sending
+navigation to the physical deck. Cancel restores the committed configuration.
+During a draft, action faces cannot execute unpublished bindings; the audio mixer
+continues to operate. Plugin activation stays locked until the draft is settled,
+while the tile catalogue remains available to configure additional keys.
+
+`web/key-draft.ts`, `profile-draft.ts` and `use-profile-editor.ts` separate form
+conversion, pure draft projection and the Effect HTTP boundary. Both the browser
+draft and the existing persisted controller use `studio-layout.ts` operations.
+The editor no longer calls the per-binding/organization/navigation mutation APIs.
+Only an explicit Save sends `PUT /api/profile`; submitting an inspector field with
+Enter does not save. The request carries the complete profile, preview navigation,
+engine session and baseline profile/configuration revision. Navigation revisions
+remain separate, so physical page changes do not invalidate an edited profile.
+
+The scoped controller validates all layout references and changed action inputs
+before its existing atomic file replacement and repaint. Foreign origins, stale
+sessions, concurrent profile changes and active actions reject the save. Effect
+structural equality compares profiles independent of JSON field order. Errors
+retain the local draft; closing/reloading a dirty tab prompts before discarding it.
+Drafts are held in the browser tab, rather than persisted before Save.
+
+Verification: `pnpm check` passes **207 tests** (22 system, 163 Stream Deck,
+22 keep-awake). Added regressions prove no disk/HID changes during local edits,
+combined save without executing actions, invalid/stale saves with no partial
+application, navigation during editing and origin/session protection. An isolated
+browser configured two counters, moved one and persisted both with one Save.
+Folder preview navigation and Cancel also worked. Real-deck verification prepared
+and canceled a tile edit plus drag; the personal profile stayed byte-for-byte
+unchanged. Desktop and narrow-screen Save controls were checked.
+
 ## Device heading and plugin sidebar — 14 October 2026
 
 The global navbar is removed. The connection dot precedes the device name, with
