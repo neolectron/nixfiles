@@ -2,7 +2,7 @@ import { Clock, Context, Crypto, Deferred, Effect, FileSystem, Layer, Path, Reda
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/http';
 import { IntegrationError, requests } from './json-socket.ts';
 import { DiscordTransport } from './discord-ipc.ts';
-import { AppInput, RedirectUri } from './discord-contract.ts';
+import { AppInput } from './discord-contract.ts';
 import { rpcError } from './discord-rpc-error.ts';
 const Token = Schema.Struct({ access_token: Schema.NonEmptyString, refresh_token: Schema.NonEmptyString, expires_in: Schema.Number.check(Schema.isGreaterThan(0)) });
 const Stored = Schema.Struct({ version: Schema.Literal(1), clientId: Schema.String, clientSecret: Schema.String,
@@ -16,7 +16,7 @@ export const makeOAuth = Effect.map(HttpClient.HttpClient, (http) => ({
   exchange: (clientId: string, secret: Redacted.Redacted<string>, grant: Grant) => Effect.scoped(Effect.gen(function*() {
     const client = HttpClient.filterStatusOk(http);
     const request = HttpClientRequest.post('https://discord.com/api/oauth2/token').pipe(HttpClientRequest.bodyUrlParams({ client_id: clientId, client_secret: Redacted.value(secret),
-      ...('code' in grant ? { grant_type: 'authorization_code', code: grant.code, redirect_uri: RedirectUri } : { grant_type: 'refresh_token', refresh_token: Redacted.value(grant.refresh) }),
+      ...('code' in grant ? { grant_type: 'authorization_code', code: grant.code } : { grant_type: 'refresh_token', refresh_token: Redacted.value(grant.refresh) }),
     }));
     const response = yield* client.execute(request);
     return yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Token)));
@@ -37,7 +37,8 @@ export const authorize = (clientId: string) => Effect.scoped(Effect.gen(function
   }));
   yield* Effect.raceFirst(Deferred.await(ready), connection.failure).pipe(Effect.timeout('5 seconds'));
   const nonce = yield* crypto.randomUUIDv4();
-  const result = yield* replies.call(nonce, connection.send({ cmd: 'AUTHORIZE', nonce, args: { client_id: clientId, scopes: ['rpc', 'identify'], redirect_uri: RedirectUri } }), connection.failure, '2 minutes');
+  // RPC authorization differs from browser OAuth: explicit redirect_uri is rejected.
+  const result = yield* replies.call(nonce, connection.send({ cmd: 'AUTHORIZE', nonce, args: { client_id: clientId, scopes: ['rpc', 'identify'] } }), connection.failure, '2 minutes');
   const data = yield* Schema.decodeUnknownEffect(Schema.Struct({ code: Schema.NonEmptyString }))(result);
   return data.code;
 })).pipe(Effect.mapError((cause) => cause instanceof IntegrationError ? cause : error('Autorisation Discord interrompue ou réponse invalide.')));
