@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Snapshot } from '../src/studio-contract.ts';
 import { useDialInput } from './use-dial-input.ts';
 
@@ -25,6 +26,7 @@ export function DialControl({
   onSnapshot: (snapshot: Snapshot) => void;
   onError: (error: unknown) => void;
 }) {
+  const finishId = useId();
   const { element, handlers } = useDialInput({
     dial,
     page,
@@ -46,18 +48,45 @@ export function DialControl({
       {...handlers}
     >
       <svg viewBox="0 0 64 64" className="knob" aria-hidden={true}>
+        <defs>
+          <radialGradient id={`${finishId}-cap`} cx="35%" cy="25%" r="80%">
+            <stop offset="0" stopColor="#393b3c" />
+            <stop offset="0.65" stopColor="#242628" />
+            <stop offset="1" stopColor="#151719" />
+          </radialGradient>
+          <linearGradient id={`${finishId}-rim`} x1="0" y1="0" x2="0.8" y2="1">
+            <stop offset="0" stopColor="#55585a" />
+            <stop offset="0.3" stopColor="#242628" />
+            <stop offset="1" stopColor="#0d0f11" />
+          </linearGradient>
+        </defs>
         <g className="knob-rotor" style={{ transform: `rotate(${dial.rotationSteps * 15}deg)` }}>
-          <circle cx={32} cy={32} r={27} fill="#2C2E35" stroke="#555863" strokeWidth={2} />
+          <circle
+            className="knob-rim"
+            cx={32}
+            cy={32}
+            r={27}
+            fill={`url(#${finishId}-rim)`}
+            stroke="#45484a"
+            strokeWidth={1}
+          />
           {Array.from({ length: 24 }, (_, i) => (
             <path
               key={i}
               d="M32 5v4"
-              stroke="#6A6D78"
+              stroke="#777b7d"
               strokeWidth={1}
               transform={`rotate(${i * 15} 32 32)`}
             />
           ))}
-          <circle cx={32} cy={32} r={20} fill="#363942" />
+          <circle
+            className="knob-cap"
+            cx={32}
+            cy={32}
+            r={21}
+            fill={`url(#${finishId}-cap)`}
+            stroke="#0a0b0c"
+          />
           <path d="M32 14v8" stroke="#D8D9DF" strokeWidth={2} strokeLinecap="round" />
         </g>
       </svg>

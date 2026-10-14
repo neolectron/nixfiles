@@ -15,9 +15,15 @@ ARIA descriptions on fields. Connection setup retains its required identifiers,
 redirect URI and portal link instead of a prose walkthrough.
 
 Desktop: device preview at left, tabbed configuration at right, without a global
-navbar. The detected model name and connection indicator lead the preview; the
-status dot sits before the name, with the connection label below the name on all
-screen sizes. Before USB detection the title stays generic.
+navbar. The detected model selects the physical casing; unknown devices use a generic
+fallback without inventing a model. The + XL has a black beveled shell, recessed
+LCD bezel and six machined knobs in a recessed rail, inspired by Elgato's official
+product reference. Model metadata determines the actual controls. Center the
+Elgato symbol and STREAM DECK wordmark on the shell's upper edge. The symbol
+reflects connection state (green, amber or red); the small status underneath the
+wordmark stays grey. The model name remains visible in the context row above.
+Keep input geometry separate from decorative bezels. Narrow screens pan the
+entire casing locally so keys, LCD touch regions and encoders stay aligned.
 Édition keeps the selected key/dial inspector. Plugins groups activation switches
 and per-plugin collapsible configuration; switches remain reachable when collapsed.
 Each plugin groups its exported tiles and settings into separate tabs. The palette
@@ -38,4 +44,4 @@ motion, metrics, marketing content or unfinished navigation. Physical knob
 selection explains the current mixer assignment. Key faces invoke their configured simple/double/long gestures. The corner pencil
 (on hover or keyboard focus) and right click open editing without invoking an
 action. The numbered corner is a separate pointer drag handle; Alt + arrows also
-rearrange. USB disconnection changes the status beside the device name and leaves web actions live.
+rearrange. USB disconnection changes the branded indicator and leaves web actions live.

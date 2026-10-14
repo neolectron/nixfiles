@@ -1,10 +1,12 @@
 import type { Snapshot } from '../src/studio-contract.ts';
-
+import { ElgatoMark } from './elgato-mark.tsx';
+import { deviceName } from './device-skin.ts';
+export type DeviceIdentity = Pick<Snapshot, 'model' | 'mock' | 'connected' | 'connectionError'>;
 export function DeckHeading({
   snapshot,
   online,
 }: {
-  readonly snapshot: Snapshot | undefined;
+  readonly snapshot: DeviceIdentity | undefined;
   readonly online: boolean;
 }) {
   const status = online
@@ -16,17 +18,22 @@ export function DeckHeading({
     : snapshot
       ? 'Reconnexion…'
       : 'Connexion…';
+  const tone =
+    online && snapshot?.connected && !snapshot.mock
+      ? 'online'
+      : snapshot?.connectionError
+        ? 'error'
+        : 'warning';
   return (
-    <div className="preview-heading">
-      <div className="deck-title">
-        <span
-          className={online && snapshot?.connected ? 'status-dot online' : 'status-dot'}
-          aria-hidden="true"
-        />
-        <div className="deck-title-text">
-          <h1>{snapshot?.model.replace(/^Mock /, '') ?? 'Stream Deck'}</h1>
+    <header className="device-heading" title={deviceName(snapshot?.model)}>
+      <div className="device-brand">
+        <span className={`device-logo ${tone}`} aria-hidden={true}>
+          <ElgatoMark />
+        </span>
+        <div className="device-brand-text">
+          <h1 aria-label={deviceName(snapshot?.model)}>STREAM DECK</h1>
           <span
-            className="connection connection-label"
+            className="connection-label"
             role="status"
             aria-label={status}
             title={snapshot?.connectionError ?? status}
@@ -35,7 +42,6 @@ export function DeckHeading({
           </span>
         </div>
       </div>
-      <span className="profile-name">Profil principal</span>
-    </div>
+    </header>
   );
 }
