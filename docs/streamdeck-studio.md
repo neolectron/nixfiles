@@ -37,6 +37,51 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 
 ## Verification
 
+### Button activation gestures
+
+Each saved shortcut has an optional `trigger`: `press` (immediate, the legacy
+default), `long-press` (600 ms by default), or `double-tap` (350 ms by default).
+The inspector's **Déclenchement** selector exposes all three. Long-press duration
+is configurable between 100 and 10000 ms; double-tap interval between 100 and
+1000 ms. Long press fires once while still held, and releasing early cancels it.
+Double tap fires once on the second release: both presses must be short and the
+second release must fall within the interval following the first release. A
+single tap does nothing in that mode. This selects one gesture for the existing
+action; it does not assign several different actions to the same physical key.
+
+`key-gestures.ts` is shared by the scripting router and the studio, using Effect
+Clock, scoped fibers, Sleep and Semaphore. Callback failures reach the router;
+ordinary canceled timers do not fail the plugin. Captured identity/configuration
+and layout revision prevent delayed gestures from dispatching a different action
+after edits, moves or navigation (including away-and-back). Physical and web
+gesture/release ownership are separate. The `/api/key-input` endpoint applies the
+existing origin guard and accepts down/up/cancel with the captured slot/revision.
+Browser cancellation, blur, hidden tabs and component cleanup cancel waiting
+gestures and release held actions. Legacy `/api/trigger` remains an explicit
+immediate action invocation for callers that intentionally bypass gestures.
+
+An action declaring `interaction: hold` accepts simple or long press and stops
+on the original key's release. Double tap is disabled in the inspector and
+rejected on save for those actions. The real Dot connection remains unconfigured;
+its microphone was not started during gesture testing.
+
+Scripts use the same abstraction without adding their own timers:
+
+```ts
+yield* Bindings.run({ buttons: {
+  0: { trigger: { type: 'long-press', milliseconds: 800 }, onPress: myAction },
+  1: { trigger: { type: 'double-tap' }, onPress: anotherAction },
+} });
+```
+
+124 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+tests cover boundaries, repeated down events, pair consumption, cancellation,
+scope shutdown and error propagation. Mock HID/studio tests cover persistence,
+page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.
+An isolated mock editor verifies browser double-click and single-click behavior;
+its local input API verifies held long-press dispatch and release. The real
+profile's actions and trigger choices are preserved.
+
 The key preview supports native desktop drag/drop and Alt + arrow keys. Dropping
 onto an occupied slot exchanges shortcuts; a free slot moves the shortcut.
 The operation uses one atomic profile write, retains shortcut IDs/feedback and

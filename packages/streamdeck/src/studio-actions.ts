@@ -9,6 +9,7 @@ import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.ts';
 import type { KeyFeedback } from './key-feedback.ts';
 import { mergeDiscordActions } from './studio-profile-migrations.ts';
+import * as Gestures from './key-gestures.ts';
 
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A>(run: () => A) => Effect.try({ try: run, catch: (error) => invalid(error instanceof Error ? error.message : 'Organisation invalide.') });
@@ -29,7 +30,7 @@ export interface KeyState { readonly count: number; readonly status: BindingStat
 const emptyState: KeyState = { count: 0, status: 'idle', detail: '' };
 
 /** One scoped owner for stable shortcuts, navigation, persistence and execution. */
-export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>, pluginActions?: { validate: (plugin: string, command: string, input: unknown) => Effect.Effect<void, StudioError>; invoke: (plugin: string, command: string, input: unknown, context?: import('./plugin.ts').Invocation) => Effect.Effect<unknown, StudioError>; feedback?: (plugin: string, command: string, input: unknown) => Effect.Effect<KeyFeedback | null> }) => Effect.gen(function*() {
+export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>, pluginActions?: { validate: (plugin: string, command: string, input: unknown) => Effect.Effect<void, StudioError>; invoke: (plugin: string, command: string, input: unknown, context?: import('./plugin.ts').Invocation) => Effect.Effect<unknown, StudioError>; feedback?: (plugin: string, command: string, input: unknown) => Effect.Effect<KeyFeedback | null>; interaction?: (plugin: string, command: string) => Effect.Effect<'press' | 'hold'> }) => Effect.gen(function*() {
   const scope = yield* Effect.scope;
   const fs = yield* FileSystem.FileSystem; const path = yield* Path.Path;
   const commands = pluginActions ? undefined : yield* Commands.make(applications); const crypto = yield* Crypto.Crypto;
@@ -50,7 +51,11 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   const feedbacks = yield* Ref.make<ReadonlyMap<string, KeyFeedback | null>>(new Map());
   let feedbackReady = false;
   const jobs = new Map<string, Fiber.Fiber<void, never>>(); const painted = new Map<number, string>();
-  const releases = new Map<number, { readonly waiter: Deferred.Deferred<void>; readonly address: string }>();
+  const releases = new Map<number, { readonly waiter: Deferred.Deferred<void>; readonly address: string; readonly revision: number | undefined; readonly source: string }>();
+  const gestures = yield* Gestures.make<never, never>();
+  const validateTrigger = (binding: ButtonBinding) => Effect.gen(function*() {
+    if (binding.trigger?.type === 'double-tap' && binding.action === 'plugin' && (yield* pluginActions?.interaction?.(binding.parameters.plugin, binding.parameters.command) ?? Effect.succeed('press')) === 'hold') return yield* Effect.fail(invalid('Une action à maintenir accepte l’appui simple ou long, mais pas le double appui.'));
+  });
   const stateFor = (entry: Entry | null, all: ReadonlyMap<string, KeyState>) => entry ? all.get(entry.id) ?? { ...emptyState, count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0 } : emptyState;
   const view = Effect.gen(function*() {
     const current = yield* Ref.get(model); const all = yield* Ref.get(states); const feedback = yield* Ref.get(feedbacks);
@@ -107,6 +112,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     if (slot.state.status === 'running') return yield* Effect.fail(invalid('Une commande est en cours sur cette touche.', 409));
     if (expected !== undefined && JSON.stringify(slot.entry?.binding ?? null) !== JSON.stringify(expected)) return yield* Effect.fail(invalid('Cette affectation a changé dans un autre éditeur. Recharge la touche avant d’enregistrer.', 409));
     const binding = input === null ? undefined : yield* Schema.decodeUnknownEffect(ButtonBinding)(input);
+    if (binding) yield* validateTrigger(binding);
     if (binding?.action === 'launch-app' && !applications.some((app) => app.id === binding.parameters.application)) return yield* Effect.fail(invalid('Application introuvable. Choisis une application dans la liste.'));
     if (binding?.action === 'plugin') yield* pluginActions?.validate(binding.parameters.plugin, binding.parameters.command, binding.parameters.input) ?? Effect.fail(invalid('Les actions de plugins ne sont pas disponibles.'));
     const before = yield* Ref.get(model); const next = Layout.copy(before.profile);
@@ -165,8 +171,9 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     }
     yield* commit(next, navigation); yield* repaint();
   }));
-  const press = (key: number, address?: string) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
-    const slot = yield* currentKey(key, address); const entry = slot.entry; if (!entry) return;
+  const press = (key: number, address?: string, expected?: { binding: ButtonBinding; revision: number; source: string }) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
+    const slot = yield* currentKey(key, expected === undefined ? address : undefined); const entry = slot.entry; if (!entry) return;
+    if (expected && (slot.address !== address || JSON.stringify(entry.binding) !== JSON.stringify(expected.binding) || (yield* Ref.get(model)).revision !== expected.revision)) return;
     if (releases.has(key)) return yield* Effect.fail(invalid('Relâche d’abord l’action en cours sur cette touche.', 409));
     const binding = entry.binding; const state = slot.state;
     if (binding.action === 'open-folder') return yield* navigateUnlocked({ zone: !binding.parameters.target || binding.parameters.target === 'current' ? slot.zone : binding.parameters.target, operation: 'open', folder: binding.parameters.folder });
@@ -179,7 +186,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     if (state.status === 'running') return yield* Effect.fail(invalid('Cette commande est déjà en cours.', 409));
     if (binding.action === 'counter') { yield* setState(entry.id, { ...state, count: state.count + 1, status: 'success' }); yield* paintEntry(entry.id); return; }
     yield* setState(entry.id, { ...state, status: 'running', detail: '' }); yield* paintEntry(entry.id);
-    const released = yield* Deferred.make<void>(); releases.set(key, { waiter: released, address: slot.address });
+    const released = yield* Deferred.make<void>(); releases.set(key, { waiter: released, address: slot.address, revision: expected?.revision, source: expected?.source ?? 'direct' });
     const job = Effect.scoped(Effect.gen(function*() {
       const output = (text: string) => Ref.update(states, (all) => {
         const current = all.get(entry.id) ?? state; return new Map([...all, [entry.id, { ...current, detail: (current.detail + text).slice(-4096) }]]);
@@ -207,10 +214,25 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   });
   yield* repaint(undefined, stored?.version !== 2);
   feedbackReady = true;
-  const release = (key: number, address?: string) => Effect.suspend(() => {
-    const pending = releases.get(key); if (!pending || (address !== undefined && address !== pending.address)) return Effect.void;
+  const release = (key: number, address?: string, revision?: number, source?: string) => Effect.suspend(() => {
+    const pending = releases.get(key); if (!pending || (source !== undefined && source !== pending.source) || (address !== undefined && address !== pending.address) || (revision !== undefined && pending.revision !== undefined && revision !== pending.revision)) return Effect.void;
     releases.delete(key); return Deferred.succeed(pending.waiter, undefined).pipe(Effect.asVoid);
   });
+  const keyInput = (key: number, phase: 'down' | 'up' | 'cancel', address?: string, source = 'physical', expectedRevision?: number) => Effect.gen(function*() {
+    yield* validateKey(key); const channel = `${source}/${key}`;
+    if (phase === 'down') {
+      const { slot, revision } = yield* Semaphore.withPermits(lock, 1)(Effect.gen(function*() { return { slot: yield* currentKey(key, address), revision: (yield* Ref.get(model)).revision }; })); if (!slot.entry) return;
+      if (expectedRevision !== undefined && revision !== expectedRevision) return yield* Effect.fail(invalid('La disposition a changé. Recharge la touche avant de tester.', 409));
+      const binding = slot.entry.binding; yield* validateTrigger(binding);
+      yield* gestures.down(channel, { identity: JSON.stringify([slot.address, binding, revision]), context: JSON.stringify([slot.address, revision]), ...(binding.trigger ? { trigger: binding.trigger } : {}),
+        fire: press(key, slot.address, { binding, revision, source }).pipe(Effect.catch((error) => Effect.logWarning(error.message))),
+      });
+    } else {
+      const context = expectedRevision === undefined || address === undefined ? undefined : JSON.stringify([address, expectedRevision]);
+      if (phase === 'up') yield* gestures.up(channel, context); else yield* gestures.cancel(channel, context);
+      yield* release(key, address, expectedRevision, source);
+    }
+  });
   return { profile: Effect.map(Ref.get(model), (model) => model.profile), states: Effect.map(view, (view) => new Map([...view.keys].map(([key, slot]) => [key, slot.state]))),
-    entryStates: Ref.get(states), view, save, press, release, cancel, organize, refreshFeedback: Semaphore.withPermits(lock, 1)(Effect.gen(function*() { for (const [key, slot] of (yield* view).keys) if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state); })), navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
+    entryStates: Ref.get(states), view, save, press, release, keyInput, gestureFailure: gestures.failure, cancel, organize, refreshFeedback: Semaphore.withPermits(lock, 1)(Effect.gen(function*() { for (const [key, slot] of (yield* view).keys) if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state); })), navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
 });

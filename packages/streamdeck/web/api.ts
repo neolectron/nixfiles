@@ -24,6 +24,7 @@ export const save = (key: number, binding: unknown, expected: ButtonBinding | nu
 export const cancel = (key: number, address: string) => json('/api/cancel', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const trigger = (key: number, address: string) => json('/api/trigger', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const release = (key: number, address: string) => json('/api/release', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const keyInput = (key: number, phase: 'down' | 'up' | 'cancel', address: string, revision: number) => json('/api/key-input', 'POST', { key, phase, address, revision }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const organize = (command: Organize) => json('/api/organize', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const navigate = (command: Navigate) => json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const setPlugin = (id: string, enabled: boolean, expected: boolean) => json('/api/plugin', 'POST', { id, enabled, expected }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));

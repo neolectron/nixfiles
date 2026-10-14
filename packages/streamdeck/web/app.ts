@@ -11,6 +11,7 @@ import * as Fields from '../src/plugin-fields.ts';
 import { PluginFields } from './plugin-fields.ts';
 import { PluginControls } from './plugin-controls.ts';
 import { KeyGrid } from './key-grid.ts';
+import { delay, type KeyTrigger } from '../src/key-gestures.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {
@@ -19,14 +20,15 @@ function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 
 }
 type KeyView = Snapshot['keys'][number];
 type Selection = { kind: 'key' | 'dial'; index: number };
-type Draft = { action: ActionId | ''; label: string; values: Record<string, string> };
+type Draft = { action: ActionId | ''; label: string; values: Record<string, string>; activation: KeyTrigger['type']; milliseconds: string };
 const draftOf = (binding: ButtonBinding | null, catalogue: Catalogue): Draft => {
+  const activation = { activation: binding?.trigger?.type ?? 'press', milliseconds: String(binding?.trigger ? delay(binding.trigger) || 600 : 600) };
   if (binding?.action === 'plugin') {
     const { plugin, command, input } = binding.parameters;
     const action = catalogue.pluginActions.find((action) => action.plugin === plugin && action.id === command);
-    return { action: 'plugin', label: binding.label, values: { plugin, command, ...Fields.draft(action?.schema, input) } };
+    return { ...activation, action: 'plugin', label: binding.label, values: { plugin, command, ...Fields.draft(action?.schema, input) } };
   }
-  return { action: binding?.action ?? '', label: binding?.label ?? '', values: Object.fromEntries(Object.entries(binding?.action === 'open-folder' ? { ...binding.parameters, target: binding.parameters.target ?? 'current' } : binding?.parameters ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) };
+  return { ...activation, action: binding?.action ?? '', label: binding?.label ?? '', values: Object.fromEntries(Object.entries(binding?.action === 'open-folder' ? { ...binding.parameters, target: binding.parameters.target ?? 'current' } : binding?.parameters ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) };
 };
 const messageOf = (error: unknown) => error instanceof Error ? error.message : 'La requête a échoué.';
 
@@ -41,13 +43,19 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
   const dirty = JSON.stringify(draft) !== saved;
   const definition = catalogue.actions.find((action) => action.id === draft.action);
   const heldAction = selected.binding?.action === 'plugin' && catalogue.pluginActions.find((action) => selected.binding?.action === 'plugin' && action.plugin === selected.binding.parameters.plugin && action.id === selected.binding.parameters.command)?.interaction === 'hold';
+  const draftHeld = draft.action === 'plugin' && catalogue.pluginActions.find((action) => action.plugin === draft.values.plugin && action.id === draft.values.command)?.interaction === 'hold';
+  const invalidTrigger = draftHeld && draft.activation === 'double-tap';
+  const gestureTest = heldAction || (selected.binding?.trigger?.type ?? 'press') !== 'press';
   const unavailable = !selected.binding || dirty || busy || !online || (selected.binding.action === 'plugin' && !snapshot.plugins.items.find((plugin) => selected.binding?.action === 'plugin' && plugin.id === selected.binding.parameters.plugin)?.enabled);
   useEffect(() => { onDirty(dirty || busy); }, [dirty, busy]);
   useEffect(() => {
     if (!dirty && !busy) { const next = draftOf(selected.binding, catalogue); setDraft(next); setSaved(JSON.stringify(next)); setBaseline(selected.binding); setBaselineAddress(selected.address); }
   }, [JSON.stringify(selected.binding), selected.address]);
   const parameters = Object.fromEntries((definition?.fields ?? []).map((field) => [field.key, field.kind === 'number' ? Number(draft.values[field.key] ?? 0) : field.kind === 'arguments' ? draft.values[field.key] ? draft.values[field.key]!.split('\n') : [] : draft.values[field.key] ?? '']));
-  const binding = () => draft.action === 'plugin' ? { action: 'plugin', label: draft.label || 'Action d’un plugin', parameters: { plugin: draft.values.plugin ?? '', command: draft.values.command ?? '', input: Fields.input(catalogue.pluginActions.find((action) => action.plugin === draft.values.plugin && action.id === draft.values.command)?.schema, draft.values) } } : draft.action ? { action: draft.action, label: draft.label || definition!.name, parameters } : null;
+  const binding = () => {
+    const action = draft.action === 'plugin' ? { action: 'plugin', label: draft.label || 'Action d’un plugin', parameters: { plugin: draft.values.plugin ?? '', command: draft.values.command ?? '', input: Fields.input(catalogue.pluginActions.find((action) => action.plugin === draft.values.plugin && action.id === draft.values.command)?.schema, draft.values) } } : draft.action ? { action: draft.action, label: draft.label || definition!.name, parameters } : null;
+    return action && draft.activation !== 'press' ? { ...action, trigger: { type: draft.activation, milliseconds: Number(draft.milliseconds) } } : action;
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
@@ -68,11 +76,17 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
     h('form', { onSubmit: submit },
       h('label', { className: 'field' }, h('span', {}, 'Action'), h('select', { value: draft.action, disabled: busy, onChange: (event) => {
         const id = (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value as ActionId | ''; const action = catalogue.actions.find((action) => action.id === id);
-        setDraft({ action: id, label: action?.name ?? '', values: Object.fromEntries(Object.entries(action?.defaults ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) }); setError(''); setNotice('');
+        setDraft({ ...draft, action: id, label: action?.name ?? '', values: Object.fromEntries(Object.entries(action?.defaults ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) }); setError(''); setNotice('');
       } }, h('option', { value: '' }, 'Aucune action'), ...catalogue.actions.map((action) => h('option', { key: action.id, value: action.id }, action.name)))),
       definition ? h('p', { className: 'action-description' }, definition.description) : h('p', { className: 'action-description' }, 'Une touche libre ne déclenche rien.'),
       definition ? h('label', { className: 'field' }, h('span', {}, 'Nom sur la touche'), h('input', { value: draft.label, maxLength: 80, disabled: busy, onChange: (event) => setDraft({ ...draft, label: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value }) })) : null,
       draft.action === 'plugin' ? h(PluginFields, { catalogue, snapshot, values: draft.values, label: draft.label, busy, onChange: (values, label) => setDraft({ ...draft, values, label }) }) : null,
+      definition ? h('label', { className: 'field' }, h('span', {}, 'Déclenchement'), h('select', { 'aria-label': 'Déclenchement', value: draft.activation, disabled: busy, onChange: (event) => {
+        const activation = (event.currentTarget as HTMLSelectElement).value as KeyTrigger['type']; setDraft({ ...draft, activation, milliseconds: activation === 'double-tap' ? '350' : '600' });
+      } }, h('option', { value: 'press' }, 'Appui simple'), h('option', { value: 'long-press' }, 'Appui long'), h('option', { value: 'double-tap', disabled: !!draftHeld }, 'Double appui'))) : null,
+      definition && draft.activation !== 'press' ? h('label', { className: 'field' }, h('span', {}, draft.activation === 'long-press' ? 'Durée minimale (ms)' : 'Intervalle maximal (ms)'), h('input', { 'aria-label': 'Délai du déclenchement', type: 'number', min: 100, max: draft.activation === 'long-press' ? 10000 : 1000, step: 1, required: true, value: draft.milliseconds, disabled: busy, onChange: (event) => setDraft({ ...draft, milliseconds: event.currentTarget.value }) }),
+        h('small', {}, draft.activation === 'long-press' ? 'L’action se déclenche une seule fois au seuil. Relâcher avant annule l’appui.' : 'Deux appuis courts dans cet intervalle déclenchent une seule action. Un appui isolé ne fait rien.')) : null,
+      draftHeld ? h('p', { className: invalidTrigger ? 'error' : 'action-description' }, invalidTrigger ? 'Choisis un appui simple ou long pour cette action à maintenir.' : 'L’action reste active pendant l’appui et s’arrête au relâchement.') : null,
       ...(definition?.fields ?? []).map((field) => h('label', { key: field.key, className: 'field' }, h('span', {}, field.label),
         field.kind === 'folder' || field.kind === 'zone' ? h('select', { 'aria-label': field.label, value: draft.values[field.key] ?? '', required: true, disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLSelectElement).value } }) },
           h('option', { value: '' }, field.kind === 'folder' ? 'Choisir un dossier' : 'Choisir une zone'),
@@ -85,15 +99,15 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
             : h('input', { 'aria-label': field.label, 'aria-describedby': field.hint ? `hint-${field.key}` : undefined, type: field.kind === 'number' ? 'number' : 'text', required: field.key === 'executable', min: field.kind === 'number' ? -9999 : undefined, max: field.kind === 'number' ? 9999 : undefined, className: field.key === 'executable' || field.key === 'directory' ? 'code-input' : '', value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } }) }),
         field.hint ? h('small', { id: `hint-${field.key}` }, field.hint) : null)),
       draft.action === 'open-folder' || draft.action === 'page-next' || draft.action === 'page-previous' ? h(TargetPreview, { snapshot, zoneId: !draft.values.target || draft.values.target === 'current' ? selected.zone : draft.values.target, folder: draft.action === 'open-folder' }) : null,
-      definition ? h('div', { className: 'draft-preview' }, h(KeyCard, { width: 112, height: 112, label: draft.label || definition.name, action: definition.id, count: draft.action === 'counter' ? Number(draft.values.start ?? 0) : 0, status: 'idle', feedback: dirty ? null : selected.feedback }), h('span', {}, 'Aperçu de l’affectation')) : null,
-      h('div', { className: 'form-actions' }, h('button', { type: 'submit', className: 'primary', disabled: !dirty || busy || !online || selected.status === 'running' || baselineAddress !== selected.address }, h(Icon, { name: 'save', size: 17 }), busy ? 'En cours…' : 'Enregistrer'),
+      definition ? h('div', { className: 'draft-preview' }, h(KeyCard, { width: 112, height: 112, label: draft.label || definition.name, action: definition.id, count: draft.action === 'counter' ? dirty ? Number(draft.values.start ?? 0) : selected.count : 0, status: 'idle', feedback: dirty ? null : selected.feedback }), h('span', {}, 'Aperçu de l’affectation')) : null,
+      h('div', { className: 'form-actions' }, h('button', { type: 'submit', className: 'primary', disabled: !dirty || busy || !online || !!invalidTrigger || selected.status === 'running' || baselineAddress !== selected.address }, h(Icon, { name: 'save', size: 17 }), busy ? 'En cours…' : 'Enregistrer'),
         h('button', { type: 'button', disabled: !dirty || busy, onClick: () => { setDraft(draftOf(selected.binding, catalogue)); setSaved(JSON.stringify(draftOf(selected.binding, catalogue))); setBaseline(selected.binding); setBaselineAddress(selected.address); setError(''); setNotice(''); } }, 'Annuler')),
       h('p', { className: 'save-state', role: 'status' }, dirty ? 'Modifications non enregistrées' : notice || 'Affectation à jour'),
       dirty && baselineAddress !== selected.address ? h('p', { className: 'error', role: 'alert' }, 'La touche a changé de page. Annule pour charger son contenu actuel.') : null,
       error ? h('p', { className: 'error', role: 'alert' }, error) : null,
     ),
-    h('div', { className: 'test-action' }, heldAction ? h(HeldAction, { key: selected.id, keyIndex: selected.index, address: selected.address, disabled: unavailable, onSnapshot, onError: (error) => setError(messageOf(error)) }) : h('button', { className: 'test-button', disabled: unavailable, onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : selected.binding?.action === 'open-folder' ? 'Ouvrir le dossier' : 'Tester l’action'),
-      h('p', {}, heldAction ? 'Maintiens le bouton ou la touche Espace. Le relâchement arrête l’action.' : 'Exécute l’action enregistrée, comme un appui sur la touche.')),
+    h('div', { className: 'test-action' }, gestureTest ? h(HeldAction, { key: `${selected.id}/${JSON.stringify(selected.binding?.trigger)}/${snapshot.layout.revision}`, keyIndex: selected.index, address: selected.address, revision: snapshot.layout.revision, ...(selected.binding?.trigger ? { trigger: selected.binding.trigger } : {}), disabled: unavailable, onSnapshot, onError: (error) => setError(messageOf(error)) }) : h('button', { className: 'test-button', disabled: unavailable, onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : selected.binding?.action === 'open-folder' ? 'Ouvrir le dossier' : 'Tester l’action'),
+      h('p', {}, gestureTest ? selected.binding?.trigger?.type === 'double-tap' ? 'Clique deux fois, ou appuie deux fois sur Espace. Le geste est reconnu par le moteur du deck.' : 'Maintiens le bouton ou la touche Espace pour tester le geste enregistré.' : 'Exécute l’action enregistrée, comme un appui sur la touche.')),
     h(ShortcutOrganization, { key: selected.id, snapshot, selected, online, dirty: dirty || busy, onSnapshot }),
     selected.detail ? h('div', { className: 'command-result' }, h('h3', {}, selected.status === 'error' ? 'Échec de l’action' : selected.status === 'running' ? 'Sortie en cours' : 'Dernière sortie'), h('pre', { className: selected.status === 'error' ? 'error-output' : '' }, selected.detail)) : null,
   );

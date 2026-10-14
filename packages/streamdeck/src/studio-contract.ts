@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { KeyFeedback } from './key-feedback.ts';
 import { PublicConnection } from './discord-contract.ts';
+import { KeyTrigger } from './key-gestures.ts';
 
 const shortText = Schema.String.check(Schema.isMaxLength(80));
 const argument = Schema.String.check(Schema.isMaxLength(4096));
@@ -19,14 +20,14 @@ export const actionParameters = {
   counter: Schema.Struct({ start: Schema.Int.check(Schema.isBetween({ minimum: -9999, maximum: 9999 })).annotate({ title: 'Valeur de départ' }) }),
 } as const;
 export const ButtonBinding = Schema.Union([
-  Schema.Struct({ label: shortText, action: Schema.Literal('plugin'), parameters: actionParameters.plugin }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('launch-app'), parameters: actionParameters['launch-app'] }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('run-command'), parameters: actionParameters['run-command'] }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('counter'), parameters: actionParameters.counter }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('open-folder'), parameters: actionParameters['open-folder'] }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('go-back'), parameters: actionParameters['go-back'] }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('page-next'), parameters: actionParameters['page-next'] }),
-  Schema.Struct({ label: shortText, action: Schema.Literal('page-previous'), parameters: actionParameters['page-previous'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('plugin'), parameters: actionParameters.plugin }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('launch-app'), parameters: actionParameters['launch-app'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('run-command'), parameters: actionParameters['run-command'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('counter'), parameters: actionParameters.counter }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('open-folder'), parameters: actionParameters['open-folder'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('go-back'), parameters: actionParameters['go-back'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('page-next'), parameters: actionParameters['page-next'] }),
+  Schema.Struct({ label: shortText, trigger: Schema.optional(KeyTrigger), action: Schema.Literal('page-previous'), parameters: actionParameters['page-previous'] }),
 ]);
 export type ButtonBinding = typeof ButtonBinding.Type;
 export type ActionId = ButtonBinding['action'];
@@ -43,6 +44,7 @@ export type Profile = typeof Profile.Type;
 export const StoredProfile = Schema.Union([LegacyProfile, Profile]);
 export const UpdateBinding = Schema.Struct({ key: Schema.Int, binding: Schema.NullOr(ButtonBinding), expected: Schema.optional(Schema.NullOr(ButtonBinding)), address: Schema.optional(Schema.String) });
 export const Trigger = Schema.Struct({ key: Schema.Int, address: Schema.optional(Schema.String) });
+export const KeyInput = Schema.Struct({ key: Schema.Int, phase: Schema.Literals(['down', 'up', 'cancel']), address: Schema.String, revision: Schema.Int });
 export const Navigate = Schema.Struct({ zone: Schema.NonEmptyString, operation: Schema.Literals(['next', 'previous', 'back', 'root', 'open']), folder: Schema.optional(Schema.String) });
 export type Navigate = typeof Navigate.Type;
 export const Organize = Schema.Union([
