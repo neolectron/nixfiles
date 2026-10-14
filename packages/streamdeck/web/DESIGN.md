@@ -20,6 +20,11 @@ status dot sits before the name, with the connection label below the name on all
 screen sizes. Before USB detection the title stays generic.
 Édition keeps the selected key/dial inspector. Plugins groups activation switches
 and per-plugin collapsible configuration; switches remain reachable when collapsed.
+Each plugin groups its exported tiles and settings into separate tabs. The palette
+uses the deck's key renderer at a smaller scale, with a separate six-dot grip.
+Clicking prepares a draft on the selected key; dragging prepares it on the target
+key. Both return to Édition; saving is explicit and neither executes the action.
+Disabled plugins keep their tiles available.
 Tab changes preserve unsaved drafts. Narrow screens: configuration below the preview;
 the grid follows the device's columns. No decorative
 motion, metrics, marketing content or unfinished navigation. Physical knob
