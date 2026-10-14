@@ -10,6 +10,7 @@ import { TargetPreview, zoneLabel } from './zone-map.ts';
 import * as Fields from '../src/plugin-fields.ts';
 import { PluginFields } from './plugin-fields.ts';
 import { PluginControls } from './plugin-controls.ts';
+import { KeyGrid } from './key-grid.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {
@@ -130,15 +131,13 @@ function App() {
         h('div', { className: 'preview-heading' }, h('div', {}, h('h2', {}, snapshot?.model.replace(/^Mock /, '') ?? 'Ton deck'), h('p', {}, 'Sélectionne une touche pour la configurer. Double-clique sur une touche de navigation pour l’utiliser.')),
           h('span', { className: 'profile-name' }, 'Profil principal')),
         h('div', { className: 'device', style: { '--columns': columns } as import('react').CSSProperties },
-          h('div', { className: snapshot ? 'key-grid' : 'key-grid loading', 'aria-label': 'Touches' }, ...(snapshot?.keys ?? Array.from({ length: 36 }, (_, index) => ({ index, binding: null, revision: 0, pressed: false }))).map((key) => h('button', {
-            key: key.index, className: `deck-key${selection.kind === 'key' && selection.index === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}`,
-            'aria-label': `Touche ${key.index + 1}${key.binding ? ` · ${key.binding.label}` : ` · ${snapshot?.plugins.items.find((plugin) => plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(key.index))?.name ?? 'libre'}`}`, 'aria-pressed': selection.kind === 'key' && selection.index === key.index,
-            disabled: !snapshot, onClick: () => select({ kind: 'key', index: key.index }),
-            onDoubleClick: () => {
-              const current = snapshot?.keys.find((item) => item.index === key.index);
-              if (current?.binding && ['open-folder', 'go-back', 'page-next', 'page-previous'].includes(current.binding.action) && !dirty && online) Effect.runFork(Api.trigger(current.index, current.address).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) })));
-            },
-          }, key.revision ? h('img', { src: `/api/image/key/${key.index}?session=${snapshot?.sessionId}&revision=${key.revision}`, alt: '', draggable: false }) : h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 })), h('span', { className: 'key-number' }, key.index + 1)))),
+          snapshot ? h(KeyGrid, {
+            snapshot, selected: selection.kind === 'key' ? selection.index : null, editable: online && shortcutsActive && !dirty,
+            disabledReason: dirty ? 'Enregistre ou annule les modifications avant de déplacer les touches.' : !online ? 'Le déplacement sera disponible après reconnexion.' : !shortcutsActive ? 'Active Raccourcis pour déplacer les touches.' : undefined,
+            onSelect: (index) => select({ kind: 'key', index }), onSnapshot: acceptSnapshot,
+            empty: h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 })),
+            onNavigate: (key) => { if (key.binding && ['open-folder', 'go-back', 'page-next', 'page-previous'].includes(key.binding.action)) Effect.runFork(Api.trigger(key.index, key.address).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) }))); },
+          }) : h('div', { className: 'key-grid loading', 'aria-label': 'Chargement des touches' }, ...Array.from({ length: 36 }, (_, index) => h('button', { key: index, className: 'deck-key', disabled: true }, h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 }))))),
           ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' }, lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel des volumes et du Master', draggable: false }) : null)),
           h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, pressed: false, x: index * 200, width: 200 }))).map((dial) => h('button', {
             key: dial.index, className: `dial-control${selection.kind === 'dial' && selection.index === dial.index ? ' selected' : ''}${dial.pressed ? ' pressed' : ''}`,

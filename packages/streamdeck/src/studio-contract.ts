@@ -46,6 +46,7 @@ export const Trigger = Schema.Struct({ key: Schema.Int, address: Schema.optional
 export const Navigate = Schema.Struct({ zone: Schema.NonEmptyString, operation: Schema.Literals(['next', 'previous', 'back', 'root', 'open']), folder: Schema.optional(Schema.String) });
 export type Navigate = typeof Navigate.Type;
 export const Organize = Schema.Union([
+  Schema.Struct({ operation: Schema.Literal('exchange'), source: Schema.Int, target: Schema.Int, sourceAddress: Schema.String, targetAddress: Schema.String, revision: Schema.Int }),
   Schema.Struct({ operation: Schema.Literal('create-folder'), key: Schema.Int, name: shortText, address: Schema.String, target: Schema.optional(Schema.NonEmptyString) }),
   Schema.Struct({ operation: Schema.Literal('move'), id: Schema.NonEmptyString, destination: Schema.NonEmptyString, revision: Schema.Int }),
   Schema.Struct({ operation: Schema.Literal('create-zone'), name: shortText, keys: Schema.Array(Schema.Int), revision: Schema.Int }),

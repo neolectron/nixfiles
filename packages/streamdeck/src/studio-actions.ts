@@ -120,7 +120,14 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     const before = yield* Ref.get(model);
     if ('revision' in command && command.revision !== before.revision) return yield* Effect.fail(invalid('La disposition a changé. Recharge-la avant de continuer.', 409));
     const next = Layout.copy(before.profile); let navigation = before.navigation;
-    if (command.operation === 'create-folder') {
+    if (command.operation === 'exchange') {
+      const from = yield* currentKey(command.source, command.sourceAddress);
+      const to = yield* currentKey(command.target, command.targetAddress);
+      const active = yield* Ref.get(states);
+      if ([from, to].some((slot) => slot.entry && active.get(slot.entry.id)?.status === 'running') || releases.has(command.source) || releases.has(command.target)) return yield* Effect.fail(invalid('Relâche les touches et arrête leurs actions avant de les déplacer.', 409));
+      if (command.source === command.target || from.entry?.id === to.entry?.id) return;
+      yield* checked(() => Layout.exchange(next, navigation, command.source, command.target));
+    } else if (command.operation === 'create-folder') {
       const slot = yield* currentKey(command.key, command.address);
       if (slot.entry || slot.virtual) return yield* Effect.fail(invalid('Sélectionne une touche libre pour créer un dossier.'));
       const id = yield* crypto.randomUUIDv4(); next.folders.push({ id, name: command.name, items: [] });
