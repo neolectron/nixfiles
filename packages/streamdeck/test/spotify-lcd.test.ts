@@ -97,6 +97,13 @@ it.live('physical LCD tap and web tap share Spotify view state, retain paused ca
     const slot = initial.dials.find((dial) => dial.key === 'spotifast')!; const before = initial.lcds[0]!.revision;
     yield* mock.emit({ _tag: 'TouchTap', lcd: 0, position: { x: slot.x + 10, y: 30 } });
     const track = yield* Effect.repeat(studio.snapshot, { until: (state) => state.lcds[0]!.revision > before, schedule: Schedule.spaced(5) });
+    const wide = track.dials.find((dial) => dial.key === 'spotifast')!;
+    assert.strictEqual(wide.cardWidth, track.dials.find((dial) => dial.master)!.x - wide.x);
+    // The empty slots covered by the track also belong to its physical touch area.
+    const trackRevision = track.lcds[0]!.revision;
+    yield* mock.emit({ _tag: 'TouchTap', lcd: 0, position: { x: wide.x + wide.cardWidth - 1, y: 30 } });
+    yield* Effect.repeat(studio.snapshot, { until: (state) => state.lcds[0]!.revision > trackRevision && state.dials.find((dial) => dial.key === 'spotifast')!.cardWidth === wide.width, schedule: Schedule.spaced(5) });
+    yield* studio.lcdTap({ dial: slot.index, application: 'spotifast', page: 0 });
     yield* mock.emit({ _tag: 'DialRotate', dial: slot.index, delta: 1 });
     yield* Effect.repeat(Effect.sync(() => changes.length), { until: (count) => count > 0, schedule: Schedule.spaced(5) });
     assert.strictEqual(changes[0]![0], 'spotifast');

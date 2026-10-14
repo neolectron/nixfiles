@@ -159,7 +159,7 @@ function App() {
           ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' },
             lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel du mixer et des cartes des applications', draggable: false }) : null,
             ...(lcd.index === 0 ? snapshot?.dials ?? [] : []).filter((dial) => dial.interaction).map((dial) => h('button', {
-              key: dial.index, className: 'lcd-card-hit', style: { left: `${dial.x / lcd.width * 100}%`, width: `${dial.width / lcd.width * 100}%` },
+              key: dial.index, className: 'lcd-card-hit', style: { left: `${dial.x / lcd.width * 100}%`, width: `${dial.cardWidth / lcd.width * 100}%` },
               title: `${dial.name} · ${dial.interaction}`, 'aria-label': `${dial.name} · ${dial.interaction}`, disabled: !online || !mixerActive, onClick: () => tapLcd(dial),
             })))),
           h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, pressed: false, x: index * 200, width: 200 }))).map((dial) => h('button', {

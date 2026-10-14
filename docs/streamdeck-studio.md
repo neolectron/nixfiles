@@ -34,6 +34,20 @@ removes the first application across a page boundary and verifies that queued
 volume/mute changes still target application identities after cards move; Master
 remains at the right.
 
+Music cards now stay after other application cards regardless of volume/track
+mode. Their track view expands across available empty slots up to Master, with
+larger text and optional album artwork. Incoming apps insert before music rather
+than blocking its available width. Expansion does not assign extra knobs; physical
+touch and browser hit areas cover the actual rendered card. Returning to volume
+or shrinking clears previously covered slots.
+
+The real preview showed Pearl Jam's “Alive” artwork across an 864-pixel region,
+then narrowed when Discord arrived. Following that feedback, music was moved to
+the end of the application order. Desktop and 390-pixel browser layouts were
+checked without horizontal overflow. Tests cover expanded regions, clearing,
+Master exclusion, trailing placement, touch over covered empty slots, MPRIS art
+metadata, background download deduplication/limits, eviction and scope cancellation.
+
 ## Structure
 
 - `studio-contract.ts`: shared Effect schemas for action parameters, profiles,
@@ -111,7 +125,7 @@ plugin forwards raw events once, removing the former nested binding recognizer.
 The browser imports the serializable Schema/defaults from `press-trigger.ts`
 without pulling in the runtime timer engine.
 
-150 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+155 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.

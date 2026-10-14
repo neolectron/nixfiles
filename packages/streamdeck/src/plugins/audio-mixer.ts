@@ -19,11 +19,11 @@ export interface MixerState {
   readonly masterOnline: boolean;
 }
 /** Surviving apps keep their order, compact left, and newly discovered apps append. */
-export const assign = (previous: ReadonlyArray<string | null>, apps: ReadonlyArray<Application>): ReadonlyArray<string> => {
+export const assign = (previous: ReadonlyArray<string | null>, apps: ReadonlyArray<Application>, trailing: ReadonlySet<string> = new Set()): ReadonlyArray<string> => {
   const keys = new Set(apps.map((app) => app.key));
   const slots = previous.filter((key): key is string => key !== null && keys.has(key));
   for (const app of apps) if (!slots.includes(app.key)) slots.push(app.key);
-  return slots;
+  return [...slots.filter((key) => !trailing.has(key)), ...slots.filter((key) => trailing.has(key))];
 };
 export interface Slot extends Position, Size { readonly dial: number }
 /** Derive horizontal knob alignment from device geometry, with a uniform fallback. */
@@ -58,20 +58,31 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
   const pendingMaster = yield* Ref.make<{ readonly target: Master; readonly change: Change } | undefined>(undefined);
   const screen = yield* Semaphore.make(1);
   const cache = new Map<number, string>();
+  const regions = yield* Ref.make<ReadonlyArray<Slot>>(slots);
   const render = (next: MixerState) => Effect.gen(function*() {
     let changed = false;
+    let coveredUntil = 0;
+    const drawn: Slot[] = [];
     for (const [i, slot] of slots.entries()) {
+      if (slot.x < coveredUntil) { cache.delete(i); continue; }
       const isMaster = slot.dial === masterSlot.dial;
       const app = isMaster ? next.master : next.apps.find((app) => app.key === next.assignments[next.page * appSlots.length + i]);
       const online = isMaster ? next.masterOnline : next.online;
-      const custom = !isMaster && app && 'key' in app && extensions ? yield* extensions.frame(app, slot) : undefined;
-      const stamp = JSON.stringify([online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume), custom?.stamp]);
+      let available = slot;
+      if (!isMaster && app) for (let j = i + 1; j < appSlots.length && !next.assignments[next.page * appSlots.length + j]; j++) {
+        available = { ...slot, width: appSlots[j]!.x + appSlots[j]!.width - slot.x };
+      }
+      const custom = !isMaster && app && 'key' in app && extensions ? yield* extensions.frame(app, slot, available) : undefined;
+      const region = { ...slot, width: custom?.size.width ?? slot.width };
+      drawn.push(region); coveredUntil = region.x + region.width;
+      const stamp = JSON.stringify([region, online, app?.name, app && Math.round(app.volume), app?.muted, app && 'mixedMute' in app && app.mixedMute, app && volumeColor(app.volume), custom?.stamp]);
       if (cache.get(i) === stamp) continue;
       const image = custom ? yield* custom.draw : undefined;
-      yield* deck.lcd(lcd.index).drawRegion(slot, image ?? (yield* display.card(slot, app, online, isMaster ? 'MASTER' : undefined)));
+      yield* deck.lcd(lcd.index).drawRegion(region, image ?? (yield* display.card(region, app, online, isMaster ? 'MASTER' : undefined)));
       cache.set(i, stamp);
       changed = true;
     }
+    yield* Ref.set(regions, drawn);
     yield* Ref.set(state, next); // Routing changes only after matching feedback is written.
     if (changed) yield* Console.log(JSON.stringify({ kind: 'mixer-view', page: next.page + 1, online: next.online,
       slots: slots.map((slot, i) => {
@@ -98,7 +109,9 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
       if (before.masterOnline) yield* Effect.logWarning('Master unavailable', error.message);
       return { value: undefined, online: false };
     })));
-    const assignments = apps ? assign(before.assignments, apps) : before.assignments;
+    const trailing = new Set<string>();
+    if (apps && extensions) for (const app of apps) if ((yield* extensions.placement(app)) === 'last') trailing.add(app.key);
+    const assignments = apps ? assign(before.assignments, apps, trailing) : before.assignments;
     const page = Math.min(before.page, Math.max(0, Math.ceil(assignments.length / appSlots.length) - 1));
     yield* render({ apps: apps ?? [], assignments, page, online: !!apps, master: master.value, masterOnline: master.online });
   }));
@@ -155,10 +168,10 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
     }])),
     touch: { [lcd.index]: {
       area: { x: 0, y: 0, width: masterSlot.x, height: lcd.pixelSize.height },
-      onTap: ({ position }) => {
-        const slot = appSlots.find((slot) => position.x >= slot.x && position.x < slot.x + slot.width);
+      onTap: ({ position }) => Effect.flatMap(Ref.get(regions), (drawn) => {
+        const slot = drawn.find((slot) => slot.dial !== masterSlot.dial && position.x >= slot.x && position.x < slot.x + slot.width);
         return slot ? tapDial(slot.dial) : Effect.void;
-      },
+      }),
       onSwipe: ({ from, to }) => Math.abs(to.x - from.x) >= 30 && Math.abs(to.x - from.x) > Math.abs(to.y - from.y)
         ? changePage(to.x < from.x ? 1 : -1) : Effect.void,
     } },
@@ -166,7 +179,7 @@ export const make = (options: MixerOptions = {}) => Effect.gen(function*() {
   });
   const view = yield* Ref.get(state);
   yield* Console.log(JSON.stringify({ kind: 'mixer-ready', apps: view.apps.map((app) => ({ name: app.name, key: app.key, volume: Math.round(app.volume), muted: app.muted })), master: view.master, step, pages: Math.max(1, Math.ceil(view.assignments.length / appSlots.length)) }));
-  return { state: Ref.get(state), refresh, flush, changePage, tapDial,
+  return { state: Ref.get(state), regions: Ref.get(regions), refresh, flush, changePage, tapDial,
     adjustDial: (dial: number, ticks: number) => enqueue(dial, ticks * step, 0),
     toggleDial: (dial: number) => enqueue(dial, 0, 1),
     run: Effect.raceAllFirst([
