@@ -6,7 +6,7 @@ export interface Field {
   readonly label: string;
   readonly hint: string;
   readonly required: boolean;
-  readonly kind: 'text' | 'number' | 'boolean' | 'select' | 'json';
+  readonly kind: 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'json';
   readonly options: ReadonlyArray<string | number | boolean>;
   readonly min?: number;
   readonly max?: number;
@@ -23,7 +23,12 @@ export const fields = (document: unknown): ReadonlyArray<Field> => {
   const resolve = (value: unknown): Record<string, unknown> => {
     const schema = object(value) ? value : {};
     const ref = typeof schema.$ref === 'string' ? schema.$ref.split('/').at(-1) : undefined;
-    return ref && object(definitions[ref]) ? { ...definitions[ref], ...schema } : schema;
+    const resolved = ref && object(definitions[ref]) ? { ...definitions[ref], ...schema } : schema;
+    // Effect attaches check annotations (e.g. multiline hints and limits) inside allOf.
+    const checks = Array.isArray(resolved.allOf)
+      ? Object.assign({}, ...resolved.allOf.map(resolve))
+      : {};
+    return { ...checks, ...resolved };
   };
   const root = resolve(doc.schema ?? doc);
   const properties = object(root.properties) ? root.properties : undefined;
@@ -59,7 +64,9 @@ export const fields = (document: unknown): ReadonlyArray<Field> => {
         kind: options.length
           ? 'select'
           : schema.type === 'string'
-            ? 'text'
+            ? schema.contentMediaType === 'text/plain'
+              ? 'multiline'
+              : 'text'
             : schema.type === 'integer' || schema.type === 'number'
               ? 'number'
               : schema.type === 'boolean'

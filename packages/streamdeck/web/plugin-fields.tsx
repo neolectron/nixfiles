@@ -114,13 +114,15 @@ export function PluginFields({
                 </option>
               ))}
             </select>
-          ) : field.kind === 'json' ? (
+          ) : field.kind === 'json' || field.kind === 'multiline' ? (
             <textarea
               aria-label={field.label}
               aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
               title={field.hint || undefined}
               rows={4}
-              className="code-input"
+              className={field.kind === 'json' ? 'code-input' : undefined}
+              minLength={field.minLength}
+              maxLength={field.maxLength}
               value={values[`input:${field.key}`] ?? ''}
               disabled={busy}
               required={field.required}
