@@ -21,7 +21,7 @@ Clock-controlled tests cover renewed deadlines, independent players and explicit
 touch choices; a mixer test verifies redraw before audio flush and excludes empty
 dials and Master from application notifications.
 The real deck test confirmed the overlay and its disappearance without shrinking
-the card. The pure `ui/volume-overlay.ts` component reuses the volume boost colors;
+the card. The pure `ui/volume-overlay.tsx` component reuses the volume boost colors;
 the plugin owns timing and the mixer remains the audio writer. Without artwork,
 the overlay uses a neutral tile; narrow cards can also display it.
 
@@ -57,7 +57,7 @@ metadata, background download deduplication/limits, eviction and scope cancellat
 
 - `studio-contract.ts`: shared Effect schemas for action parameters, profiles,
   API payloads, catalogue and live device snapshots.
-- `studio-actions.ts`: persisted bindings, scoped execution, cancellation and
+- `studio-actions.tsx`: persisted bindings, scoped execution, cancellation and
   key feedback. Desktop applications launch through `gio launch`; commands use
   Effect's process service with literal argv and bounded captured output.
 - `studio-layout.ts`: pure projections and validation for disjoint zones, nested
@@ -78,8 +78,9 @@ metadata, background download deduplication/limits, eviction and scope cancellat
   live draft/save/error states, stale-edit protection and command output.
 
 Vite and fast-png are pinned dependencies. GLib is added only to the existing
-standalone Nix shell for desktop application launch. Native `.ts` execution,
-`.ts` imports and `noEmit` remain; no build script, barrel or `node:` import is
+standalone Nix shell for desktop application launch. Node execution now uses
+`--import tsx` for shared JSX views. Explicit `.ts`/`.tsx` imports and `noEmit`
+remain; no build script, barrel or `node:` import is
 introduced in the package. No Elgato plugin host or OpenDeck runtime is installed.
 
 ## Verification
@@ -115,10 +116,13 @@ its microphone was not started during gesture testing.
 Scripts use the same abstraction without adding their own timers:
 
 ```ts
-yield* Bindings.run({ buttons: {
-  0: { trigger: { type: 'long-press', milliseconds: 800 }, onPress: myAction },
-  1: { trigger: { type: 'double-tap' }, onPress: anotherAction },
-} });
+yield *
+  Bindings.run({
+    buttons: {
+      0: { trigger: { type: 'long-press', milliseconds: 800 }, onPress: myAction },
+      1: { trigger: { type: 'double-tap' }, onPress: anotherAction },
+    },
+  });
 ```
 
 The library also accepts independent `onShortPress`, `onLongPress` and
@@ -226,7 +230,6 @@ key images cannot be read back from HID.
 Personal bindings in `.studio/` are excluded from the commit. No push, merge,
 global Nix/USB permission change or Formula production change was performed.
 
-
 ## Plugin consolidation
 
 The audio mixer and shortcut router now use `PluginHost` with independent
@@ -256,7 +259,6 @@ the same browser session. Desktop and mobile inspection found no horizontal
 overflow. The real editor remains on port 3900 with its original shortcuts and
 all three production features enabled; the example stays disabled.
 
-
 ## Action and rendering consolidation
 
 Plugin actions declare an Effect Schema once; the host validates defaults/inputs,
@@ -278,7 +280,7 @@ Plugin.listen ordering/backpressure. A failed finalizer is reported while contro
 ownership is released. Plugin-action tests cover schema field round trips, invalid
 save rejection, physical and web dispatch, disabled/long action feedback,
 command cancellation, cache buffer protection, region invalidation, coalescing
-and cleanup faults. Effect CLI and native `.ts` execution remain the entry points.
+and cleanup faults. Effect CLI and Node with the `tsx` runtime loader remain the entry points.
 
 Browser validation saved a Commands plugin action, generated its parameter fields,
 executed `printf` and displayed **Hello depuis Effect** in the inspector. Desktop

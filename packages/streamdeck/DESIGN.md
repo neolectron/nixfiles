@@ -2,45 +2,45 @@
 name: Stream Deck audio mixer
 description: Elgato-inspired LCD cards for physical rotary audio control.
 colors:
-  bezel: "#0D0D10"
-  surface-top: "#41414D"
-  surface-bottom: "#35353F"
-  title: "#F4F4F7"
-  secondary: "#C5C6CF"
-  inactive: "#B8BAC5"
-  track: "#24252B"
-  nominal: "#38E51E"
-  boost-yellow: "rgb(255,220,40)"
-  boost-orange: "rgb(255,145,30)"
-  boost-red: "rgb(255,55,55)"
+  bezel: '#0D0D10'
+  surface-top: '#41414D'
+  surface-bottom: '#35353F'
+  title: '#F4F4F7'
+  secondary: '#C5C6CF'
+  inactive: '#B8BAC5'
+  track: '#24252B'
+  nominal: '#38E51E'
+  boost-yellow: 'rgb(255,220,40)'
+  boost-orange: 'rgb(255,145,30)'
+  boost-red: 'rgb(255,55,55)'
 typography:
   title:
-    fontFamily: "Liberation Sans"
-    fontSize: "15px"
+    fontFamily: 'Liberation Sans'
+    fontSize: '15px'
     fontWeight: 700
   value:
-    fontFamily: "Liberation Sans"
-    fontSize: "30px"
+    fontFamily: 'Liberation Sans'
+    fontSize: '30px'
     fontWeight: 700
   unit:
-    fontFamily: "Liberation Sans"
-    fontSize: "13px"
+    fontFamily: 'Liberation Sans'
+    fontSize: '13px'
     fontWeight: 700
   state:
-    fontFamily: "Liberation Sans"
-    fontSize: "11px"
+    fontFamily: 'Liberation Sans'
+    fontSize: '11px'
     fontWeight: 700
 rounded:
-  card: "7px"
+  card: '7px'
 spacing:
-  edge: "4px"
-  gutter: "8px"
+  edge: '4px'
+  gutter: '8px'
 components:
   mixer-card:
-    backgroundColor: "{colors.surface-bottom}"
-    textColor: "{colors.title}"
-    rounded: "{rounded.card}"
-    height: "92px"
+    backgroundColor: '{colors.surface-bottom}'
+    textColor: '{colors.title}'
+    rounded: '{rounded.card}'
+    height: '92px'
 ---
 
 # Design System: Stream Deck audio mixer

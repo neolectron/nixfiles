@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/docs/**",
+    "**/.studio/**",
+    "**/dist/**",
+    "**/node_modules/**"
+  ],
+  "plugins": ["oxc", "typescript", "unicorn", "import", "promise", "react", "jsx-a11y"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "no-commonjs": "error",
+    "no-amd": "error",
+    "eqeqeq": "error",
+    "no-else-return": "error",
+    "no-throw-literal": "error",
+    "no-underscore-dangle": "off",
+    "no-unused-vars": [
+      "warn",
+      {
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-import-type-side-effects": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/prefer-ts-expect-error": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/jsx-no-useless-fragment": "error",
+    "react/no-unescaped-entities": "error",
+    "react/jsx-no-constructed-context-values": "warn",
+    "import/no-default-export": "warn",
+    "import/no-duplicates": "error",
+    "import/no-unassigned-import": [
+      "error",
+      {
+        "allow": ["**/*.css"]
+      }
+    ],
+    "promise/always-return": "error",
+    "promise/catch-or-return": "error",
+    "promise/no-nesting": "error",
+    "unicorn/prefer-modern-math-apis": "error",
+    "unicorn/prefer-query-selector": "error",
+    "unicorn/prefer-event-target": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "regex": "^(?:node:|(?:fs(?:/.*)?|path|child_process|os|http|https|net|tls|crypto|worker_threads)$)",
+            "message": "Use Effect platform services for platform I/O."
+          }
+        ]
+      }
+    ]
+  }
+}

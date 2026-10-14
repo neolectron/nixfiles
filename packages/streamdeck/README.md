@@ -15,12 +15,31 @@ See the [research and design decisions](../../docs/streamdeck-effect-v4-research
 [Effect verification](../../docs/streamdeck-effect-v4-verification.md) and
 [original physical proof](../../docs/streamdeck-hardware-2026-10-13.md).
 
+## Coding standards
+
+The shared Oxlint rules and Oxfmt style follow Formula, including single quotes.
+Platform I/O stays in Effect services. Stream Deck tests use Vitest and
+`@effect/vitest`; the keep-awake package retains its existing runner.
+
+```sh
+pnpm lint          # Oxlint (shared root rules)
+pnpm format        # Oxfmt check
+pnpm format:fix    # Apply formatting
+pnpm typecheck     # Both package typechecks, no emitted JS
+pnpm test          # Stream Deck Vitest + keep-awake regression suite
+pnpm check         # All quality checks
+```
+
+React views use normal JSX in `.tsx` files, with explicit `.ts`/`.tsx` imports.
+The CLI runs via `node --import tsx`; dev scripts also retain Node `--watch`.
+No build script is required. Oxlint prohibits Node built-in imports.
+
 ## Run
 
 From the isolated repository clone opened in VS Code:
 
-Node 24 runs the `.ts` sources directly using its built-in type stripping. There
-is no build step, loader or generated JavaScript. Type checking uses `tsc` with
+Node 24 executes the sources with `--import tsx`, including shared JSX views.
+There is no build step or generated JavaScript. Type checking uses `tsc` with
 `noEmit`, `allowImportingTsExtensions` and `erasableSyntaxOnly`; the
 `verbatimModuleSyntax` option keeps type-only imports explicit. See
 [Node's TypeScript support](https://nodejs.org/docs/latest-v24.x/api/typescript.html).
@@ -95,7 +114,7 @@ host**. Use the counter for fully inert tests.
 
 Backend `.ts` sources run directly in Node 24. Vite transforms the browser's React
 and TypeScript modules on demand with HMR; no build script or emitted JS is added.
-The shared [key card](src/ui/key-card.ts) and [volume card](src/ui/volume-card.ts)
+The shared [key card](src/ui/key-card.tsx) and [volume card](src/ui/volume-card.tsx)
 are pure React views. Effect owns HTTP, SSE, validation, persistence, child process
 lifecycle and device state. See the [implementation evidence](../../docs/streamdeck-studio.md).
 
@@ -254,7 +273,7 @@ import * as Bindings from '../bindings.ts';
 import * as Hid from '../hid.ts';
 import { StreamDeck } from '../stream-deck.ts';
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const deck = yield* StreamDeck;
   yield* Bindings.run({
     buttons: {
@@ -283,7 +302,7 @@ NodeRuntime.runMain(program);
 Save it under `src/scripts/my-script.ts` and run from the repo root:
 
 ```sh
-pnpm --filter @nixfiles/streamdeck exec node src/scripts/my-script.ts
+pnpm --filter @nixfiles/streamdeck exec node --import tsx src/scripts/my-script.ts
 ```
 
 Handlers accept an Effect directly or a function returning an Effect. They may
@@ -296,21 +315,21 @@ The default examples change displays and log actions only.
 All operations below return Effects. Obtaining a `key(index)`/`lcd(index)` handle
 is pure; executing an operation validates that the control exists and supports it.
 
-| API | Purpose |
-| --- | --- |
-| `discover.pipe(Effect.provide(Hid.driverLayer))` | Enumerate devices and actual VID/PID, without opening them |
-| `Hid.layer({ path?, eventCapacity? })` | Provide one scoped `StreamDeck` service |
-| `deck.info`, `deck.buttons`, `deck.dials`, `deck.lcds` | Model and logical control definitions |
-| `deck.key(i).label(text, options?)` | Uppercase bitmap label; background, foreground, optional 0–100 gauge |
-| `deck.key(i).setImage(image)` | Exact-size logical RGB image |
-| `deck.key(i).fill([r,g,b])`, `.clear` | Solid color / black |
-| `deck.lcd(i).label`, `.setImage`, `.fill`, `.clear` | Same operations for an LCD strip |
-| `deck.lcd(i).drawRegion({ x,y }, image)` | Update a bounded logical region |
-| `deck.setBrightness(percent)`, `deck.resetToLogo` | Explicit device-wide changes; never called automatically |
-| `deck.firmwareVersion`, `deck.serialNumber` | Explicit identity queries; serial numbers are not logged automatically |
-| `deck.events` | Scoped live broadcast Stream of normalized input |
-| `deck.subscribe` | Establish a scoped subscription before starting producers |
-| `deck.awaitFailure` | Race a custom long-running program against terminal device failure |
+| API                                                    | Purpose                                                                |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `discover.pipe(Effect.provide(Hid.driverLayer))`       | Enumerate devices and actual VID/PID, without opening them             |
+| `Hid.layer({ path?, eventCapacity? })`                 | Provide one scoped `StreamDeck` service                                |
+| `deck.info`, `deck.buttons`, `deck.dials`, `deck.lcds` | Model and logical control definitions                                  |
+| `deck.key(i).label(text, options?)`                    | Uppercase bitmap label; background, foreground, optional 0–100 gauge   |
+| `deck.key(i).setImage(image)`                          | Exact-size logical RGB image                                           |
+| `deck.key(i).fill([r,g,b])`, `.clear`                  | Solid color / black                                                    |
+| `deck.lcd(i).label`, `.setImage`, `.fill`, `.clear`    | Same operations for an LCD strip                                       |
+| `deck.lcd(i).drawRegion({ x,y }, image)`               | Update a bounded logical region                                        |
+| `deck.setBrightness(percent)`, `deck.resetToLogo`      | Explicit device-wide changes; never called automatically               |
+| `deck.firmwareVersion`, `deck.serialNumber`            | Explicit identity queries; serial numbers are not logged automatically |
+| `deck.events`                                          | Scoped live broadcast Stream of normalized input                       |
+| `deck.subscribe`                                       | Establish a scoped subscription before starting producers              |
+| `deck.awaitFailure`                                    | Race a custom long-running program against terminal device failure     |
 
 `Image.solid(size, color)` and `Image.label(size, text, options)` construct validated
 images. `RgbImage` is `{ width, height, data: Uint8Array }`, exactly three RGB bytes
@@ -324,7 +343,7 @@ does not depend on system font lookup. The exact Elgato font is not claimed.
 The [asset sources and licenses](assets/README.md) are included. HID discovery and
 bitmap hello/playground scripts never load the native SVG renderer.
 
-`--renderer react` uses [React cards](src/react-mixer.ts) and the
+`--renderer react` uses [React cards](src/react-mixer.tsx) and the
 [Effect Takumi adapter](src/takumi.ts). Write normal React elements with HTML,
 inline CSS and SVG; the adapter returns RGB or PNG from `rgb(element, size)` or
 `png(element, size)` Effects. It bundles the same fonts and icons as the SVG
@@ -332,7 +351,8 @@ renderer. Opaque backgrounds are required for RGB output: alpha is discarded.
 Effect owns state, event routing and resource lifetimes. These are stateless
 React views rendered with `renderToStaticMarkup`; there is no retained React
 root, `useState`/`useEffect` runtime, DOM or browser event handling here. The `.ts`
-views use `createElement` so Node keeps running them directly without a loader.
+views use standard JSX in `.tsx` files. `node --import tsx` transforms them in
+memory; `noEmit` and the build-free workflow remain.
 Only changed cards are rendered and uploaded. SVG remains the default.
 
 See the [React/Takumi trial](../../docs/streamdeck-react-poc/README.md) for the
@@ -388,6 +408,7 @@ and [plugin guide](../../docs/streamdeck-plugins.md) for composable actions:
 ```sh
 pnpm cli gestures --mock --duration 3
 ```
+
 Disconnect and event overflow are terminal. Default capacity is 256; no input
 replay or automatic reconnect. Shared consumers reuse one owning layer.
 
@@ -399,12 +420,14 @@ import * as Mock from '../mock.ts';
 import { StreamDeck } from '../stream-deck.ts';
 
 const mock = Mock.make();
-const testProgram = Effect.scoped(Effect.gen(function*() {
-  const deck = yield* StreamDeck;
-  const events = yield* deck.subscribe;
-  yield* mock.emit({ _tag: 'KeyDown', key: 0 });
-  return yield* Stream.runHead(events);
-}));
+const testProgram = Effect.scoped(
+  Effect.gen(function* () {
+    const deck = yield* StreamDeck;
+    const events = yield* deck.subscribe;
+    yield* mock.emit({ _tag: 'KeyDown', key: 0 });
+    return yield* Stream.runHead(events);
+  }),
+);
 const observed = await Effect.runPromise(testProgram.pipe(Effect.provide(mock.layer())));
 // mock.writes, mock.opens and mock.closes are available for assertions.
 ```
@@ -426,7 +449,7 @@ even in tests with an intentionally empty command search path. Run the suite via
 ```sh
 pnpm test
 pnpm typecheck
-node packages/streamdeck/src/cli.ts hello --mock --demo --lcd
+pnpm --filter @nixfiles/streamdeck exec node --import tsx src/cli.ts hello --mock --demo --lcd
 ```
 
 Only Stream Deck dependencies changed. The sibling `keep-awake-mcp`, its npm
@@ -440,7 +463,6 @@ the scripts as root or grant world-writable access. The narrow persistent exampl
 uses `TAG+="uaccess"` for `0fd9:00c6` before `73-seat-late.rules`, via
 `services.udev.packages`; integrating it belongs to the host configuration and
 the parent-managed Nix activation workflow. No NixOS activation was performed.
-
 
 Plugin actions are selectable through **Action d’un plugin**. Declare them with
 `Plugin.action({ input: Schema.Struct(...), defaults, run })`; the browser generates

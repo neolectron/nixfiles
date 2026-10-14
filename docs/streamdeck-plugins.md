@@ -22,7 +22,7 @@ import { Effect } from 'effect';
 import { PluginHost } from '../plugin-host.ts';
 import * as AudioMixer from '../plugins/audio-mixer.ts';
 
-const script = Effect.gen(function*() {
+const script = Effect.gen(function* () {
   const host = yield* PluginHost;
   const mixer = yield* host.install(AudioMixer.plugin({ renderer: 'react' }));
   yield* host.setEnabled(mixer.id, true);
@@ -46,16 +46,17 @@ Edit `packages/streamdeck/src/studio-plugins.ts`. The shipped example registers 
 clock source without enabling it. Replace its source, or register more plugins:
 
 ```ts
-const source = Sources.poll(myService.currentState, '1 second')
-  .pipe(Stream.map((value) => value.title));
-yield* host.install(EventDisplay.plugin(source, 0));
+const source = Sources.poll(myService.currentState, '1 second').pipe(
+  Stream.map((value) => value.title),
+);
+yield * host.install(EventDisplay.plugin(source, 0));
 ```
 
 The example has React feedback and a physical press counter. It owns key index
 `0` (touch 1 in the UI); **Raccourcis** owns all keys, so disable Raccourcis before
 enabling the example. Mixer audio can remain enabled because it owns other
 controls. `pnpm cli plugins --mock --duration 3` runs the same example independently
-without HID or real audio. All entry points use Effect CLI and Node's native TS.
+without HID or real audio. All entry points use Effect CLI and Node's `tsx` runtime loader.
 
 `Sources.poll` returns an ordinary Effect `Stream`. Apply `Stream.map`, `filter`,
 `merge`, `changes`, `debounce`, or explicit retry/recovery before consumption.
@@ -69,7 +70,9 @@ SDKs and EventEmitters can be adapted in one place:
 
 ```ts
 const source = Sources.callback<string>((emit) => {
-  const listener = (event: { title: string }) => { emit(event.title); };
+  const listener = (event: { title: string }) => {
+    emit(event.title);
+  };
   sdk.on('change', listener);
   return () => sdk.off('change', listener);
 });
@@ -155,8 +158,8 @@ the plugin activation scope: disabling unregisters the contribution and interrup
 pending rendering. The mixer owns geometry, paging and all hardware LCD writes;
 the source plugin owns its metadata, React view and toggle state. Other plugins can
 use this extension without claiming the LCD or adding application-specific branches
-to the mixer. `src/plugins/spotify-lcd.ts` is the working example, with the pure
-React component in `src/ui/now-playing-card.ts`. Toggle state resets on reactivation.
+to the mixer. `src/plugins/spotify-lcd.tsx` is the working example, with the pure
+React component in `src/ui/now-playing-card.tsx`. Toggle state resets on reactivation.
 
 Physical touch and the accessible preview buttons invoke the same mixer API. Web
 requests include the displayed application, dial and page, so a delayed click cannot
@@ -202,25 +205,28 @@ three at once. `onPress` is an immediate down callback independent of the
 semantic gestures. `onRelease` remains a raw release callback.
 
 ```ts
-const binding = yield* Bindings.start({
-  buttons: {
-    0: {
-      onShortPress: Plugin.handler(increase, feature, { amount: 1 }),
-      onLongPress: Plugin.handler(increase, feature, { amount: 10 }),
-      onDoubleTap: Plugin.handler(increase, feature, { amount: 100 }),
-      longPressMs: 700,
-      doubleTapMs: 300,
+const binding =
+  yield *
+  Bindings.start({
+    buttons: {
+      0: {
+        onShortPress: Plugin.handler(increase, feature, { amount: 1 }),
+        onLongPress: Plugin.handler(increase, feature, { amount: 10 }),
+        onDoubleTap: Plugin.handler(increase, feature, { amount: 100 }),
+        longPressMs: 700,
+        doubleTapMs: 300,
+      },
     },
-  },
-  knobs: {
-    0: {
-      onShortPress: Plugin.handler(increase, feature), // action defaults
-      onRotate: Plugin.mapHandler(increase, feature,
-        (event: DialRotate) => ({ amount: event.delta })),
+    knobs: {
+      0: {
+        onShortPress: Plugin.handler(increase, feature), // action defaults
+        onRotate: Plugin.mapHandler(increase, feature, (event: DialRotate) => ({
+          amount: event.delta,
+        })),
+      },
     },
-  },
-  touch: { 0: { onSwipe: Plugin.handler(increase, feature, { amount: 100 }) } },
-});
+    touch: { 0: { onSwipe: Plugin.handler(increase, feature, { amount: 100 }) } },
+  });
 // Return { api: feature, run: binding.run } from plugin setup.
 ```
 
@@ -265,25 +271,27 @@ in the same scope. A source already providing semantic events can directly use
 declared action for any domain event, including sources that have no device:
 
 ```ts
-yield* Plugin.listen(myStream,
-  Plugin.mapHandler(increase, feature,
-    (event: { amount: number }) => ({ amount: event.amount })));
+yield *
+  Plugin.listen(
+    myStream,
+    Plugin.mapHandler(increase, feature, (event: { amount: number }) => ({ amount: event.amount })),
+  );
 ```
 
 Source errors cancel outstanding actions and run their finalizers. Background
 action errors also fail the source consumer, including when an action completed
 before the finite source ended. A static `Plugin.handler` accepts any event type.
 
-| Module | Responsibility |
-| --- | --- |
-| `press-trigger.ts` | Serializable trigger Schema, timing ranges and defaults; also used by the browser. |
-| `press-gestures.ts` | Input-independent press state, arbitration, scoped timers and release signals. |
-| `task-runner.ts` | Supervised background actions, failure propagation and task scopes. |
-| `bindings.ts` | Device control validation, event routing, page ownership and initial feedback. |
-| `plugin.ts` | Layer/definition/action API and typed action-to-handler adapters. |
-| `plugin-host.ts` | Activation scopes, control claims, source/task lifetime and action catalogue. |
-| `studio-input.ts` | Web/physical source isolation and captured address/revision adapter. |
-| `studio-actions.ts` | Persisted shortcut/layout orchestration, jobs and action feedback. |
+| Module               | Responsibility                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `press-trigger.ts`   | Serializable trigger Schema, timing ranges and defaults; also used by the browser. |
+| `press-gestures.ts`  | Input-independent press state, arbitration, scoped timers and release signals.     |
+| `task-runner.ts`     | Supervised background actions, failure propagation and task scopes.                |
+| `bindings.ts`        | Device control validation, event routing, page ownership and initial feedback.     |
+| `plugin.ts`          | Layer/definition/action API and typed action-to-handler adapters.                  |
+| `plugin-host.ts`     | Activation scopes, control claims, source/task lifetime and action catalogue.      |
+| `studio-input.ts`    | Web/physical source isolation and captured address/revision adapter.               |
+| `studio-actions.tsx` | Persisted shortcut/layout orchestration, jobs and action feedback.                 |
 
 The studio uses the same gesture engine, with one recognition pass per input.
 Its editor currently chooses one gesture per saved shortcut; composing several
@@ -298,7 +306,7 @@ come from the claimed device; preview and physical feedback use the same pixels.
 An old activation cannot draw after disable, including after a later re-enable.
 
 Keep the React component pure and consume events in the Effect service. For
-example, `src/plugins/event-display.ts` combines an external Stream with physical
+example, `src/plugins/event-display.tsx` combines an external Stream with physical
 press events, updates a Ref and renders one key sequentially. Hooks/DOM interaction
 belong to the browser editor; hardware feedback remains raster images and HID
 reports. The mixer keeps its existing partial-region cache and gesture batching.
@@ -310,7 +318,6 @@ saved preferences. Personal plugins are registered in source and edited with
 Node watch; external Elgato `.sdPlugin` bundles and SDK WebSocket clients need
 an adapter. The editor configures both the existing shortcut catalogue and declared plugin actions. Custom plugin services also expose their typed scripting API.
 
-
 ## Declare actions once, configure them in the editor
 
 Add actions to `Plugin.define` or `Plugin.fromLayer`. Their Schema drives decoded
@@ -318,7 +325,9 @@ parameter types, validation and the generated browser form:
 
 ```ts
 const increase = Plugin.action({
-  id: 'increase', name: 'Increase', description: 'Add to the feature counter.',
+  id: 'increase',
+  name: 'Increase',
+  description: 'Add to the feature counter.',
   input: Schema.Struct({ amount: Schema.Int.annotate({ title: 'Amount' }) }),
   defaults: { amount: 1 },
   run: (feature: MyFeatureApi, { amount }) => feature.increase(amount),
@@ -352,17 +361,18 @@ belongs in its scoped finalizer, so disable/cancel/shutdown also stop it.
 
 ## A source-to-view plugin in a few lines
 
-```ts
+```tsx
 import * as SourceView from '../plugins/source-view.ts';
 
 const status = SourceView.key(0, {
-  id: 'status', name: 'Status',
+  id: 'status',
+  name: 'Status',
   source: Sources.poll(readStatus, '1 second'),
-  view: (state, size) => h('div', {
-    style: { width: size.width, height: size.height, color: '#e2e3e8' },
-  }, state.title),
+  view: (state, size) => (
+    <div style={{ width: size.width, height: size.height, color: '#e2e3e8' }}>{state.title}</div>
+  ),
 });
-yield* host.install(status);
+yield * host.install(status);
 ```
 
 `SourceView.lcd` works similarly. The typed API exposes the latest received state
@@ -385,14 +395,18 @@ An action can expose cached service state independently of its execution:
 
 ```ts
 Plugin.action({
-  id: 'mute', name: 'Mute', description: 'Toggle application mute.',
-  input: Plugin.NoInput, defaults: {},
+  id: 'mute',
+  name: 'Mute',
+  description: 'Toggle application mute.',
+  input: Plugin.NoInput,
+  defaults: {},
   run: (api: AudioController) => api.toggleMute,
-  feedback: (api) => Effect.map(api.state, (state) => ({
-    text: state.muted ? 'COUPÉ' : 'ACTIF',
-    tone: state.muted ? 'danger' : 'positive',
-    icon: 'microphone',
-  })),
+  feedback: (api) =>
+    Effect.map(api.state, (state) => ({
+      text: state.muted ? 'COUPÉ' : 'ACTIF',
+      tone: state.muted ? 'danger' : 'positive',
+      icon: 'microphone',
+    })),
   unavailable: { text: 'HORS LIGNE', tone: 'neutral', icon: 'microphone' },
 });
 ```
