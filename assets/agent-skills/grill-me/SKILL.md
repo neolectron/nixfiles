@@ -1,11 +1,8 @@
 ---
 name: grill-me
-description: Stress-tests a plan or design through focused questions and recommendations. Use when the user asks to be grilled or to pressure-test a decision.
+description: A relentless interview to sharpen a plan or design.
 ---
 
-# Grill me
+Call the Skill tool with "grilling".
 
-Interview the user until the important branches of the design are resolved.
-Batch independent questions in one response. For every question, give a concise
-recommended answer and explain the material trade-off. Inspect the repository
-first when the answer is discoverable from code or configuration.
+If your agent has no Skill tool, read [grilling](../grilling/SKILL.md) and follow its instructions.
