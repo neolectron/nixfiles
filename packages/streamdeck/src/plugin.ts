@@ -4,6 +4,7 @@ import type { KeyFeedback } from './key-feedback.ts';
 import * as Bindings from './bindings.ts';
 import type { PressContext } from './press-gestures.ts';
 import { invalid, invariant } from './errors.ts';
+import { DeckOverlays, type KeyOverlay } from './deck-overlays.ts';
 export interface Controls {
   readonly keys?: ReadonlyArray<number>;
   readonly dials?: ReadonlyArray<number>;
@@ -21,16 +22,41 @@ export interface Definition<Api, E, R> {
   readonly controls: Controls | ((deck: Device) => Controls);
   readonly actions?: ReadonlyArray<Action<Api>>;
   readonly supported?: (deck: Device) => boolean;
-  readonly setup: Effect.Effect<Instance<Api, E, R>, E, R | StreamDeck | Scope.Scope>;
+  readonly setup: Effect.Effect<
+    Instance<Api, E, R>,
+    E,
+    R | StreamDeck | DeckOverlays | Scope.Scope
+  >;
 }
 /** Inference preserves the API and dependencies; setup may provide one or more Layers. */
-export const define = <Api, E, R>(definition: Definition<Api, E, R>): Definition<Api, E, R> =>
-  definition;
+export const define = <Api, E = never, R = never, SetupE = never, SetupR = never>(
+  definition: Omit<Definition<Api, E, R>, 'setup'> & {
+    readonly setup: Effect.Effect<
+      Instance<Api, E, R>,
+      SetupE,
+      SetupR | StreamDeck | DeckOverlays | Scope.Scope
+    >;
+  },
+): Definition<Api, E | SetupE, R | SetupR> => definition;
 /** Connect any Stream to an Effect callback or the same declared-action handlers as controls. */
 export const listen = <A, E, R, E2, R2>(
   source: Stream.Stream<A, E, R>,
   consume: Bindings.Handler<A, E2, R2>,
 ) => Bindings.listen(source, consume);
+/** Select a temporary key layout from any event source, in the plugin activation scope.
+ * Returning null restores the underlying layout. Repeated equal selections do not
+ * repaint, reorder or invalidate gestures. Source failure releases the presentation.
+ */
+export const presentFrom = <A, E, R, E2, R2>(
+  id: string,
+  source: Stream.Stream<A, E, R>,
+  select: (event: A) => Effect.Effect<KeyOverlay | null, E2, R2>,
+) =>
+  Effect.gen(function* () {
+    const overlays = yield* DeckOverlays;
+    const presentation = yield* overlays.open(id);
+    return listen(source, (event: A) => Effect.flatMap(select(event), presentation.update));
+  });
 /** Build services in the activation scope, keeping Layer finalizers alive until disable. */
 export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(
   options: Omit<Definition<Api, E | E2, R | R2>, 'setup'> & {
@@ -39,7 +65,7 @@ export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(
     readonly run?: (api: Api) => Effect.Effect<unknown, E2, R2>;
   },
 ) =>
-  define<Api, E | E2, R | R2>({
+  define<Api, E2, R2, E, R>({
     ...options,
     setup: Effect.gen(function* () {
       const services = yield* Layer.build(options.layer);

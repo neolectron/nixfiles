@@ -141,6 +141,7 @@ export const project = (
   live: Snapshot,
   catalogue: Catalogue | undefined,
 ): Snapshot => {
+  if (!dirty(state)) return live;
   const preview = catalogue ? materialize(state, catalogue, false) : state;
   const projected = Layout.project(preview.profile, preview.navigation, live.layout.revision);
   return {
@@ -161,6 +162,7 @@ export const project = (
           : undefined;
       return {
         ...key,
+        overlay: undefined,
         id: slot.entry?.id ?? null,
         address: slot.address,
         zone: slot.zone,

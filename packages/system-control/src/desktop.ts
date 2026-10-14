@@ -1,4 +1,4 @@
-import { Config, Context, Effect, FileSystem, Layer, Path, Schema, Stream } from 'effect';
+import { Config, Context, Effect, FileSystem, Layer, Path, Result, Schema, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 import { IntegrationError } from './errors.ts';
 import * as State from './state.ts';
@@ -17,6 +17,7 @@ export interface Target {
 export interface Window {
   readonly id: number;
   readonly app_id: string | null;
+  readonly is_focused?: boolean;
 }
 export interface Status {
   readonly application: Application | null;
@@ -132,7 +133,11 @@ export class DesktopBackend extends Context.Service<
             Schema.decodeUnknownEffect(
               Schema.fromJsonString(
                 Schema.Array(
-                  Schema.Struct({ id: Schema.Int, app_id: Schema.NullOr(Schema.String) }),
+                  Schema.Struct({
+                    id: Schema.Int,
+                    app_id: Schema.NullOr(Schema.String),
+                    is_focused: Schema.optionalKey(Schema.Boolean),
+                  }),
                 ),
               ),
             ),
@@ -184,6 +189,15 @@ export const make = Effect.gen(function* () {
     applications,
     snapshot: store.snapshot,
     observe: store.observe,
+    /** Window-manager focus, independent from application launch/running state. */
+    focused: store.state.pipe(
+      Effect.map((windows) => windows.find((window) => window.is_focused) ?? null),
+    ),
+    focusChanges: store.observe.pipe(
+      Stream.map((state) =>
+        Result.map(state, (windows) => windows.find((window) => window.is_focused) ?? null),
+      ),
+    ),
     status,
     refresh: store.refresh,
     open: (target: Target) =>

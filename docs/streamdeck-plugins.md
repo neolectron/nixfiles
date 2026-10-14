@@ -480,3 +480,87 @@ service Layer/run fiber. The shortcut host refreshes visible plugin bindings eve
 250 ms, validates feedback and coalesces unchanged rendered frames. Disabled,
 failed or unavailable services show the declared fallback. The same `KeyCard`
 React component drives physical pixels and web preview.
+
+## Contextual key overlays
+
+`DeckOverlays` is an Effect service supplied by the plugin host, scoped to the
+plugin's identity. `open(id, initial)` returns a presentation with `update(overlay)`
+and `close`. Create the handle during setup so it lives until the plugin is disabled;
+opening one in a single action's temporary scope deliberately closes it when that
+action finishes. A closed handle cannot resurrect itself or remove a newer one.
+
+An overlay has a name, optional integer priority and a map of physical key indices
+to normal `ButtonBinding` values. Missing keys pass through; `null` explicitly
+blanks a key and blocks the action underneath. List every key (including nulls) to
+replace the whole deck. Regions that do not overlap stay independent. Higher
+priority wins per key; ties go to the most recently activated presentation. Updating
+an already active presentation does not steal priority. Repeated equal source
+values do not invalidate input or repaint. `update(null)` suspends the presentation;
+reactivating puts it on top of equal-priority presentations.
+
+Studio resolves the visible bindings once for its key images, browser snapshots
+and gesture routing. Context changes invalidate old addresses and pending semantic
+gestures cannot execute a hidden action. Releases still reach an action already
+started on the original key. Base folders, pages, counters and saved configuration
+survive context changes. Temporary keys cannot be edited or dragged into the base
+profile; their inspector identifies the owning plugin. A local unsaved profile
+shows the base configuration while editing; audio controls remain live.
+
+The first implementation covers key layouts. LCD scenes, tactile regions and
+encoder reassignment still use their current owners; this API does not bypass
+those display/control boundaries.
+
+### Change layout with the focused application
+
+`system-control/Desktop.focused` exposes the current focused window; `focusChanges`
+is a Stream of success/failure snapshots from the same shared desktop monitor.
+The niri backend reads `is_focused` every second. It never focuses an application
+as a side effect of observation. Another compositor can supply `DesktopBackend`.
+
+Install a configured plugin in `src/studio-plugins.ts`, then enable its row in
+**Plugins**. For example, this explicitly replaces only the final two keys of a
+36-key deck while Discord is focused, using existing Discord actions:
+
+```ts
+import * as ContextLayout from './plugins/context-layout.ts';
+
+yield *
+  host.install(
+    ContextLayout.plugin([
+      {
+        applications: ['discord'],
+        overlay: {
+          name: 'Discord',
+          priority: 10,
+          keys: {
+            34: {
+              action: 'plugin',
+              label: 'Mute Discord',
+              parameters: { plugin: 'discord', command: 'mute', input: {} },
+            },
+            35: {
+              action: 'plugin',
+              label: 'Deafen Discord',
+              parameters: { plugin: 'discord', command: 'deafen', input: {} },
+            },
+          },
+        },
+      },
+    ]),
+  );
+```
+
+App IDs match exactly, ignoring case. This rule returns to the previous layout
+when focus leaves Discord. A desktop monitoring error clears the overlay; recovery
+can activate it again. Discord actions still require the Discord plugin and its
+connection. No context rules or call-control commands are enabled implicitly.
+
+### Use any event source
+
+`ContextLayout.fromSource({ id, name, source, select })` installs a plugin from any
+Effect Stream and a pure selector returning an overlay or `null`. Inside a richer
+plugin's setup, `yield* Plugin.presentFrom(id, source, effectfulSelector)` returns
+the supervised `run` effect. The source may be a system service, game state,
+notification or HTTP/MCP-driven state. There is no browser or USB dependency in the
+selector. Failure, interruption and plugin disable release its presentation through
+Effect Scope; a finite source keeps its last selection until disable.

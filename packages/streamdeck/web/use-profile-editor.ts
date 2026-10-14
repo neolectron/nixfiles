@@ -91,7 +91,7 @@ export function useProfileEditor(
       (state.session !== live.sessionId || state.baseline.revision !== live.configuration.revision)
     ),
     edit: (key: Snapshot['keys'][number], value: Draft) => {
-      if (current.current && catalogue && !saving.current)
+      if (current.current && catalogue && !saving.current && !key.overlay)
         replace(Drafts.edit(current.current, key, value, catalogue, crypto.randomUUID()));
     },
     form: (key: Snapshot['keys'][number]) =>

@@ -97,3 +97,30 @@ plein écran, HTTP/MCP et extraction des intégrations restantes. Les réglages
 d'activation des services système et des présentations ne sont pas encore
 deux contrôles distincts dans l'éditeur. La classification fine des erreurs
 d'intégration viendra avec les contrats d'actions.
+
+## Overlays contextuels de touches
+
+Le host fournit maintenant `DeckOverlays`, un service Effect lié à l’identité et au
+scope d’activation du plugin. Une présentation temporaire expose `update` et `close` ;
+la priorité et l’ordre d’activation arbitrent chaque touche. Les touches absentes
+laissent passer le layout inférieur, `null` le masque. Désactivation, échec et fermeture
+révoquent aussi les anciennes API : une instance arrêtée ne peut pas reprendre la main.
+
+`Plugin.presentFrom` relie n’importe quel Stream à un sélecteur Effect.
+`plugins/context-layout.ts` propose le binding à `Desktop.focusChanges` : fenêtre
+au premier plan, retour au profil lorsque l’application change, restauration en cas
+d’erreur du moniteur puis récupération. L’état de focus est lu via le même service
+Desktop partagé, sans ouvrir ni activer de fenêtre. Les règles sont explicites,
+installées dans la composition des plugins puis activées depuis Plugins ; aucun
+preset personnel n’est inventé ni activé automatiquement.
+
+Studio réutilise sa projection pour les images, les snapshots web et les actions.
+Les adresses de génération empêchent un ancien appui long de déclencher une action
+masquée, tout en conservant le release d’une action déjà démarrée. Le profil, ses
+pages et dossiers restent inchangés sur disque. Les changements de configuration
+restent soumis à Enregistrer ; un overlay d’exécution ne devient pas une mutation
+de configuration. Les exemples sont dans [la documentation des plugins](streamdeck-plugins.md#contextual-key-overlays).
+
+Cet incrément couvre les touches. L’arbitrage des scènes LCD, des régions tactiles
+et des potards, ainsi que l’éditeur visuel de presets contextuels, restent à réaliser.
+Il ne constitue pas la livraison complète du futur SurfaceHost décrit dans le plan.

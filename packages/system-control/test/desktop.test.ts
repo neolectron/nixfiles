@@ -14,6 +14,40 @@ const application = {
 const target = { applications: ['discord.desktop'], windows: ['discord'] };
 
 it.effect(
+  'Desktop focus follows the focused window, clears on failure and recovers without focusing any app',
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const windows = yield* Ref.make<Result.Result<ReadonlyArray<Window>, IntegrationError>>(
+          Result.succeed([
+            { id: 1, app_id: 'Discord', is_focused: false },
+            { id: 2, app_id: 'game', is_focused: true },
+          ]),
+        );
+        const api = yield* make.pipe(
+          Effect.provideService(DesktopBackend, {
+            applications: Effect.succeed([application]),
+            windows: Ref.get(windows).pipe(Effect.flatMap(Effect.fromResult)),
+            launch: () => Effect.die('Unexpected launch'),
+            focus: () => Effect.die('Unexpected focus'),
+          }),
+        );
+        assert.strictEqual((yield* api.focused)?.app_id, 'game');
+        assert.strictEqual((yield* api.status(target)).running, true);
+        yield* Ref.set(windows, Result.succeed([{ id: 1, app_id: 'Discord', is_focused: true }]));
+        yield* TestClock.adjust('1 second');
+        assert.strictEqual((yield* api.focused)?.app_id, 'Discord');
+        yield* Ref.set(windows, Result.fail(new IntegrationError({ message: 'Unavailable' })));
+        yield* TestClock.adjust('1 second');
+        assert.ok(Result.isFailure(yield* Effect.result(api.focused)));
+        yield* Ref.set(windows, Result.succeed([{ id: 1, app_id: 'Discord' }]));
+        yield* TestClock.adjust('1 second');
+        assert.strictEqual(yield* api.focused, null);
+      }),
+    ),
+);
+
+it.effect(
   'Desktop publishes window changes, focuses existing apps and launches absent ones once',
   () =>
     Effect.scoped(
