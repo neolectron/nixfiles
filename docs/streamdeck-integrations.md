@@ -195,6 +195,10 @@ five-second limit and scoped subprocess cleanup; it must control the external
 application and exit promptly, rather than remain as a microphone capture process.
 The existing Codex Dot voice UI is not connected by this bridge automatically.
 Its actual supported control interface still needs to be identified.
+The real profile reserves key 28 (bottom left) for **Parler au dot**. It shows
+**À CONNECTER** and the feature remains disabled while the start/stop bridge is
+missing. The key assignment does not start microphone capture or establish an
+OpenAI voice connection.
 
 The action declares `interaction: 'hold'`. Its invocation receives
 `context.released`, which completes on the original physical key's release, even

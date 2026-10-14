@@ -34,5 +34,7 @@ export class PushToTalk extends Context.Service<PushToTalk, Controller>()('@nixf
 export const plugin = <E, R>(target: Layer.Layer<VoiceTarget, E, R>) => Plugin.fromLayer({
   id: 'dot-voice', name: 'Dot · push-to-talk', description: 'Parler pendant l’appui ; relâchement et désactivation arrêtent la capture.', controls: {}, service: PushToTalk,
   layer: PushToTalk.layer.pipe(Layer.provide(target)),
-  actions: [Plugin.action({ id: 'talk', name: 'Parler au dot', description: 'Maintenir la touche pour parler. Nécessite un VoiceTarget connecté au dot.', input: Plugin.NoInput, defaults: {}, interaction: 'hold', run: (api: Controller, _input, context) => api.hold(context) })],
+  actions: [Plugin.action({ id: 'talk', name: 'Parler au dot', description: 'Maintenir la touche pour parler. Nécessite un VoiceTarget connecté au dot.', input: Plugin.NoInput, defaults: {}, interaction: 'hold', run: (api: Controller, _input, context) => api.hold(context),
+    feedback: () => Effect.succeed({ icon: 'microphone', tone: 'neutral', text: 'MAINTENIR' }), unavailable: { icon: 'microphone', tone: 'neutral', text: 'À CONNECTER' },
+  })],
 });
