@@ -132,8 +132,9 @@ With the Spotify plugin and audio mixer enabled, touch a Spotify or Spotifast LC
 card to switch between its volume gauge and the current track, artist and playback
 progress. Touch again to return to volume. The knob still adjusts volume and its
 click still toggles mute. The editor's LCD preview supports the same interaction.
-Rotating the knob temporarily shows the volume gauge, then restores the selected
-track view after 1.5 seconds without rotation (within the next mixer refresh).
+In track view, rotating the knob shows a circular volume overlay on the artwork,
+with the percentage at its center. It disappears after 1.5 seconds without rotation
+(within the next mixer refresh), keeping the track and expanded card visible.
 Spotify/Spotifast cards stay after ordinary application cards, in both views.
 The track view expands across the remaining empty slots before Master and shows
 album artwork when available and wide enough. New audio apps insert before the

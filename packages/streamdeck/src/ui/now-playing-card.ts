@@ -2,6 +2,7 @@ import { createElement as h } from 'react';
 import type { Size } from '../model.ts';
 import type { Application } from '../audio.ts';
 import type { State } from '../mpris.ts';
+import { VolumeOverlay } from './volume-overlay.ts';
 
 export const timestamp = (micros: number | null) =>
   micros === null
@@ -15,9 +16,11 @@ export function NowPlayingCard({
   track,
   position,
   cover,
-}: Size & { app: Application; track: State; position: number | null; cover?: string | undefined }) {
+  volumeOverlay = false,
+}: Size & { app: Application; track: State; position: number | null; cover?: string | undefined; volumeOverlay?: boolean }) {
   const wide = width >= 320;
-  const textLeft = cover && wide ? 94 : 10;
+  const artworkArea = wide || volumeOverlay;
+  const textLeft = artworkArea ? 94 : 10;
   const known =
     position !== null &&
     track.durationMicros !== null &&
@@ -50,7 +53,9 @@ export function NowPlayingCard({
           background: 'linear-gradient(#41414D,#35353F)',
         },
       },
-      cover && wide ? h('img', { src: cover, alt: '', width: 72, height: 72, style: { position: 'absolute', left: 10, top: 10, width: 72, height: 72, objectFit: 'cover', borderRadius: 5 } }) : null,
+      artworkArea ? h('div', { style: { position: 'absolute', left: 10, top: 10, width: 72, height: 72, borderRadius: 5, overflow: 'hidden', background: '#282A33' } },
+        cover ? h('img', { src: cover, alt: '', width: 72, height: 72, style: { width: 72, height: 72, objectFit: 'cover' } }) : null,
+        volumeOverlay ? h(VolumeOverlay, { volume: app.volume, muted: app.muted }) : null) : null,
       h(
         'div',
         {

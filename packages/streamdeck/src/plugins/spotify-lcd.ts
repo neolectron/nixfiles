@@ -35,14 +35,14 @@ export const register = (api: Controller) => Effect.gen(function*() {
       const key = keyForApplication(app.key)!;
       if (!(yield* Ref.get(visible)).has(key)) return undefined;
       const now = yield* Clock.currentTimeMillis;
-      if (now < ((yield* Ref.get(volumeUntil)).get(key) ?? 0)) return undefined;
+      const volumeOverlay = now < ((yield* Ref.get(volumeUntil)).get(key) ?? 0);
       const track = yield* state(key).pipe(Effect.orElseSucceed(() => undefined)); if (!track) return undefined;
       const sampled = Mpris.positionAt(track, now);
       const position = sampled === null ? null : Math.floor(sampled / 1_000_000) * 1_000_000;
-      const cover = size.width >= 320 ? yield* artwork.current(track.artUrl) : undefined;
-      return { stamp: JSON.stringify([size, track.title, track.artists, track.trackId, track.artUrl, cover !== undefined, track.status, position, track.durationMicros, app.muted, Math.round(app.volume), app.streams.length > 0]),
-        draw: renderer.rgb(h(NowPlayingCard, { ...size, app, track, position, cover }), size).pipe(
-          Effect.catch(() => renderer.rgb(h(NowPlayingCard, { ...size, app, track, position }), size))) };
+      const cover = size.width >= 320 || volumeOverlay ? yield* artwork.current(track.artUrl) : undefined;
+      return { stamp: JSON.stringify([size, track.title, track.artists, track.trackId, track.artUrl, cover !== undefined, volumeOverlay, track.status, position, track.durationMicros, app.muted, Math.round(app.volume), app.streams.length > 0]),
+        draw: renderer.rgb(h(NowPlayingCard, { ...size, app, track, position, cover, volumeOverlay }), size).pipe(
+          Effect.catch(() => renderer.rgb(h(NowPlayingCard, { ...size, app, track, position, volumeOverlay }), size))) };
     }),
   });
 });
