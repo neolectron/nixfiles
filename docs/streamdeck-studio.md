@@ -83,7 +83,7 @@ plugin forwards raw events once, removing the former nested binding recognizer.
 The browser imports the serializable Schema/defaults from `press-trigger.ts`
 without pulling in the runtime timer engine.
 
-136 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+140 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.
