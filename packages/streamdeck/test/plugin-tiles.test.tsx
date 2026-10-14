@@ -86,6 +86,25 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
   }
 });
 
+it('palette tiles remain draggable without a selected deck key, and lock while busy', () => {
+  const actions = Obs.plugin
+    .actions!.filter((action) => action.info.tile)
+    .map((action) => ({ ...action.info, plugin: Obs.plugin.id, pluginName: Obs.plugin.name }));
+  const render = (busy: boolean) =>
+    renderToStaticMarkup(
+      <PluginTiles
+        actions={actions}
+        busy={busy}
+        canChoose={false}
+        onChoose={() => {
+          throw new Error('Rendering must not assign or execute actions');
+        }}
+      />,
+    );
+  assert.notInclude(render(false), 'disabled');
+  assert.strictEqual((render(true).match(/disabled=""/g) ?? []).length, actions.length * 2);
+});
+
 it.live(
   'offline OBS enables, configures launch tiles, reports action errors and stays enabled',
   () =>

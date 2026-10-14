@@ -1114,6 +1114,9 @@ button.zone-edit-link {
   overflow: hidden;
   border: 1px solid #3c3e46;
   border-radius: 6px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 .plugin-tile-face {
   width: 68px;
@@ -1130,6 +1133,9 @@ button.zone-edit-link {
 }
 .plugin-tile.dragging > .plugin-tile-button {
   opacity: 0.45;
+}
+.plugin-tile.dragging > button {
+  cursor: grabbing;
 }
 .plugin-tile-drag-preview {
   position: fixed;
