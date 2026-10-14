@@ -26,6 +26,7 @@ export interface Options {
     address?: string,
     revision?: number,
     source?: string,
+    cancelled?: boolean,
   ) => Effect.Effect<void>;
 }
 
@@ -69,7 +70,7 @@ export const make = (options: Options) =>
               : JSON.stringify([address, expectedRevision]);
           if (phase === 'up') yield* gestures.up(channel, context);
           else yield* gestures.cancel(channel, context);
-          yield* options.release(key, address, expectedRevision, source);
+          yield* options.release(key, address, expectedRevision, source, phase === 'cancel');
         }
       });
     return { input, failure: gestures.failure };

@@ -188,6 +188,32 @@ overrides. Jobs are ephemeral, bounded to ten minutes, with no detached process;
 output/temp files belong to the job scope. MCP/app/plugin integrations are disabled
 per invocation using the same configuration boundary as the selection adapter.
 
+## Local notes and speech
+
+`Notes.layer(directory)` from `notes.ts` provides `read(id)`, `ensure(id, title)`,
+`save({ id, title, body, expectedRevision })` and `append(id, text)`. Notes use
+validated IDs, atomic JSON writes (0600 files, 0700 directory) and serialized
+mutations. A stale save returns `NoteError` with status 409. Retained APIs return
+503 after their scope closes. Studio stores them in `notes/` beside its profile;
+they are independent of layout saves and plugin activation. Pure schemas live in
+`notes-contract.ts` for UI/API reuse without platform dependencies.
+
+`Speech.layer` from `speech.ts` provides `capture(target, released)` and `activity`.
+The release Effect stops capture and starts transcription. Activity identifies the
+target note and phase (`idle`, `recording`, `transcribing`); overlapping jobs fail
+instead of queuing microphone access. The owning scope or caller can interrupt
+the complete job, including its child processes and temporary WAV directory.
+`Speech.serviceLayer` accepts an injected `SpeechBackend` for another transcriber
+or tests without a microphone.
+
+The existing local Handy CLI transcribes 16 kHz mono WAV files. Defaults are
+`pw-record` and `handy`, with Handy's selected installed model. Optional environment
+overrides: `STREAMDECK_RECORDER_COMMAND`, `STREAMDECK_TRANSCRIBE_COMMAND` and
+`STREAMDECK_TRANSCRIBE_MODEL`. These are executable paths/model IDs, never shell
+fragments. No recording begins when the Layer is constructed. Tests exercise
+gesture arbitration, concurrent saves, cancellation and fake recorder/transcriber
+processes; the real Handy command was smoke-tested with synthetic silent audio.
+
 ## Dot call control
 
 `DotCall.layer` in `dot-call.ts` offers `call`, `hangup`, `toggle`, `state`,

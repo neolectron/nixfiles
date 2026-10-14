@@ -3,6 +3,7 @@ import type { Device, StreamDeck } from './stream-deck.ts';
 import type { KeyFeedback } from './key-feedback.ts';
 import * as Bindings from './bindings.ts';
 import type { PressContext } from './press-gestures.ts';
+import { defaults } from './press-trigger.ts';
 import { invalid, invariant } from './errors.ts';
 import { DeckOverlays, type KeyOverlay } from './deck-overlays.ts';
 export interface Controls {
@@ -91,7 +92,34 @@ export interface Invocation {
   readonly output: (text: string) => Effect.Effect<void>;
   /** Completes on the original physical key's release, even after navigation. */
   readonly released?: Effect.Effect<void>;
+  /** Completes only for an abandoned press (pointer cancellation, lost focus). */
+  readonly cancelled?: Effect.Effect<void>;
+  readonly gesture?: PressContext['gesture'];
 }
+/** Shared tap/hold arbitration. A preclassified long press does not wait twice. */
+export const tapOrHold = <A, E, R, B, E2, R2>(
+  context: Invocation,
+  tap: Effect.Effect<A, E, R>,
+  hold: (released: Effect.Effect<void>) => Effect.Effect<B, E2, R2>,
+  milliseconds: number = defaults.longPressMs,
+): Effect.Effect<A | B, E | E2, R | R2> => {
+  const released = context.released;
+  if (!released) return tap;
+  const run =
+    context.gesture === 'long-press'
+      ? hold(released)
+      : Effect.raceFirst(
+          released.pipe(Effect.as(false)),
+          Effect.sleep(milliseconds).pipe(Effect.as(true)),
+        ).pipe(
+          Effect.flatMap(
+            (long): Effect.Effect<A | B, E | E2, R | R2> => (long ? hold(released) : tap),
+          ),
+        );
+  return context.cancelled
+    ? Effect.raceFirst(run, context.cancelled.pipe(Effect.andThen(Effect.interrupt)))
+    : run;
+};
 /** Strict parameter-free action schema, also represented as an empty browser form. */
 export const NoInput = Schema.Record(Schema.String, Schema.Never);
 export interface Action<Api, Input = unknown, E = unknown, R = StreamDeck | Scope.Scope> {
@@ -142,7 +170,9 @@ export const mapHandler = <Api, Input, E, R, Event>(
           );
         return yield* action.execute(api, input(event), {
           output,
-          ...(press ? { released: press.released } : {}),
+          ...(press
+            ? { released: press.released, cancelled: press.cancelled, gesture: press.gesture }
+            : {}),
         });
       }),
     ),

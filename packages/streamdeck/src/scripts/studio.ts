@@ -1,4 +1,8 @@
 import * as SystemRuntime from '@nixfiles/system-control/runtime.ts';
+import * as Notes from '@nixfiles/system-control/notes.ts';
+import { Update as NoteUpdate } from '@nixfiles/system-control/notes-contract.ts';
+import * as Speech from '@nixfiles/system-control/speech.ts';
+import * as NotesPlugin from '../plugins/notes.ts';
 import { Discord as SystemDiscord } from '@nixfiles/system-control/discord.ts';
 import { invariant } from '../errors.ts';
 import { NodeHttpServer } from '@effect/platform-node';
@@ -75,7 +79,9 @@ const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Eff
           { message: error instanceof Error ? error.message : 'La requête a échoué.' },
           {
             status:
-              error instanceof StudioError || error instanceof Plugins.PluginError
+              error instanceof StudioError ||
+              error instanceof Plugins.PluginError ||
+              error instanceof Notes.NoteError
                 ? error.status
                 : 400,
           },
@@ -88,6 +94,7 @@ export const startStudio = (options: {
   mock?: boolean;
   renderer?: RendererKind;
   applications?: ReadonlyArray<ApplicationEntry>;
+  origin?: string;
   configurePlugins?: (
     host: Effect.Success<typeof Plugins.make>,
   ) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope>;
@@ -116,6 +123,11 @@ export const startStudio = (options: {
     );
     const cards = yield* Cards.make;
     const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
+    const notes = yield* Notes.make(
+      (yield* Path.Path).join((yield* Path.Path).dirname(options.profile), 'notes'),
+    );
+    const speech = Context.get(yield* Layer.build(Speech.Speech.layer), Speech.Speech);
+    const noteOpener = yield* NotesPlugin.opener(options.origin ?? 'http://127.0.0.1:3900');
     const settings = yield* PluginSettings.make(`${options.profile}.plugins.json`);
     const discordConnection = yield* makeDiscordConnection(
       `${options.profile}.discord-connection.json`,
@@ -187,6 +199,9 @@ export const startStudio = (options: {
         );
     else
       yield* PersonalPlugins.configure(host).pipe(
+        Effect.provideService(Notes.Notes, notes),
+        Effect.provideService(Speech.Speech, speech),
+        Effect.provideService(NotesPlugin.NoteOpener, noteOpener),
         Effect.provideContext(systemServices),
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideService(DiscordConnection, discordConnection),
@@ -497,6 +512,8 @@ export const startStudio = (options: {
         });
       });
     return {
+      notes,
+      speech,
       snapshot: readSnapshot,
       keyInput,
       dialInput: (body: typeof DialInput.Type) =>
@@ -573,6 +590,33 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
         }),
       );
     yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+    yield* router.add(
+      'GET',
+      '/api/notes',
+      recover(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const id = new URL(request.url, 'http://127.0.0.1').searchParams.get('id') ?? '';
+          return json({
+            note: yield* controller.notes.read(id),
+            activity: yield* controller.speech.activity,
+          });
+        }),
+      ),
+    );
+    yield* router.add(
+      'PUT',
+      '/api/notes',
+      mutate(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const input = yield* request.json.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(NoteUpdate, { onExcessProperty: 'error' })),
+          );
+          return json(yield* controller.notes.save(input));
+        }),
+      ).pipe(Effect.provideService(HttpIncomingMessage.MaxBodySize, ByteSize.bytes(524288))),
+    );
     yield* router.add(
       'POST',
       '/api/dial-input',
@@ -848,7 +892,10 @@ export const studio = (options: {
   configurePlugins?: NonNullable<Parameters<typeof startStudio>[0]['configurePlugins']>;
 }) =>
   Effect.gen(function* () {
-    const controller = yield* startStudio(options);
+    const controller = yield* startStudio({
+      ...options,
+      origin: `http://127.0.0.1:${options.port}`,
+    });
     const scope = yield* Effect.scope;
     const app = yield* httpApp(controller, [
       `http://127.0.0.1:${options.port}`,

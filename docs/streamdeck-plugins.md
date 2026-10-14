@@ -650,6 +650,38 @@ removed on success, failure or cancellation. MCP servers, apps, plugins and web
 search are disabled for these invocations without changing global Codex settings.
 The selected-text transformation retains its stricter tool-free instructions.
 
+## Notes and hold-to-dictate
+
+Enable **Notes** in the Plugins tab, drag its **Note** tile onto a key and save
+the layout. Its default **Press** trigger provides both interactions:
+
+- Release before 600 ms: open the note in the default browser.
+- Keep holding: record the default PipeWire microphone. Release to stop and append
+  the local Handy transcription. The tile shows **ÉCOUTE**, then **TRANSCRIPTION**.
+
+Configure the note identifier and initial title in the key inspector. Keys with
+the same identifier share a note; different identifiers create independent notes.
+The editor also works directly at `/?note=bloc-notes` without hardware. Save typed
+changes with **Enregistrer** or Ctrl/Cmd+S. Dictation persists automatically and
+appears in an open editor on its next one-second refresh; it appends to an unsaved
+draft rather than replacing typed text. Conflicting edits in another editor block
+the save and preserve the draft. Notes are plain text, limited to 64,000 characters.
+
+`Notes` and `Speech` are independent system services. The plugin only maps the
+gesture to them and opens the Studio editor. `Plugin.tapOrHold` owns the shared
+arbitration and accepts an already recognized long press without another delay.
+Disabling the plugin or cancelling the action interrupts recording/transcription
+and prevents its result being appended. Acquiring services or rendering feedback
+never activates the microphone. A direct API invocation without a release signal
+opens the editor; it cannot start an unbounded recording.
+
+The default backend requires existing `pw-record` and Handy with a downloaded
+model. It does not download a model, use the clipboard, paste into the focused app
+or send audio to a hosted API. WAV files are temporary and removed when the scoped
+capture completes or is cancelled. Capture is bounded to two minutes; a full job
+has a five-minute deadline. Appends exceeding the text limit fail without changing
+the saved note. The editor uses the same local HTTP origin protections as Studio.
+
 ## Dot call tiles
 
 **ChatGPT / Codex** exports **Appeler le dot**, **Raccrocher** and **Appel du dot**.

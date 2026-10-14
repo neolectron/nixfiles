@@ -12,6 +12,7 @@ export const KeyFeedback = Schema.Struct({
     'theme',
     'phone',
     'phone-end',
+    'note',
     'microphone',
     'headphones',
     'play',

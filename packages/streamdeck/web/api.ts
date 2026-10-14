@@ -1,6 +1,8 @@
 import { Data, Effect, Result, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
+import { Note, Update as NoteUpdate } from '@nixfiles/system-control/notes-contract.ts';
+import { Activity } from '@nixfiles/system-control/speech-contract.ts';
 import { Catalogue, Snapshot, type DialInput, type UpdateProfile } from '../src/studio-contract.ts';
 import type { AppInput } from '@nixfiles/system-control/discord-contract.ts';
 class RequestError extends Data.TaggedError('RequestError')<{
@@ -38,6 +40,12 @@ const json = (path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unkno
       return result;
     }),
   ).pipe(Effect.provide(FetchHttpClient.layer));
+export const readNote = (id: string) =>
+  json(`/api/notes?id=${encodeURIComponent(id)}`).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Struct({ note: Note, activity: Activity }))),
+  );
+export const saveNote = (input: typeof NoteUpdate.Type) =>
+  json('/api/notes', 'PUT', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Note)));
 export const dialInput = (input: typeof DialInput.Type) =>
   json('/api/dial-input', 'POST', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const catalogue = json('/api/catalogue').pipe(
