@@ -1,27 +1,28 @@
+import { Context, Data, Effect, Fiber, Layer, Option, Schema } from 'effect';
+import { KeyValueStoreError } from 'effect/persistence/KeyValueStore';
 import { Id, Note, Update, appendText } from './notes-contract.ts';
-import {
-  Context,
-  Crypto,
-  Data,
-  Effect,
-  Fiber,
-  FileSystem,
-  Layer,
-  Path,
-  Schema,
-  Semaphore,
-} from 'effect';
+import { PersistentState } from './persistent-state.ts';
+import * as FileStorage from './state-storage-file.ts';
 
 export class NoteError extends Data.TaggedError('NoteError')<{
   readonly message: string;
   readonly status: number;
 }> {}
-export const make = (directory: string) =>
+const current = (id: string, value: Option.Option<Note>): Note =>
+  Option.getOrElse(value, () => ({ id, title: 'Note', body: '', revision: 0 }));
+const validate = (id: string, value: Note) =>
+  value.id !== id
+    ? Effect.fail(new NoteError({ message: 'Identifiant de note incohérent.', status: 400 }))
+    : Schema.decodeUnknownEffect(Note)(value).pipe(
+        Effect.mapError(
+          () => new NoteError({ message: 'Titre ou contenu de note invalide.', status: 400 }),
+        ),
+      );
+
+/** Storage-independent notes. The application provides its shared state service. */
+export const makeWithState = (namespace = 'notes') =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const crypto = yield* Crypto.Crypto;
-    const lock = yield* Semaphore.make(1);
+    const state = yield* PersistentState;
     const owner = yield* Effect.scope;
     let closed = false;
     yield* Effect.addFinalizer(() =>
@@ -41,89 +42,86 @@ export const make = (directory: string) =>
             ? error
             : new NoteError({
                 message: 'Lecture ou sauvegarde de la note impossible.',
-                status: 500,
+                status:
+                  error instanceof KeyValueStoreError && error.method === 'lifecycle' ? 503 : 500,
               }),
         ),
       );
-    const file = (id: string) =>
+    const document = (id: string) =>
       Schema.decodeUnknownEffect(Id)(id).pipe(
         Effect.mapError(
           () => new NoteError({ message: 'Identifiant de note invalide.', status: 400 }),
         ),
-        Effect.map((key) => path.join(directory, `${key}.json`)),
+        Effect.map((key) => state.document(`${namespace ? `${namespace}/` : ''}${key}.json`, Note)),
       );
     const read = (id: string) =>
       Effect.gen(function* () {
-        const target = yield* file(id);
-        if (!(yield* fs.exists(target)))
-          return { id, title: 'Note', body: '', revision: 0 } satisfies Note;
-        if (Number((yield* fs.stat(target)).size) > 524288)
-          return yield* new NoteError({ message: 'La note est trop volumineuse.', status: 413 });
-        const note = yield* fs
-          .readFileString(target)
-          .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(Note))));
-        if (note.id !== id)
-          return yield* new NoteError({ message: 'Identifiant de note incohérent.', status: 400 });
-        return note;
+        const doc = yield* document(id);
+        return yield* validate(id, current(id, yield* doc.get));
       });
-    const persist = (note: Note) =>
-      Effect.gen(function* () {
-        const value = yield* Schema.decodeUnknownEffect(Note)(note).pipe(
-          Effect.mapError(
-            () => new NoteError({ message: 'Titre ou contenu de note invalide.', status: 400 }),
-          ),
-        );
-        const target = yield* file(note.id);
-        yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 });
-        const temporary = `${target}.${yield* crypto.randomUUIDv4()}.tmp`;
-        yield* Effect.uninterruptible(
-          fs
-            .writeFileString(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
-            .pipe(
-              Effect.andThen(fs.rename(temporary, target)),
-              Effect.ensuring(fs.remove(temporary, { force: true }).pipe(Effect.ignore)),
+    const modify = (id: string, f: (note: Note) => Effect.Effect<Note, NoteError>) =>
+      guard(
+        Effect.flatMap(document(id), (doc) =>
+          doc.modify((value) =>
+            validate(id, current(id, value)).pipe(
+              Effect.flatMap(f),
+              Effect.flatMap((next) => validate(id, next)),
             ),
-        );
-        return value;
-      });
-    // Every mutation reloads the latest saved note while holding the same lock.
-    const write = (id: string, update: (current: Note) => Effect.Effect<Note, unknown>) =>
-      guard(Semaphore.withPermits(lock, 1)(Effect.flatMap(read(id), update)));
+          ),
+        ),
+      );
     return {
       read: (id: string) => guard(read(id)),
       ensure: (id: string, title: string) =>
-        write(id, (current) =>
-          current.revision ? Effect.succeed(current) : persist({ ...current, title, revision: 1 }),
+        guard(
+          Effect.gen(function* () {
+            const before = yield* read(id);
+            return before.revision
+              ? before
+              : yield* modify(id, (note) =>
+                  Effect.succeed(note.revision ? note : { ...note, title, revision: 1 }),
+                );
+          }),
         ),
       save: (input: typeof Update.Type) =>
-        write(input.id, (current) =>
-          current.revision !== input.expectedRevision
+        modify(input.id, (note) =>
+          note.revision !== input.expectedRevision
             ? Effect.fail(
                 new NoteError({
                   message: 'La note a changé ailleurs. Ton brouillon est conservé.',
                   status: 409,
                 }),
               )
-            : persist({
+            : Effect.succeed({
                 id: input.id,
                 title: input.title,
                 body: input.body,
-                revision: current.revision + 1,
+                revision: note.revision + 1,
               }),
         ),
       append: (id: string, text: string) =>
-        write(id, (current) =>
-          text.trim()
-            ? persist({
-                ...current,
-                body: appendText(current.body, text),
-                revision: current.revision + 1,
-              })
-            : Effect.succeed(current),
-        ),
+        text.trim()
+          ? modify(id, (note) =>
+              Effect.succeed({
+                ...note,
+                body: appendText(note.body, text),
+                revision: note.revision + 1,
+              }),
+            )
+          : guard(read(id)),
     };
   });
-export type Controller = Effect.Success<ReturnType<typeof make>>;
+/** Standalone convenience preserving the existing directory-based API. */
+export const make = (directory: string) =>
+  Effect.gen(function* () {
+    const services = yield* Layer.build(
+      PersistentState.layer.pipe(Layer.provide(FileStorage.layer(directory))),
+    );
+    return yield* makeWithState('').pipe(Effect.provideContext(services));
+  });
+export type Controller = Effect.Success<ReturnType<typeof makeWithState>>;
 export class Notes extends Context.Service<Notes, Controller>()('@nixfiles/system-control/Notes') {
   static readonly layer = (directory: string) => Layer.effect(Notes, make(directory));
+  static readonly layerWithState = (namespace = 'notes') =>
+    Layer.effect(Notes, makeWithState(namespace));
 }

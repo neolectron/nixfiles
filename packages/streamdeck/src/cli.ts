@@ -5,6 +5,7 @@ import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Hid from './hid.ts';
 import * as Mock from './mock.ts';
 import * as StudioDevice from './studio-device.ts';
+import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
 import { StreamDeck, discover } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
 import { startHello } from './scripts/hello.ts';
@@ -56,6 +57,7 @@ interface DeviceOptions {
   readonly mockAudio?: boolean;
   readonly port?: number;
   readonly profile?: Option.Option<string>;
+  readonly storage?: 'file' | 'memory';
 }
 
 const runDevice = (
@@ -105,6 +107,9 @@ const runDevice = (
                   .studio({
                     port: options.port ?? 3900,
                     profile: Option.getOrElse(options.profile ?? Option.none(), () => fallback),
+                    ...(options.storage === 'memory'
+                      ? { persistence: StateStorage.layerMemory }
+                      : {}),
                     mock: options.mock,
                     renderer: options.renderer ?? 'react',
                   })
@@ -258,6 +263,12 @@ const studioCommand = Command.make(
   'studio',
   {
     ...connectionFlags,
+    storage: Flag.Literals('storage', ['file', 'memory']).pipe(
+      Flag.withDefault('file'),
+      Flag.withDescription(
+        'Application state backend; memory starts empty and is discarded on exit.',
+      ),
+    ),
     renderer: Flag.Literals('renderer', ['svg', 'react']).pipe(Flag.withDefault('react')),
     mockAudio: Flag.Boolean('mock-audio').pipe(Flag.withDefault(false)),
     port: Flag.Finite('port').pipe(
