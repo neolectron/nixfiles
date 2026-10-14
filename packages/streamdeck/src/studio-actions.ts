@@ -9,7 +9,7 @@ import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.ts';
 import type { KeyFeedback } from './key-feedback.ts';
 import { mergeDiscordActions } from './studio-profile-migrations.ts';
-import * as Gestures from './key-gestures.ts';
+import * as Input from './studio-input.ts';
 
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A>(run: () => A) => Effect.try({ try: run, catch: (error) => invalid(error instanceof Error ? error.message : 'Organisation invalide.') });
@@ -52,7 +52,6 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   let feedbackReady = false;
   const jobs = new Map<string, Fiber.Fiber<void, never>>(); const painted = new Map<number, string>();
   const releases = new Map<number, { readonly waiter: Deferred.Deferred<void>; readonly address: string; readonly revision: number | undefined; readonly source: string }>();
-  const gestures = yield* Gestures.make<never, never>();
   const validateTrigger = (binding: ButtonBinding) => Effect.gen(function*() {
     if (binding.trigger?.type === 'double-tap' && binding.action === 'plugin' && (yield* pluginActions?.interaction?.(binding.parameters.plugin, binding.parameters.command) ?? Effect.succeed('press')) === 'hold') return yield* Effect.fail(invalid('Une action à maintenir accepte l’appui simple ou long, mais pas le double appui.'));
   });
@@ -218,21 +217,13 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     const pending = releases.get(key); if (!pending || (source !== undefined && source !== pending.source) || (address !== undefined && address !== pending.address) || (revision !== undefined && pending.revision !== undefined && revision !== pending.revision)) return Effect.void;
     releases.delete(key); return Deferred.succeed(pending.waiter, undefined).pipe(Effect.asVoid);
   });
-  const keyInput = (key: number, phase: 'down' | 'up' | 'cancel', address?: string, source = 'physical', expectedRevision?: number) => Effect.gen(function*() {
-    yield* validateKey(key); const channel = `${source}/${key}`;
-    if (phase === 'down') {
-      const { slot, revision } = yield* Semaphore.withPermits(lock, 1)(Effect.gen(function*() { return { slot: yield* currentKey(key, address), revision: (yield* Ref.get(model)).revision }; })); if (!slot.entry) return;
-      if (expectedRevision !== undefined && revision !== expectedRevision) return yield* Effect.fail(invalid('La disposition a changé. Recharge la touche avant de tester.', 409));
-      const binding = slot.entry.binding; yield* validateTrigger(binding);
-      yield* gestures.down(channel, { identity: JSON.stringify([slot.address, binding, revision]), context: JSON.stringify([slot.address, revision]), ...(binding.trigger ? { trigger: binding.trigger } : {}),
-        fire: press(key, slot.address, { binding, revision, source }).pipe(Effect.catch((error) => Effect.logWarning(error.message))),
-      });
-    } else {
-      const context = expectedRevision === undefined || address === undefined ? undefined : JSON.stringify([address, expectedRevision]);
-      if (phase === 'up') yield* gestures.up(channel, context); else yield* gestures.cancel(channel, context);
-      yield* release(key, address, expectedRevision, source);
-    }
+  const input = yield* Input.make({ validateKey, validate: validateTrigger, release,
+    resolve: (key, address) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
+      const slot = yield* currentKey(key, address);
+      return slot.entry ? { binding: slot.entry.binding, address: slot.address, revision: (yield* Ref.get(model)).revision } : undefined;
+    })),
+    press: (key, activation, source) => press(key, activation.address, { binding: activation.binding, revision: activation.revision, source }),
   });
   return { profile: Effect.map(Ref.get(model), (model) => model.profile), states: Effect.map(view, (view) => new Map([...view.keys].map(([key, slot]) => [key, slot.state]))),
-    entryStates: Ref.get(states), view, save, press, release, keyInput, gestureFailure: gestures.failure, cancel, organize, refreshFeedback: Semaphore.withPermits(lock, 1)(Effect.gen(function*() { for (const [key, slot] of (yield* view).keys) if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state); })), navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
+    entryStates: Ref.get(states), view, save, press, release, keyInput: input.input, gestureFailure: input.failure, cancel, organize, refreshFeedback: Semaphore.withPermits(lock, 1)(Effect.gen(function*() { for (const [key, slot] of (yield* view).keys) if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state); })), navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
 });

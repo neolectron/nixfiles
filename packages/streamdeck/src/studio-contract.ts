@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { KeyFeedback } from './key-feedback.ts';
 import { PublicConnection } from './discord-contract.ts';
-import { KeyTrigger } from './key-gestures.ts';
+import { KeyTrigger } from './press-trigger.ts';
 
 const shortText = Schema.String.check(Schema.isMaxLength(80));
 const argument = Schema.String.check(Schema.isMaxLength(4096));

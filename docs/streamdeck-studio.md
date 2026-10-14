@@ -49,7 +49,7 @@ second release must fall within the interval following the first release. A
 single tap does nothing in that mode. This selects one gesture for the existing
 action; it does not assign several different actions to the same physical key.
 
-`key-gestures.ts` is shared by the scripting router and the studio, using Effect
+`press-gestures.ts` is shared by the scripting router and the studio, using Effect
 Clock, scoped fibers, Sleep and Semaphore. Callback failures reach the router;
 ordinary canceled timers do not fail the plugin. Captured identity/configuration
 and layout revision prevent delayed gestures from dispatching a different action
@@ -74,7 +74,16 @@ yield* Bindings.run({ buttons: {
 } });
 ```
 
-124 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+The library also accepts independent `onShortPress`, `onLongPress` and
+`onDoubleTap` handlers on keys and knobs, with shared arbitration and release
+signals. The [plugin guide](streamdeck-plugins.md#bind-gestures-and-actions)
+describes typed action bindings, supervised tasks and the responsibility split.
+`studio-input.ts` adapts addresses and revisions to that engine; the shortcuts
+plugin forwards raw events once, removing the former nested binding recognizer.
+The browser imports the serializable Schema/defaults from `press-trigger.ts`
+without pulling in the runtime timer engine.
+
+136 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.

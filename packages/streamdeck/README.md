@@ -330,7 +330,9 @@ not a down/up pair.
 ## Routing and pages
 
 `Bindings.run(profile)` validates bindings, subscribes before initial rendering
-and runs handlers sequentially. Initial feedback can be a per-button `label` or
+and runs ordinary handlers sequentially. `Bindings.background(handler)` opts
+into supervised concurrent work. `Plugin.handler(action, api, input)` does this
+automatically for declared plugin actions. Initial feedback can be a per-button `label` or
 `image`, plus an optional `render` Effect for the strip or custom feedback.
 `onEvent` observes each routed event. Unbound controls cause no action.
 
@@ -346,8 +348,22 @@ A held key/dial releases into the profile that received its press. See
 [scripts/pages.ts](src/scripts/pages.ts) for switching from a button handler.
 
 Errors fail the runner and close its resources. Recover deliberately with Effect
-operators. For slow independent actions, explicitly use `Effect.forkScoped` and
-handle that fiber's failures; do not block the input router indefinitely.
+operators. Use `Bindings.background` for slow independent actions or holds;
+their failures reach the runner, and stopping the runner closes each task scope.
+
+Keys and knobs support `onShortPress`, `onLongPress` and `onDoubleTap` together.
+The library arbitrates them: a short press fires on release, waits for the double
+tap window when needed, and is suppressed by a double tap or long press.
+Defaults are 600 ms for a long press and 350 ms for a double tap. `onPress` remains
+immediate and independent; `onRelease` observes the release. Press handlers
+receive `{ ...event, gesture, released }`. Await `released` in a background
+handler for a hold action. Touch has completed tap/hold/swipe events rather than
+an artificial down/up lifecycle. See the [gesture example](src/scripts/gesture-playground.ts)
+and [plugin guide](../../docs/streamdeck-plugins.md) for composable actions:
+
+```sh
+pnpm cli gestures --mock --duration 3
+```
 Disconnect and event overflow are terminal. Default capacity is 256; no input
 replay or automatic reconnect. Shared consumers reuse one owning layer.
 

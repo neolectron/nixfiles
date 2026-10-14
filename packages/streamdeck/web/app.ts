@@ -11,7 +11,7 @@ import * as Fields from '../src/plugin-fields.ts';
 import { PluginFields } from './plugin-fields.ts';
 import { PluginControls } from './plugin-controls.ts';
 import { KeyGrid } from './key-grid.ts';
-import { delay, type KeyTrigger } from '../src/key-gestures.ts';
+import { delay, type KeyTrigger } from '../src/press-trigger.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {

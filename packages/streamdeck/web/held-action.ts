@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useRef, useState } from 'react';
 import type { Snapshot } from '../src/studio-contract.ts';
 import * as Api from './api.ts';
-import { delay, type KeyTrigger } from '../src/key-gestures.ts';
+import { delay, type KeyTrigger } from '../src/press-trigger.ts';
 
 /** Serialize press/release requests so a quick release cannot overtake its press. */
 export function HeldAction({ keyIndex, address, revision, disabled, trigger, onSnapshot, onError }: {
