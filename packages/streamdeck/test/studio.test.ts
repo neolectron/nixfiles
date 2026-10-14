@@ -62,7 +62,7 @@ it.live('saved bindings persist without execution; physical and web actions shar
     const after = yield* studio.snapshot;
     assert.strictEqual(after.keys[0]!.count, 6); assert.strictEqual(after.dials.at(-1)!.volume, before.dials.at(-1)!.volume);
     const saved = JSON.parse(yield* fs.readFileString(profile));
-    assert.strictEqual(saved.buttons['0'].parameters.start, 4);
+    assert.strictEqual(saved.zones[0].items[0].binding.parameters.start, 4);
     const invalid = yield* Effect.result(studio.actions.save(99, null)); assert.strictEqual(invalid._tag, 'Failure');
     yield* Fiber.interrupt(fiber);
   }).pipe(Effect.provide(Layer.mergeAll(mock.layer(), demoLayer)));
@@ -70,7 +70,7 @@ it.live('saved bindings persist without execution; physical and web actions shar
   const second = Mock.make();
   yield* Effect.gen(function*() {
     const restored = yield* Actions.make(yield* StreamDeck, profile, []);
-    assert.strictEqual((yield* restored.profile).buttons['0']?.label, 'Essai');
+    assert.strictEqual((yield* restored.profile).zones[0]!.items[0]?.binding.label, 'Essai');
     assert.strictEqual((yield* restored.states).get(0)?.count, 4);
   }).pipe(Effect.provide(second.layer()));
 })).pipe(Effect.provide(NodeServices.layer)));

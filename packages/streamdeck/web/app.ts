@@ -4,6 +4,7 @@ import { Effect, Fiber, Schedule } from 'effect';
 import type { ActionId, ButtonBinding, Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.ts';
 import * as Api from './api.ts';
+import { LayoutControls, ShortcutOrganization } from './layout-controls.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {
@@ -16,34 +17,36 @@ type Draft = { action: ActionId | ''; label: string; values: Record<string, stri
 const draftOf = (binding: ButtonBinding | null): Draft => ({ action: binding?.action ?? '', label: binding?.label ?? '', values: Object.fromEntries(Object.entries(binding?.parameters ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) });
 const messageOf = (error: unknown) => error instanceof Error ? error.message : 'La requête a échoué.';
 
-function KeyInspector({ selected, catalogue, online, onSnapshot, onDirty }: {
-  selected: KeyView; catalogue: Catalogue; online: boolean; onSnapshot: (snapshot: Snapshot) => void; onDirty: (dirty: boolean) => void;
+function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDirty }: {
+  selected: KeyView; catalogue: Catalogue; snapshot: Snapshot; online: boolean; onSnapshot: (snapshot: Snapshot) => void; onDirty: (dirty: boolean) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(selected.binding));
   const [saved, setSaved] = useState(() => JSON.stringify(draftOf(selected.binding)));
   const [baseline, setBaseline] = useState(selected.binding);
+  const [baselineAddress, setBaselineAddress] = useState(selected.address);
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const dirty = JSON.stringify(draft) !== saved;
   const definition = catalogue.actions.find((action) => action.id === draft.action);
   useEffect(() => { onDirty(dirty || busy); }, [dirty, busy]);
   useEffect(() => {
-    if (!dirty && !busy) { const next = draftOf(selected.binding); setDraft(next); setSaved(JSON.stringify(next)); setBaseline(selected.binding); }
-  }, [JSON.stringify(selected.binding)]);
+    if (!dirty && !busy) { const next = draftOf(selected.binding); setDraft(next); setSaved(JSON.stringify(next)); setBaseline(selected.binding); setBaselineAddress(selected.address); }
+  }, [JSON.stringify(selected.binding), selected.address]);
   const parameters = Object.fromEntries((definition?.fields ?? []).map((field) => [field.key, field.kind === 'number' ? Number(draft.values[field.key] ?? 0) : field.kind === 'arguments' ? draft.values[field.key] ? draft.values[field.key]!.split('\n') : [] : draft.values[field.key] ?? '']));
   const binding = draft.action ? { action: draft.action, label: draft.label || definition!.name, parameters } : null;
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
-      const snapshot = await Effect.runPromise(Api.save(selected.index, binding, baseline));
+      const snapshot = await Effect.runPromise(Api.save(selected.index, binding, baseline, baselineAddress));
       const next = draftOf(snapshot.keys.find((key) => key.index === selected.index)!.binding);
-      setDraft(next); setSaved(JSON.stringify(next)); setBaseline(snapshot.keys.find((key) => key.index === selected.index)!.binding); onSnapshot(snapshot); setNotice('Affectation enregistrée.');
+      setDraft(next); setSaved(JSON.stringify(next)); setBaseline(snapshot.keys.find((key) => key.index === selected.index)!.binding); setBaselineAddress(snapshot.keys.find((key) => key.index === selected.index)!.address); onSnapshot(snapshot); setNotice('Affectation enregistrée.');
     } catch (error) { setError(messageOf(error)); } finally { setBusy(false); }
   };
   const test = async () => {
     setBusy(true); setError(''); setNotice('');
-    try { onSnapshot(await Effect.runPromise(selected.status === 'running' ? Api.cancel(selected.index) : Api.trigger(selected.index))); setNotice(selected.status === 'running' ? 'Commande arrêtée.' : 'Action déclenchée.'); }
+    try { onSnapshot(await Effect.runPromise(selected.status === 'running' ? Api.cancel(selected.index, selected.address) : Api.trigger(selected.index, selected.address))); setNotice(selected.status === 'running' ? 'Commande arrêtée.' : 'Action déclenchée.'); }
     catch (error) { setError(messageOf(error)); } finally { setBusy(false); }
   };
+  if (selected.navigation) return h('section', { className: 'inspector' }, h('h2', {}, 'Retour du dossier'), h('p', { className: 'inspector-intro' }, 'Cette touche reste disponible sur toutes les pages du dossier pour revenir à son parent.'), h('button', { disabled: busy || !online, onClick: test }, 'Revenir'));
   return h('section', { className: 'inspector', 'aria-labelledby': 'inspector-title' },
     h('div', { className: 'inspector-heading' }, h('h2', { id: 'inspector-title' }, `Touche ${selected.index + 1}`), h('span', { className: 'coordinate' }, `${selected.row + 1} : ${selected.column + 1}`)),
     h('p', { className: 'inspector-intro' }, 'Choisis ce que fait cette touche.'),
@@ -55,7 +58,10 @@ function KeyInspector({ selected, catalogue, online, onSnapshot, onDirty }: {
       definition ? h('p', { className: 'action-description' }, definition.description) : h('p', { className: 'action-description' }, 'Une touche libre ne déclenche rien.'),
       definition ? h('label', { className: 'field' }, h('span', {}, 'Nom sur la touche'), h('input', { value: draft.label, maxLength: 80, disabled: busy, onChange: (event) => setDraft({ ...draft, label: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value }) })) : null,
       ...(definition?.fields ?? []).map((field) => h('label', { key: field.key, className: 'field' }, h('span', {}, field.label),
-        field.kind === 'app' ? h('select', { 'aria-label': field.label, required: true, value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => {
+        field.kind === 'folder' || field.kind === 'zone' ? h('select', { 'aria-label': field.label, value: draft.values[field.key] ?? '', required: true, disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLSelectElement).value } }) },
+          h('option', { value: '' }, field.kind === 'folder' ? 'Choisir un dossier' : 'Choisir une zone'),
+          ...(field.kind === 'folder' ? snapshot.layout.folders.map((folder) => h('option', { key: folder.id, value: folder.id }, folder.name)) : [h('option', { key: 'current', value: 'current' }, 'Zone de cette touche'), h('option', { key: 'audio', value: 'audio' }, 'Mixer audio LCD'), ...snapshot.layout.zones.map((zone) => h('option', { key: zone.id, value: zone.id }, zone.name))]))
+        : field.kind === 'app' ? h('select', { 'aria-label': field.label, required: true, value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => {
           const app = catalogue.applications.find((app) => app.id === (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value);
           setDraft({ ...draft, label: draft.label === definition?.name ? app?.name ?? draft.label : draft.label, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } });
         } }, h('option', { value: '' }, 'Choisir une application'), ...catalogue.applications.map((app) => h('option', { key: app.id, value: app.id }, app.name)))
@@ -63,13 +69,15 @@ function KeyInspector({ selected, catalogue, online, onSnapshot, onDirty }: {
             : h('input', { 'aria-label': field.label, 'aria-describedby': field.hint ? `hint-${field.key}` : undefined, type: field.kind === 'number' ? 'number' : 'text', required: field.key === 'executable', min: field.kind === 'number' ? -9999 : undefined, max: field.kind === 'number' ? 9999 : undefined, className: field.key === 'executable' || field.key === 'directory' ? 'code-input' : '', value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } }) }),
         field.hint ? h('small', { id: `hint-${field.key}` }, field.hint) : null)),
       definition ? h('div', { className: 'draft-preview' }, h(KeyCard, { width: 112, height: 112, label: draft.label || definition.name, action: definition.id, count: draft.action === 'counter' ? Number(draft.values.start ?? 0) : 0, status: 'idle' }), h('span', {}, 'Aperçu de l’affectation')) : null,
-      h('div', { className: 'form-actions' }, h('button', { type: 'submit', className: 'primary', disabled: !dirty || busy || !online || selected.status === 'running' }, h(Icon, { name: 'save', size: 17 }), busy ? 'En cours…' : 'Enregistrer'),
-        h('button', { type: 'button', disabled: !dirty || busy, onClick: () => { setDraft(draftOf(selected.binding)); setSaved(JSON.stringify(draftOf(selected.binding))); setBaseline(selected.binding); setError(''); setNotice(''); } }, 'Annuler')),
+      h('div', { className: 'form-actions' }, h('button', { type: 'submit', className: 'primary', disabled: !dirty || busy || !online || selected.status === 'running' || baselineAddress !== selected.address }, h(Icon, { name: 'save', size: 17 }), busy ? 'En cours…' : 'Enregistrer'),
+        h('button', { type: 'button', disabled: !dirty || busy, onClick: () => { setDraft(draftOf(selected.binding)); setSaved(JSON.stringify(draftOf(selected.binding))); setBaseline(selected.binding); setBaselineAddress(selected.address); setError(''); setNotice(''); } }, 'Annuler')),
       h('p', { className: 'save-state', role: 'status' }, dirty ? 'Modifications non enregistrées' : notice || 'Affectation à jour'),
+      dirty && baselineAddress !== selected.address ? h('p', { className: 'error', role: 'alert' }, 'La touche a changé de page. Annule pour charger son contenu actuel.') : null,
       error ? h('p', { className: 'error', role: 'alert' }, error) : null,
     ),
-    h('div', { className: 'test-action' }, h('button', { className: 'test-button', disabled: !selected.binding || dirty || busy || !online, onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : 'Tester l’action'),
+    h('div', { className: 'test-action' }, h('button', { className: 'test-button', disabled: !selected.binding || dirty || busy || !online, onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : selected.binding?.action === 'open-folder' ? 'Ouvrir le dossier' : 'Tester l’action'),
       h('p', {}, 'Exécute l’action enregistrée, comme un appui sur la touche.')),
+    h(ShortcutOrganization, { key: selected.id, snapshot, selected, online, dirty: dirty || busy, onSnapshot }),
     selected.detail ? h('div', { className: 'command-result' }, h('h3', {}, selected.status === 'error' ? 'Échec de l’action' : selected.status === 'running' ? 'Sortie en cours' : 'Dernière sortie'), h('pre', { className: selected.status === 'error' ? 'error-output' : '' }, selected.detail)) : null,
   );
 }
@@ -78,7 +86,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>(); const [catalogue, setCatalogue] = useState<Catalogue>();
   const [online, setOnline] = useState(false); const [error, setError] = useState('');
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 }); const [dirty, setDirty] = useState(false);
-  const acceptSnapshot = (value: Snapshot) => setSnapshot((previous) => previous?.sessionId === value.sessionId && previous.inputSequence > value.inputSequence ? previous : value);
+  const acceptSnapshot = (value: Snapshot) => setSnapshot((previous) => previous?.sessionId === value.sessionId && (previous.inputSequence > value.inputSequence || previous.layout.revision > value.layout.revision) ? previous : value);
   useEffect(() => {
     const watcher = Effect.runFork(Api.observe((value) => { acceptSnapshot(value); setOnline(true); }, () => setOnline(false)));
     const loader = Effect.runFork(Api.catalogue.pipe(Effect.retry(Schedule.spaced(1000)), Effect.match({ onSuccess: setCatalogue, onFailure: (error) => setError(messageOf(error)) })));
@@ -98,13 +106,17 @@ function App() {
       h('div', { className: 'connection', role: 'status' }, h('span', { className: online ? 'status-dot online' : 'status-dot' }), online ? snapshot?.mock ? 'Deck simulé' : 'Connecté' : snapshot ? 'Reconnexion…' : 'Connexion…')),
     h('main', { className: 'workspace' },
       h('section', { className: 'preview-panel', 'aria-label': 'Aperçu du deck' },
-        h('div', { className: 'preview-heading' }, h('div', {}, h('h2', {}, snapshot?.model.replace(/^Mock /, '') ?? 'Ton deck'), h('p', {}, 'Sélectionne une touche pour lui affecter une action.')),
+        h('div', { className: 'preview-heading' }, h('div', {}, h('h2', {}, snapshot?.model.replace(/^Mock /, '') ?? 'Ton deck'), h('p', {}, 'Sélectionne une touche pour la configurer. Double-clique sur une touche de navigation pour l’utiliser.')),
           h('span', { className: 'profile-name' }, 'Profil principal')),
         h('div', { className: 'device', style: { '--columns': columns } as import('react').CSSProperties },
           h('div', { className: snapshot ? 'key-grid' : 'key-grid loading', 'aria-label': 'Touches' }, ...(snapshot?.keys ?? Array.from({ length: 36 }, (_, index) => ({ index, binding: null, revision: 0, pressed: false }))).map((key) => h('button', {
             key: key.index, className: `deck-key${selection.kind === 'key' && selection.index === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}`,
             'aria-label': `Touche ${key.index + 1}${key.binding ? ` · ${key.binding.label}` : ' · libre'}`, 'aria-pressed': selection.kind === 'key' && selection.index === key.index,
             disabled: !snapshot, onClick: () => select({ kind: 'key', index: key.index }),
+            onDoubleClick: () => {
+              const current = snapshot?.keys.find((item) => item.index === key.index);
+              if (current?.binding && ['open-folder', 'go-back', 'page-next', 'page-previous'].includes(current.binding.action) && !dirty && online) Effect.runFork(Api.trigger(current.index, current.address).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) })));
+            },
           }, key.revision ? h('img', { src: `/api/image/key/${key.index}?session=${snapshot?.sessionId}&revision=${key.revision}`, alt: '', draggable: false }) : h('span', { className: 'empty-key' }, h(Icon, { name: 'plus', size: 22 })), h('span', { className: 'key-number' }, key.index + 1)))),
           ...(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map((lcd) => h('div', { key: lcd.index, className: 'lcd-strip', style: { aspectRatio: `${lcd.width}/${lcd.height}` }, 'aria-label': 'Écran LCD du mixer audio' }, lcd.revision ? h('img', { src: `/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`, alt: 'Affichage actuel des volumes et du Master', draggable: false }) : null)),
           h('div', { className: 'dial-row' }, ...(snapshot?.dials ?? Array.from({ length: 6 }, (_, index) => ({ index, master: index === 5, name: null, pressed: false, x: index * 200, width: 200 }))).map((dial) => h('button', {
@@ -118,10 +130,11 @@ function App() {
         ),
         h('div', { className: 'preview-footer' }, h('span', {}, online ? 'Aperçu en direct' : 'Reconnexion au moteur…'),
           h('div', { className: 'pagination' }, h('button', { 'aria-label': 'Applications précédentes', disabled: !online || (snapshot?.pages ?? 1) < 2, onClick: () => turnPage(-1) }, h(Icon, { name: 'left', size: 17 })), h('span', {}, `${(snapshot?.page ?? 0) + 1} / ${snapshot?.pages ?? 1}`), h('button', { 'aria-label': 'Applications suivantes', disabled: !online || (snapshot?.pages ?? 1) < 2, onClick: () => turnPage(1) }, h(Icon, { name: 'right', size: 17 })))),
+        snapshot ? h(LayoutControls, { snapshot, selected: selectedKey, online, dirty, onSnapshot: acceptSnapshot }) : null,
         h('p', { className: 'preview-note' }, 'Les touches libres restent sans affectation. Leur ancienne image physique n’est pas disponible.'),
         error ? h('p', { className: 'error', role: 'alert' }, error) : null,
       ),
-      selectedKey && catalogue ? h(KeyInspector, { key: selectedKey.index, selected: selectedKey, catalogue, online, onSnapshot: acceptSnapshot, onDirty: setDirty })
+      selectedKey && catalogue ? h(KeyInspector, { key: selectedKey.index, selected: selectedKey, catalogue, snapshot: snapshot!, online, onSnapshot: acceptSnapshot, onDirty: setDirty })
         : selectedDial ? h('section', { className: 'inspector dial-inspector' }, h('h2', {}, selectedDial.master ? 'Master' : `Potard ${selectedDial.index + 1}`), h('p', { className: 'inspector-intro' }, 'Mixer audio'),
           h('div', { className: 'dial-assignment' }, h('h3', {}, selectedDial.name ?? 'Aucune application'), h('p', {}, selectedDial.volume === null ? 'Ce potard est libre sur cette page.' : `${Math.round(selectedDial.volume)} %${selectedDial.muted ? ' · Son coupé' : ''}`)),
           h('dl', { className: 'behaviors' }, h('dt', {}, 'Rotation'), h('dd', {}, 'Volume de la source affichée'), h('dt', {}, 'Appui'), h('dd', {}, 'Couper ou rétablir le son')),

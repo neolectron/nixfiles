@@ -1,7 +1,7 @@
 import { Data, Effect, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
-import { Catalogue, Snapshot, type ButtonBinding } from '../src/studio-contract.ts';
+import { Catalogue, Snapshot, type ButtonBinding, type Navigate, type Organize } from '../src/studio-contract.ts';
 
 class RequestError extends Data.TaggedError('RequestError')<{ readonly message: string }> {}
 const json = (path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unknown) => Effect.scoped(Effect.gen(function*() {
@@ -14,9 +14,11 @@ const json = (path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unkno
 })).pipe(Effect.provide(FetchHttpClient.layer));
 
 export const catalogue = json('/api/catalogue').pipe(Effect.flatMap(Schema.decodeUnknownEffect(Catalogue)));
-export const save = (key: number, binding: unknown, expected: ButtonBinding | null) => json('/api/binding', 'PUT', { key, binding, expected }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
-export const cancel = (key: number) => json('/api/cancel', 'POST', { key }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
-export const trigger = (key: number) => json('/api/trigger', 'POST', { key }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const save = (key: number, binding: unknown, expected: ButtonBinding | null, address: string) => json('/api/binding', 'PUT', { key, binding, expected, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const cancel = (key: number, address: string) => json('/api/cancel', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const trigger = (key: number, address: string) => json('/api/trigger', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const organize = (command: Organize) => json('/api/organize', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const navigate = (command: Navigate) => json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const page = (direction: number) => json('/api/page', 'POST', { direction }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 
 /** Browser fetch/SSE, schema validation, reconnection and cancellation all use Effect. */
