@@ -8,6 +8,7 @@ import type { Device } from './stream-deck.ts';
 import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.ts';
 import type { KeyFeedback } from './key-feedback.ts';
+import { mergeDiscordActions } from './studio-profile-migrations.ts';
 
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A>(run: () => A) => Effect.try({ try: run, catch: (error) => invalid(error instanceof Error ? error.message : 'Organisation invalide.') });
@@ -38,9 +39,11 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   const stored = originalText === undefined ? undefined : yield* Schema.decodeUnknownEffect(Schema.fromJsonString(StoredProfile))(originalText);
   let legacyText = stored?.version === 1 ? originalText : undefined;
   if (stored?.version === 1) for (const key of Object.keys(stored.buttons)) if (String(Number(key)) !== key || !deviceKeys.includes(Number(key))) return yield* Effect.fail(invalid('Indice de touche invalide dans le profil.'));
-  const loaded: Profile = stored?.version === 2 ? stored : { version: 2, zones: [{ id: 'deck', name: 'Zone principale', keys: deviceKeys, pinned: {},
+  const originalProfile: Profile = stored?.version === 2 ? stored : { version: 2, zones: [{ id: 'deck', name: 'Zone principale', keys: deviceKeys, pinned: {},
     items: deviceKeys.map((key) => stored?.version === 1 && stored.buttons[String(key)] ? { id: `legacy/${key}`, binding: stored.buttons[String(key)]! } : null),
   }], folders: [] };
+  const loaded = mergeDiscordActions(originalProfile);
+  let previousDiscordText = loaded !== originalProfile ? originalText : undefined;
   yield* checked(() => Layout.validate(loaded, deviceKeys));
   const model = yield* Ref.make({ profile: loaded, navigation: {} as Layout.Navigation, revision: 0 });
   const states = yield* Ref.make<ReadonlyMap<string, KeyState>>(new Map());
@@ -86,11 +89,12 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     yield* checked(() => Layout.validate(validated, deviceKeys));
     yield* fs.makeDirectory(path.dirname(profileFile), { recursive: true });
     if (legacyText !== undefined && !(yield* fs.exists(`${profileFile}.v1.backup`))) yield* fs.writeFileString(`${profileFile}.v1.backup`, legacyText, { mode: 0o600 });
+    if (previousDiscordText !== undefined && !(yield* fs.exists(`${profileFile}.discord-share.backup`))) yield* fs.writeFileString(`${profileFile}.discord-share.backup`, previousDiscordText, { mode: 0o600 });
     const temporary = `${profileFile}.${yield* crypto.randomUUIDv4()}.tmp`;
     yield* Effect.gen(function*() {
       yield* fs.writeFileString(temporary, `${JSON.stringify(validated, null, 2)}\n`, { mode: 0o600 });
       yield* fs.rename(temporary, profileFile);
-      yield* Ref.update(model, (before) => ({ profile: validated, navigation, revision: before.revision + 1 })); legacyText = undefined;
+      yield* Ref.update(model, (before) => ({ profile: validated, navigation, revision: before.revision + 1 })); legacyText = undefined; previousDiscordText = undefined;
     }).pipe(Effect.uninterruptible, Effect.ensuring(fs.remove(temporary, { force: true }).pipe(Effect.ignore)));
   });
   const navigateUnlocked = (command: Navigate) => Effect.gen(function*() {

@@ -12,6 +12,5 @@ export const configure = (host: Effect.Success<typeof make>) => Effect.gen(funct
   yield* host.install(EventDisplay.plugin(ticks));
   yield* host.install(Obs.plugin);
   yield* host.install(Discord.plugin);
-  yield* host.install(Discord.screenSharePlugin);
   yield* host.install(PushToTalk.plugin(PushToTalk.VoiceTarget.commandLayer));
 });
