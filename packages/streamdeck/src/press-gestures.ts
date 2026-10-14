@@ -134,6 +134,7 @@ export const make = <E, R>() =>
           if (
             previous &&
             previous.press.identity === press.identity &&
+            previous.press.context === press.context &&
             now - previous.finished <= (handlers.doubleTapMs ?? defaults.doubleTapMs)
           )
             press.previous = previous;

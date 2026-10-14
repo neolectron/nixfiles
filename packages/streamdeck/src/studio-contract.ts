@@ -129,6 +129,7 @@ export const Trigger = Schema.Struct({ key: Schema.Int, address: Schema.optional
 export const KeyInput = Schema.Struct({
   key: Schema.Int,
   phase: Schema.Literals(['down', 'up', 'cancel']),
+  owner: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80))),
   address: Schema.String,
   revision: Schema.Int,
 });
@@ -300,6 +301,8 @@ export const Snapshot = Schema.Struct({
   sessionId: Schema.String,
   model: Schema.String,
   mock: Schema.Boolean,
+  connected: Schema.Boolean,
+  connectionError: Schema.NullOr(Schema.String),
   keys: Schema.Array(
     Schema.Struct({
       index: Schema.Int,

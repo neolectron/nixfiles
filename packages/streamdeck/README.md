@@ -84,15 +84,25 @@ change hidraw paths, so do not reuse a stale path.
 ## Local web editor
 
 `pnpm studio:dev` starts the React editor at `http://127.0.0.1:3900` and the same
-Effect engine that owns the hardware and real audio mixer. Select a key, choose
-an installed desktop application or a command/script, then save. Saving updates
+Effect engine and real audio mixer, even without a USB deck. Left clicks, double
+clicks and holds invoke the configured gestures through the shared plugin API.
+Use the pencil at the corner on hover (also available on keyboard focus), or right
+click, to edit a key; choose an application or command/script, then save. Drag its
+number to rearrange it without triggering its action. Alt + arrows also rearrange. Saving updates
 the physical key image and profile without executing the action. A physical press
 or **Tester l’action** uses the same handler. The inspector shows command output,
 errors and an **Arrêter la commande** control while a command runs. A counter is
 also available for an inert test. Command arguments are one per line and remain
 literal; shell syntax requires an explicitly configured shell executable.
 
-The preview mirrors successful RGB writes, including partial LCD updates. Held
+The preview mirrors logical RGB writes, including partial LCD updates.
+`DeckConnection` owns scoped USB acquisition, disconnection and retry every second.
+Its `use` operation fails with typed `DeckOffline` when USB is unavailable; Studio
+handles that error at its output boundary, keeps rendering and shows “Déconnecté”.
+Reconnecting the same model restores the current images and brightness, without
+restarting plugins or replaying actions. Offline startup uses the established
+Stream Deck + XL profile; when connected at startup, capabilities come from USB.
+Physical holds are canceled on disconnect; browser inputs remain independent. Held
 physical keys and pressed dials remain highlighted until release. Dials keep their live app/mute
 assignments; the web page arrows follow the same mixer pagination as LCD swipes,
 and Master stays pinned. Selecting a dial explains its current assignment; this
@@ -169,8 +179,8 @@ Below the preview, open **Organiser les dossiers et les zones**. Select a free
 key and create a named folder. Select any existing shortcut and use the
 inspector's **Déplacer vers** field to move it into that folder or another zone.
 Application, command, counter, folder and navigation shortcuts all use this same
-mechanism. Folders can be nested; cycles are rejected. Double-click a navigation
-tile in the editor, or press it on the hardware, to use it. A folder reserves the
+mechanism. Folders can be nested; cycles are rejected. Press a navigation tile
+in the editor or on the hardware to invoke its configured gesture. A folder reserves the
 first non-fixed key for **Retour** on every page; it cannot trap navigation.
 **Zone du dossier** chooses where it opens, independently of the key holding the
 folder shortcut. Existing folders default to their own key’s zone.
