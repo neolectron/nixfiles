@@ -904,10 +904,6 @@ function App() {
                 />
               ))}
             </div>
-            <p id="dial-help" className="rearrange-help">
-              Glisse un potard horizontalement ou utilise la molette pour régler le volume. Au
-              clavier : ← →.
-            </p>
           </div>
           <div className="preview-footer">
             <span>{online ? 'Aperçu en direct' : 'Reconnexion au moteur…'}</span>
