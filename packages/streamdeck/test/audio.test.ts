@@ -4,7 +4,7 @@ import { Deferred, Effect, Fiber, Layer } from 'effect';
 import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
 import type { Control } from '../src/model.ts';
-import { assign, slotsFor, startMixer } from '../src/scripts/audio-mixer.ts';
+import { assign, slotsFor, make as startMixer } from '../src/plugins/audio-mixer.ts';
 import { card } from '../src/mixer-display.ts';
 import { volumeColor } from '../src/volume-gauge.ts';
 import { cli } from './cli.ts';

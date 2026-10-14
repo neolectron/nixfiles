@@ -116,6 +116,11 @@ it.live('HTTP rejects cross-origin execution and invalid configs, and saves a va
     const bad = request('http://127.0.0.1:3901').pipe(HttpClientRequest.bodyJsonUnsafe({ key: 0, binding: { action: 'run-command', label: 'Bad', parameters: { executable: '', arguments: 'shell text', directory: '' } } }));
     assert.strictEqual((yield* client.execute(bad)).status, 400);
     assert.strictEqual((yield* controller.snapshot).keys[0]!.binding?.action, 'counter');
+    const pluginRequest = HttpClientRequest.post('/api/plugin').pipe(HttpClientRequest.bodyJsonUnsafe({ id: 'audio-mixer', enabled: false, expected: true }), HttpClientRequest.setHeaders({ origin: 'http://127.0.0.1:3901', 'x-streamdeck-studio': '1' }));
+    assert.strictEqual((yield* client.execute(pluginRequest.pipe(HttpClientRequest.setHeader('origin', 'https://unrelated.example')))).status, 403);
+    assert.strictEqual((yield* client.execute(pluginRequest)).status, 200);
+    assert.strictEqual((yield* controller.snapshot).dials.at(-1)!.volume, null);
+    assert.strictEqual((yield* client.execute(pluginRequest)).status, 409);
     const image = yield* client.get('/api/image/key/0'); assert.strictEqual(image.headers['content-type'], 'image/png');
     assert.strictEqual(decode(new Uint8Array(yield* image.arrayBuffer)).width, 112);
   }).pipe(Effect.provide(Layer.mergeAll(mock.layer(), demoLayer)));

@@ -19,6 +19,7 @@ export const cancel = (key: number, address: string) => json('/api/cancel', 'POS
 export const trigger = (key: number, address: string) => json('/api/trigger', 'POST', { key, address }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const organize = (command: Organize) => json('/api/organize', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const navigate = (command: Navigate) => json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const setPlugin = (id: string, enabled: boolean, expected: boolean) => json('/api/plugin', 'POST', { id, enabled, expected }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const page = (direction: number) => json('/api/page', 'POST', { direction }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 
 /** Browser fetch/SSE, schema validation, reconnection and cancellation all use Effect. */

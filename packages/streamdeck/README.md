@@ -99,6 +99,29 @@ The shared [key card](src/ui/key-card.ts) and [volume card](src/ui/volume-card.t
 are pure React views. Effect owns HTTP, SSE, validation, persistence, child process
 lifecycle and device state. See the [implementation evidence](../../docs/streamdeck-studio.md).
 
+## Plugins, sources and React feedback
+
+The mixer and key shortcuts are scoped Effect plugins. **Fonctionnalités** in the
+editor enables/disables them independently and saves their preferences beside
+the profile. Disable stops their input handlers, tasks and child processes,
+closes their Layer resources, and clears only their owned displays. USB remains
+open; the other plugins keep running. A new activation reconstructs transient
+state from saved configuration.
+
+Register personal plugins in `src/studio-plugins.ts`. The inactive **Exemple :
+événements** demonstrates an Effect source, React rendering and key presses.
+It can own touch 1 after Raccourcis is disabled. The same script runs in isolation:
+
+```sh
+pnpm cli plugins --mock --duration 3
+```
+
+Use `Plugin.fromLayer` for a feature service, `Plugin.define` for a small scoped
+Effect, `Plugin.listen` for any Stream, `Sources.callback` for SDK events or
+`Sources.poll` for reads, and `DeckDisplay.layer` for React key/LCD rendering.
+See the [plugin guide](../../docs/streamdeck-plugins.md) for typed scripting,
+source adapters, control ownership and complete lifecycle behavior.
+
 ## Folders and partial pagination
 
 Below the preview, open **Organiser les dossiers et les zones**. Select a free

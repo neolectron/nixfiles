@@ -3,7 +3,7 @@ import { Effect, Fiber, Layer, Schedule } from 'effect';
 import * as ReactDisplay from '../src/react-mixer.ts';
 import { Audio, demoLayer } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
-import { startMixer } from '../src/scripts/audio-mixer.ts';
+import { make as startMixer } from '../src/plugins/audio-mixer.ts';
 
 it.live('React/Takumi produces exact-size RGB and PNG with nominal/boost/mute/offline states', () => Effect.gen(function*() {
   const display = yield* ReactDisplay.make;

@@ -38,7 +38,7 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-62 passing tests, including exact preview pixels, partial LCD composition,
+70 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.
@@ -106,3 +106,33 @@ key images cannot be read back from HID.
 
 Personal bindings in `.studio/` are excluded from the commit. No push, merge,
 global Nix/USB permission change or Formula production change was performed.
+
+
+## Plugin consolidation
+
+The audio mixer and shortcut router now use `PluginHost` with independent
+activation scopes. `Plugin.fromLayer` keeps service resources alive through the
+activation; `Plugin.define` also accepts direct Effect setup. The host checks
+control conflicts, filters hardware subscriptions, cancels scoped actions,
+revokes old writers, cleans up source failures and supports self-disable without
+waiting on its own scope. React feedback is available through `DeckDisplay`.
+`Sources.callback` provides unsubscribe + overflow semantics; polling and other
+Effect Streams share `Plugin.listen`. `studio-plugins.ts` registers personal
+plugins, including an inactive React/source example. Studio switches persist in
+the ignored profile-adjacent `.plugins.json`, with the same origin guards as other
+mutations. See [the plugin guide](streamdeck-plugins.md).
+
+Plugin tests cover repeated activation and Layer finalizers, one USB connection,
+stale display writers, conflicts, failed setup and source cleanup, callback
+unsubscribe/overflow, caller/plugin-scope cancellation, independent mixer and
+shortcut toggles, persisted/reloaded preferences, and self-disable. HTTP tests
+cover cross-origin plugin changes and stale expected states. The existing mixer,
+layout and command suites remain part of validation.
+
+Browser evidence: real mixer activation was toggled off/on without changing
+Spotify (20%) or Master (100%). In the mock editor, overlapping key ownership
+was rejected explicitly, then the clock/React plugin replaced Raccourcis while
+the mixer kept running. Re-enabling Raccourcis restored a saved counter through
+the same browser session. Desktop and mobile inspection found no horizontal
+overflow. The real editor remains on port 3900 with its original shortcuts and
+both production features enabled; the example stays disabled.
