@@ -18,7 +18,7 @@ export const catalogue: ReadonlyArray<ActionDefinition> = [
       { key: 'arguments', label: 'Arguments', kind: 'arguments', hint: 'Un argument par ligne, transmis tel quel.' },
       { key: 'directory', label: 'Dossier de travail', kind: 'text', hint: 'Facultatif. Par défaut, le dossier du moteur.' }] },
   { id: 'counter', name: 'Compteur', description: 'Incrémente une valeur sur la touche pour tester un comportement.', defaults: { start: 0 }, schema: Schema.toJsonSchemaDocument(actionParameters.counter), fields: [{ key: 'start', label: 'Valeur de départ', kind: 'number', hint: '' }] },
-  { id: 'open-folder', name: 'Ouvrir un dossier', description: 'Affiche le dossier dans la zone de cette touche.', defaults: { folder: '' }, schema: Schema.toJsonSchemaDocument(actionParameters['open-folder']), fields: [{ key: 'folder', label: 'Dossier', kind: 'folder', hint: '' }] },
+  { id: 'open-folder', name: 'Ouvrir un dossier', description: 'Affiche le dossier dans la zone choisie, en laissant les autres touches en place.', defaults: { folder: '', target: 'current' }, schema: Schema.toJsonSchemaDocument(actionParameters['open-folder']), fields: [{ key: 'folder', label: 'Dossier', kind: 'folder', hint: '' }, { key: 'target', label: 'Zone du dossier', kind: 'zone', hint: 'La taille de cette zone détermine le nombre d’icônes affichées par page. Une touche est réservée au Retour.' }] },
   { id: 'go-back', name: 'Retour', description: 'Revient au dossier ou à la page précédente de cette zone.', defaults: {}, schema: Schema.toJsonSchemaDocument(actionParameters['go-back']), fields: [] },
   ...(['page-previous', 'page-next'] as const).map((id) => ({ id, name: id === 'page-next' ? 'Page suivante' : 'Page précédente', description: 'Change uniquement la page de la zone ciblée.', defaults: { target: 'current' }, schema: Schema.toJsonSchemaDocument(actionParameters[id]), fields: [{ key: 'target', label: 'Zone à paginer', kind: 'zone' as const, hint: 'Fixe cette touche pour la garder sur toutes les pages.' }] })),
 ];
@@ -112,9 +112,14 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
       if (slot.entry || slot.virtual) return yield* Effect.fail(invalid('Sélectionne une touche libre pour créer un dossier.'));
       const id = yield* crypto.randomUUIDv4(); next.folders.push({ id, name: command.name, items: [] });
       const entryId = yield* crypto.randomUUIDv4();
-      yield* checked(() => Layout.replace(next, navigation, command.key, { id: entryId, binding: { label: command.name, action: 'open-folder', parameters: { folder: id } } }));
+      yield* checked(() => Layout.replace(next, navigation, command.key, { id: entryId, binding: { label: command.name, action: 'open-folder', parameters: { folder: id, target: command.target ?? 'current' } } }));
     } else if (command.operation === 'move') yield* checked(() => Layout.move(next, command.id, command.destination));
     else if (command.operation === 'create-zone') { const id = yield* crypto.randomUUIDv4(); yield* checked(() => Layout.createZone(next, id, command.name, command.keys)); }
+    else if (command.operation === 'resize-zone') {
+      yield* checked(() => Layout.resizeZone(next, command.zone, command.keys));
+      navigation = Layout.navigate(next, navigation, { zone: 'deck', operation: 'root' });
+      navigation = Layout.navigate(next, navigation, { zone: command.zone, operation: 'root' });
+    }
     else if (command.operation === 'rename-folder') {
       const folder = next.folders.find((folder) => folder.id === command.id);
       if (!folder) return yield* Effect.fail(invalid('Dossier introuvable.')); folder.name = command.name;
@@ -143,7 +148,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   const press = (key: number, address?: string) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     const slot = yield* currentKey(key, address); const entry = slot.entry; if (!entry) return;
     const binding = entry.binding; const state = slot.state;
-    if (binding.action === 'open-folder') return yield* navigateUnlocked({ zone: slot.zone, operation: 'open', folder: binding.parameters.folder });
+    if (binding.action === 'open-folder') return yield* navigateUnlocked({ zone: !binding.parameters.target || binding.parameters.target === 'current' ? slot.zone : binding.parameters.target, operation: 'open', folder: binding.parameters.folder });
     if (binding.action === 'go-back') return yield* navigateUnlocked({ zone: slot.zone, operation: 'back' });
     if (binding.action === 'page-next' || binding.action === 'page-previous') {
       const direction = binding.action === 'page-next' ? 1 : -1;

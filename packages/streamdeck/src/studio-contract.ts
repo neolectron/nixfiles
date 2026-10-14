@@ -9,7 +9,7 @@ export const actionParameters = {
     arguments: Schema.Array(argument).annotate({ title: 'Arguments' }),
     directory: Schema.String.check(Schema.isMaxLength(4096)).annotate({ title: 'Dossier de travail' }),
   }),
-  'open-folder': Schema.Struct({ folder: Schema.NonEmptyString }),
+  'open-folder': Schema.Struct({ folder: Schema.NonEmptyString, target: Schema.optional(Schema.NonEmptyString) }),
   'go-back': Schema.Struct({}),
   'page-next': Schema.Struct({ target: Schema.NonEmptyString }),
   'page-previous': Schema.Struct({ target: Schema.NonEmptyString }),
@@ -42,9 +42,10 @@ export const Trigger = Schema.Struct({ key: Schema.Int, address: Schema.optional
 export const Navigate = Schema.Struct({ zone: Schema.NonEmptyString, operation: Schema.Literals(['next', 'previous', 'back', 'root', 'open']), folder: Schema.optional(Schema.String) });
 export type Navigate = typeof Navigate.Type;
 export const Organize = Schema.Union([
-  Schema.Struct({ operation: Schema.Literal('create-folder'), key: Schema.Int, name: shortText, address: Schema.String }),
+  Schema.Struct({ operation: Schema.Literal('create-folder'), key: Schema.Int, name: shortText, address: Schema.String, target: Schema.optional(Schema.NonEmptyString) }),
   Schema.Struct({ operation: Schema.Literal('move'), id: Schema.NonEmptyString, destination: Schema.NonEmptyString, revision: Schema.Int }),
   Schema.Struct({ operation: Schema.Literal('create-zone'), name: shortText, keys: Schema.Array(Schema.Int), revision: Schema.Int }),
+  Schema.Struct({ operation: Schema.Literal('resize-zone'), zone: Schema.NonEmptyString, keys: Schema.Array(Schema.Int), revision: Schema.Int }),
   Schema.Struct({ operation: Schema.Literal('add-page'), zone: Schema.NonEmptyString, revision: Schema.Int }),
   Schema.Struct({ operation: Schema.Literal('pin'), key: Schema.Int, value: Schema.Boolean, address: Schema.String }),
   Schema.Struct({ operation: Schema.Literal('rename-folder'), id: Schema.NonEmptyString, name: shortText, revision: Schema.Int }),

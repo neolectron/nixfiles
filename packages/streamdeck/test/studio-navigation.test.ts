@@ -147,3 +147,56 @@ it.live('a two-key folder zone cannot pin away its content slot or lose Return a
     yield* actions.press(0); assert.strictEqual((yield* actions.view).layout.zones[1]!.folder, null);
   }).pipe(Effect.provide(mock.layer()));
 })).pipe(Effect.provide(NodeServices.layer)));
+
+it.live('a folder can open a different zone while its own single-key zone stays in place', () => Effect.scoped(Effect.gen(function*() {
+  const fs = yield* FileSystem.FileSystem; const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'studio-folder-target-' }); const file = `${directory}/profile.json`; const mock = Mock.make();
+  yield* Effect.gen(function*() {
+    const actions = yield* Actions.make(yield* StreamDeck, file, []);
+    yield* actions.organize({ operation: 'create-zone', name: 'Contenu', keys: [0, 1, 2], revision: (yield* actions.view).layout.revision });
+    const content = (yield* actions.profile).zones[1]!;
+    yield* actions.organize({ operation: 'create-zone', name: 'Navigation', keys: [35], revision: (yield* actions.view).layout.revision });
+    yield* actions.organize({ operation: 'create-folder', key: 35, name: 'Outils', target: content.id, address: (yield* actions.view).keys.get(35)!.address });
+    const button = (yield* actions.view).keys.get(35)!.entry!.id;
+    yield* actions.press(35);
+    assert.strictEqual((yield* actions.view).layout.zones.find((zone) => zone.id === content.id)!.folder, (yield* actions.profile).folders[0]!.id);
+    assert.strictEqual((yield* actions.view).keys.get(0)!.virtual, true);
+    assert.strictEqual((yield* actions.view).keys.get(35)!.entry!.id, button);
+    assert.strictEqual((yield* actions.view).layout.zones.at(-1)!.folder, null);
+    const before = yield* fs.readFileString(file);
+    assert.strictEqual((yield* Effect.result(actions.save(35, { label: 'Invalid', action: 'open-folder', parameters: { folder: (yield* actions.profile).folders[0]!.id, target: 'audio' } })))._tag, 'Failure');
+    assert.strictEqual((yield* Effect.result(actions.organize({ operation: 'resize-zone', zone: content.id, keys: [0], revision: (yield* actions.view).layout.revision })))._tag, 'Failure');
+    assert.strictEqual(yield* fs.readFileString(file), before);
+    yield* actions.press(0);
+    assert.strictEqual((yield* actions.view).layout.zones.find((zone) => zone.id === content.id)!.folder, null);
+  }).pipe(Effect.provide(mock.layer()));
+})).pipe(Effect.provide(NodeServices.layer)));
+
+it.live('resizing a zone exchanges root slots on every page and preserves fixed controls and stable state', () => Effect.scoped(Effect.gen(function*() {
+  const fs = yield* FileSystem.FileSystem; const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'studio-zone-resize-' }); const mock = Mock.make();
+  yield* Effect.gen(function*() {
+    const actions = yield* Actions.make(yield* StreamDeck, `${directory}/profile.json`, []);
+    const counter = (start: number) => ({ label: `${start}`, action: 'counter', parameters: { start } });
+    yield* actions.save(35, counter(0));
+    yield* actions.organize({ operation: 'pin', key: 35, value: true, address: (yield* actions.view).keys.get(35)!.address });
+    yield* actions.save(2, counter(10)); const movedId = (yield* actions.view).keys.get(2)!.entry!.id;
+    yield* actions.press(2);
+    yield* actions.organize({ operation: 'add-page', zone: 'deck', revision: (yield* actions.view).layout.revision });
+    yield* actions.save(2, counter(20)); yield* actions.save(4, counter(40));
+    yield* actions.navigate({ zone: 'deck', operation: 'root' });
+    yield* actions.organize({ operation: 'create-zone', name: 'Apps', keys: [0, 1, 2], revision: (yield* actions.view).layout.revision });
+    const zone = (yield* actions.profile).zones[1]!;
+    yield* actions.save(35, { label: 'Next', action: 'page-next', parameters: { target: zone.id } });
+    const fixedId = (yield* actions.view).keys.get(35)!.entry!.id;
+    yield* actions.organize({ operation: 'resize-zone', zone: zone.id, keys: [0, 1, 4], revision: (yield* actions.view).layout.revision });
+    assert.strictEqual((yield* actions.view).keys.get(2)!.zone, 'deck');
+    assert.strictEqual((yield* actions.view).keys.get(2)!.entry!.id, movedId);
+    assert.strictEqual((yield* actions.states).get(2)!.count, 11);
+    yield* actions.navigate({ zone: 'deck', operation: 'next' });
+    assert.strictEqual((yield* actions.states).get(2)!.count, 20);
+    yield* actions.press(35); assert.strictEqual((yield* actions.states).get(4)!.count, 40);
+    assert.strictEqual((yield* actions.view).keys.get(35)!.entry!.id, fixedId);
+    const before = yield* actions.profile;
+    assert.strictEqual((yield* Effect.result(actions.organize({ operation: 'resize-zone', zone: zone.id, keys: [0, 35], revision: (yield* actions.view).layout.revision })))._tag, 'Failure');
+    assert.deepStrictEqual(yield* actions.profile, before);
+  }).pipe(Effect.provide(mock.layer()));
+})).pipe(Effect.provide(NodeServices.layer)));

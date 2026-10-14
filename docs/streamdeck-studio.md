@@ -38,7 +38,7 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-60 passing tests, including exact preview pixels, partial LCD composition,
+62 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.
@@ -46,7 +46,15 @@ Navigation tests also cover exact legacy backup/migration, nested folders and
 cycle rejection, independent zone pages, fixed navigation buttons, stale slot
 addresses, physical LCD pagination with pinned Master, hidden command completion,
 empty-page behavior when pinning a shortcut, and folder capacity guards that
-preserve both Return and a content slot.
+preserve both Return and a content slot. Targeted folder opening also works from
+a single-key navigation zone into another region; invalid targets and shrinking
+that region below Return + content are rejected without changing the profile.
+Resize tests exchange physical slots across every root page, retaining stable
+counter state and fixed controls. The browser mock test resized keys 1–9 to 1–4
+(three folder icons + Return), then opened that folder into the main zone while
+keeping its launcher and pinned pager visible. The real profile was not resized.
+Desktop and mobile checks show the target map/capacity beside the assignment and
+the visual key selector below the deck; no horizontal overflow was detected.
 The 22 keep-awake tests also pass. Frozen pnpm installation and Nix flake checks
 passed after the dependency changes.
 
