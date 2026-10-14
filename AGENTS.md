@@ -100,6 +100,20 @@ Use a lowercase, specific type such as `feat`, `fix`, `docs`, `refactor`,
 `test`, `build`, `ci`, `chore`, or `perf`. Avoid vague subjects such as
 `WIP`, `update`, or `changes`.
 
+## Stream Deck TypeScript standards
+
+For `packages/streamdeck`, use the shared Oxlint/Oxfmt configuration derived from
+Formula. Run `pnpm lint`, `pnpm format`, `pnpm typecheck` and `pnpm test` before
+committing; `pnpm check` runs all four. Use `pnpm format:fix` to apply formatting.
+Vitest and `@effect/vitest` cover the library; retain meaningful regression tests.
+
+Write React views with JSX in `.tsx` files. Execute scripts with
+`node --import tsx`; development uses Node's `--watch`. Keep `noEmit`, explicit
+`.ts`/`.tsx` import extensions and direct module imports, without a build script
+or barrel files. Platform I/O uses Effect platform services, not Node built-ins.
+Keep plugin metadata, effects and presentation inside their existing boundaries.
+The separate keep-awake package retains its own packaging and test runner.
+
 ## MCP Tools
 
 - **nixos** — use to look up NixOS/Home Manager option types and defaults before setting them.

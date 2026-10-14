@@ -4,17 +4,23 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./react-mixer": "./src/react-mixer.tsx",
+    "./studio-actions": "./src/studio-actions.tsx",
+    "./plugins/event-display": "./src/plugins/event-display.tsx",
+    "./plugins/spotify-lcd": "./src/plugins/spotify-lcd.tsx",
+    "./ui/*": "./src/ui/*.tsx",
     "./*": "./src/*.ts"
   },
-  "engines": {
-    "node": ">=24 <25"
-  },
   "scripts": {
-    "dev": "node --watch --watch-preserve-output src/cli.ts mixer",
-    "studio:dev": "node --watch --watch-preserve-output src/cli.ts studio",
-    "cli": "node src/cli.ts",
+    "dev": "node --import tsx --watch --watch-preserve-output src/cli.ts mixer",
+    "studio:dev": "node --import tsx --watch --watch-preserve-output src/cli.ts studio",
+    "cli": "node --import tsx src/cli.ts",
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint -c ../../.oxlintrc.json src web vitest.config.ts",
+    "lint:fix": "pnpm lint --fix",
+    "format": "oxfmt --check -c ../../.oxfmtrc.json .",
+    "format:fix": "oxfmt -c ../../.oxfmtrc.json ."
   },
   "dependencies": {
     "@effect/platform-node": "4.0.4",
@@ -34,7 +40,11 @@
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "tsx": "4.21.0",
     "typescript": "7.0.2",
     "vitest": "5.0.4"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

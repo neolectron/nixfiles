@@ -6,6 +6,8 @@ packages:
 engineStrict: true
 strictDepBuilds: true
 allowBuilds:
+  # tsx's JSX transformer; needed for Node's runtime loader.
+  esbuild: true
   # Native HID driver only; no blanket install-script approval.
   node-hid: true
   # Optional JPEG accelerator; the small demos use the pure-JS fallback.

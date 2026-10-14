@@ -1,8 +1,6 @@
 {
   "name": "nixfiles-tools",
   "private": true,
-  "packageManager": "pnpm@12.11.2",
-  "engines": { "node": ">=24 <25" },
   "scripts": {
     "dev": "pnpm --filter @nixfiles/streamdeck dev",
     "studio:dev": "pnpm --filter @nixfiles/streamdeck studio:dev",
@@ -12,6 +10,19 @@
     "keep-awake:test": "pnpm --filter keep-awake-mcp test",
     "keep-awake:smoke": "pnpm --filter keep-awake-mcp smoke",
     "streamdeck": "pnpm --filter @nixfiles/streamdeck cli",
-    "streamdeck:demo": "pnpm streamdeck hello --mock --demo"
-  }
+    "streamdeck:demo": "pnpm streamdeck hello --mock --demo",
+    "lint": "pnpm --filter @nixfiles/streamdeck lint",
+    "lint:fix": "pnpm --filter @nixfiles/streamdeck lint:fix",
+    "format": "oxfmt --check packages/streamdeck package.json pnpm-workspace.yaml pnpm-lock.yaml .oxfmtrc.json .oxlintrc.json AGENTS.md docs/streamdeck-plugins.md docs/streamdeck-studio.md",
+    "format:fix": "oxfmt packages/streamdeck package.json pnpm-workspace.yaml pnpm-lock.yaml .oxfmtrc.json .oxlintrc.json AGENTS.md docs/streamdeck-plugins.md docs/streamdeck-studio.md",
+    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "oxfmt": "0.61.0",
+    "oxlint": "1.74.0"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@12.11.2"
 }
