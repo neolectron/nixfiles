@@ -20,6 +20,7 @@ import type { KeyTrigger } from '../src/press-trigger.ts';
 import { draftOf, type Draft } from './key-draft.ts';
 import { useProfileEditor } from './use-profile-editor.ts';
 import './style.css';
+import { NoteEditor } from './note-editor.tsx';
 function Icon({
   name,
   size = 20,
@@ -930,4 +931,7 @@ function App() {
     </div>
   );
 }
-createRoot(invariant(document.querySelector('#root'), 'editor-root')).render(<App />);
+const noteId = new URL(window.location.href).searchParams.get('note');
+createRoot(invariant(document.querySelector('#root'), 'editor-root')).render(
+  noteId ? <NoteEditor id={noteId} /> : <App />,
+);

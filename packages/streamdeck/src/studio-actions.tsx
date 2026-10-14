@@ -225,6 +225,7 @@ export const make = (
       number,
       {
         readonly waiter: Deferred.Deferred<void>;
+        readonly cancelled: Deferred.Deferred<void>;
         readonly address: string;
         readonly revision: number | undefined;
         readonly source: string;
@@ -658,8 +659,10 @@ export const make = (
           yield* setState(entry.id, { ...state, status: 'running', detail: '' });
           yield* paintEntry(entry.id);
           const released = yield* Deferred.make<void>();
+          const cancelled = yield* Deferred.make<void>();
           releases.set(key, {
             waiter: released,
+            cancelled,
             address: slot.address,
             revision: expected?.revision,
             source: expected?.source ?? 'direct',
@@ -674,7 +677,12 @@ export const make = (
                     [entry.id, { ...current, detail: (current.detail + text).slice(-4096) }],
                   ]);
                 });
-              const context = { output, released: Deferred.await(released) };
+              const context = {
+                output,
+                released: Deferred.await(released),
+                cancelled: Deferred.await(cancelled),
+                gesture: binding.trigger?.type ?? ('press' as const),
+              };
               const result =
                 binding.action === 'plugin'
                   ? yield* (
@@ -773,7 +781,13 @@ export const make = (
       });
     yield* repaint(undefined, stored?.version !== 2);
     feedbackReady = true;
-    const release = (key: number, address?: string, revision?: number, source?: string) =>
+    const release = (
+      key: number,
+      address?: string,
+      revision?: number,
+      source?: string,
+      cancelled = false,
+    ) =>
       Effect.suspend(() => {
         const pending = releases.get(key);
         if (
@@ -786,7 +800,10 @@ export const make = (
         )
           return Effect.void;
         releases.delete(key);
-        return Deferred.succeed(pending.waiter, undefined).pipe(Effect.asVoid);
+        return (cancelled ? Deferred.succeed(pending.cancelled, undefined) : Effect.void).pipe(
+          Effect.andThen(Deferred.succeed(pending.waiter, undefined)),
+          Effect.asVoid,
+        );
       });
     const input = yield* Input.make({
       validateKey,

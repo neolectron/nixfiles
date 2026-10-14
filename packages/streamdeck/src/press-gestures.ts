@@ -2,20 +2,31 @@ import { Cause, Clock, Deferred, Effect, Fiber, Schema, Semaphore } from 'effect
 import { defaults, delay, KeyTrigger, PressTiming } from './press-trigger.ts';
 import { invalid } from './errors.ts';
 const invoke = <E, R>(
-  press: { active: Effect.Effect<boolean>; release: Deferred.Deferred<void> },
+  press: {
+    active: Effect.Effect<boolean>;
+    release: Deferred.Deferred<void>;
+    cancelled: Deferred.Deferred<void>;
+  },
   handler: Handler<E, R> | undefined,
   gesture: PressGesture = 'press',
 ) =>
   Effect.gen(function* () {
     if (!handler || !(yield* press.active)) return;
     yield* typeof handler === 'function'
-      ? Effect.suspend(() => handler({ released: Deferred.await(press.release), gesture }))
+      ? Effect.suspend(() =>
+          handler({
+            released: Deferred.await(press.release),
+            cancelled: Deferred.await(press.cancelled),
+            gesture,
+          }),
+        )
       : handler;
   });
 /** One release signal per physical press. Cancellation also completes it. */
 export type PressGesture = 'press' | 'short-press' | 'long-press' | 'double-tap';
 export interface PressContext {
   readonly released: Effect.Effect<void>;
+  readonly cancelled?: Effect.Effect<void>;
   readonly gesture: PressGesture;
 }
 export type Handler<E, R> =
@@ -66,6 +77,7 @@ export const make = <E, R>() =>
       handlers: Handlers<E, R>;
       active: Effect.Effect<boolean>;
       release: Deferred.Deferred<void>;
+      cancelled: Deferred.Deferred<void>;
       long: boolean;
       timer?: Fiber.Fiber<unknown, E>;
       previous?: Tap;
@@ -96,7 +108,10 @@ export const make = <E, R>() =>
       });
     yield* Effect.addFinalizer(() =>
       Effect.gen(function* () {
-        for (const press of held.values()) yield* Deferred.succeed(press.release, undefined);
+        for (const press of held.values()) {
+          yield* Deferred.succeed(press.cancelled, undefined);
+          yield* Deferred.succeed(press.release, undefined);
+        }
         held.clear();
         taps.clear();
       }),
@@ -129,6 +144,7 @@ export const make = <E, R>() =>
             started: now,
             active: options.active ?? Effect.succeed(true),
             release: yield* Deferred.make<void>(),
+            cancelled: yield* Deferred.make<void>(),
             long: false,
           };
           if (
@@ -216,6 +232,7 @@ export const make = <E, R>() =>
           const press = held.get(key);
           if (press && (context === undefined || press.context === context)) {
             held.delete(key);
+            yield* Deferred.succeed(press.cancelled, undefined);
             yield* Deferred.succeed(press.release, undefined);
             if (press.timer) yield* Fiber.interrupt(press.timer);
           }
