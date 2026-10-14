@@ -18,15 +18,11 @@ export interface MixerState {
   readonly master: Master | undefined;
   readonly masterOnline: boolean;
 }
-/** Existing apps keep their slots. New apps fill holes rather than moving neighbors. */
-export const assign = (previous: ReadonlyArray<string | null>, apps: ReadonlyArray<Application>): ReadonlyArray<string | null> => {
+/** Surviving apps keep their order, compact left, and newly discovered apps append. */
+export const assign = (previous: ReadonlyArray<string | null>, apps: ReadonlyArray<Application>): ReadonlyArray<string> => {
   const keys = new Set(apps.map((app) => app.key));
-  const slots = previous.map((key) => key !== null && keys.has(key) ? key : null);
-  for (const app of apps) if (!slots.includes(app.key)) {
-    const hole = slots.indexOf(null);
-    if (hole >= 0) slots[hole] = app.key; else slots.push(app.key);
-  }
-  while (slots.length && slots.at(-1) === null) slots.pop();
+  const slots = previous.filter((key): key is string => key !== null && keys.has(key));
+  for (const app of apps) if (!slots.includes(app.key)) slots.push(app.key);
   return slots;
 };
 export interface Slot extends Position, Size { readonly dial: number }

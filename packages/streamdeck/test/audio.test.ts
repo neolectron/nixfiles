@@ -163,9 +163,12 @@ test('invalid changes fail without playback mutations', async () => {
   assert.deepStrictEqual(f.commands, []);
 });
 
-test('app slots remain stable, fill holes and paginate beyond the dial count', () => {
-  assert.deepStrictEqual(assign(['a', 'b', 'c'], [app('c'), app('a'), app('d')]), ['a', 'd', 'c']);
+test('app slots compact left while preserving relative order and append new applications', () => {
+  assert.deepStrictEqual(assign(['a', 'b', 'c'], [app('c'), app('a'), app('d')]), ['a', 'c', 'd']);
+  assert.deepStrictEqual(assign(['a', 'b', 'c'], [app('c'), app('b')]), ['b', 'c']);
   assert.deepStrictEqual(assign(['a', null, 'c'], [app('a')]), ['a']);
+  assert.deepStrictEqual(assign(['a', null, 'c'], [app('c'), app('a')]), ['a', 'c']);
+  assert.deepStrictEqual(assign(['a', 'b'], []), []);
   assert.strictEqual(assign([], Array.from({ length: 8 }, (_, i) => app(`app${i}`))).length, 8);
 });
 
@@ -234,6 +237,27 @@ it.effect('retained cards preserve a live application alias, slot and volume whe
     list: Effect.sync(() => applications), change: () => Effect.void, ...masterMock,
   }))));
 })));
+
+test('removing the first app compacts pages, redraws moved cards and keeps queued controls bound to their app', async () => {
+  const deck = Mock.make(); const inputs = Array.from({ length: 6 }, (_, i) => input(i + 1, `App${i}`, [32768]));
+  const f = fixture(inputs);
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const mixer = yield* startMixer();
+    yield* mixer.adjustDial(1, 1); // Queued for App1 before it changes physical slot.
+    yield* mixer.changePage(1);
+    f.set(inputs.slice(1)); yield* mixer.refresh;
+    const view = yield* mixer.state;
+    assert.deepStrictEqual(view.assignments, ['app1', 'app2', 'app3', 'app4', 'app5']);
+    assert.strictEqual(view.page, 0);
+    assert.strictEqual(view.master?.name, 'output');
+    assert.deepStrictEqual(f.commands, []);
+    const writes = deck.writes.length;
+    yield* mixer.adjustDial(0, 1); yield* mixer.toggleDial(0); yield* mixer.flush;
+    assert.deepStrictEqual(f.commands, [['set-sink-input-volume', '2', '35389'], ['set-sink-input-mute', '2', '1']]);
+    assert.ok(deck.writes.length > writes);
+    assert.deepStrictEqual((yield* mixer.state).assignments, view.assignments);
+  })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
+});
 
 test('page changes keep pending actions bound to the original app and empty dials do nothing', async () => {
   const deck = Mock.make(); const f = fixture(Array.from({ length: 8 }, (_, i) => input(i + 1, `App${i}`, [32768])));

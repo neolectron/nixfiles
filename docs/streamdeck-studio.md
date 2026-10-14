@@ -27,6 +27,13 @@ missing timing, player discovery, stream disappearance and alias retention, stal
 web taps, and plugin disable during rendering. No playback command was issued by
 these display tests. This change does not implement stream volume restoration.
 
+Mixer cards compact left when an application disappears, preserving the relative
+order of remaining applications and appending newly discovered ones. Page counts
+and the selected page are recomputed from this compact order. A regression test
+removes the first application across a page boundary and verifies that queued
+volume/mute changes still target application identities after cards move; Master
+remains at the right.
+
 ## Structure
 
 - `studio-contract.ts`: shared Effect schemas for action parameters, profiles,
@@ -104,7 +111,7 @@ plugin forwards raw events once, removing the former nested binding recognizer.
 The browser imports the serializable Schema/defaults from `press-trigger.ts`
 without pulling in the runtime timer engine.
 
-149 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+150 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.
