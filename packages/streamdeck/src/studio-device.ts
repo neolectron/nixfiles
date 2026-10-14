@@ -60,6 +60,7 @@ export const driverLayer = Layer.effect(
           );
           return {
             info: connection.info,
+            detectedModel: connection.detectedModel,
             connected: connection.connected,
             connectionChanges: connection.changes,
             connectionError: Effect.map(connection.error, (error) => error?.message ?? null),

@@ -122,6 +122,7 @@ it.live(
             const before = yield* studio.snapshot;
             assert.strictEqual(before.connected, false);
             assert.strictEqual(before.mock, false);
+            assert.strictEqual(before.model, 'Stream Deck');
             assert.ok(before.connectionError);
             yield* studio.actions.save(0, {
               label: 'Offline',
@@ -150,14 +151,33 @@ it.live(
             yield* Ref.set(state.present, true);
             yield* wait((yield* DeckConnection).connected);
             assert.strictEqual((yield* studio.snapshot).connected, true);
+            assert.strictEqual((yield* studio.snapshot).model, Mock.plusXl.model);
             yield* state.mock.emit({ _tag: 'KeyDown', key: 0 });
             yield* Ref.set(state.present, false);
             yield* state.mock.disconnect();
             yield* Effect.sleep(150);
             assert.strictEqual((yield* studio.snapshot).keys[0]!.pressed, false);
             assert.strictEqual((yield* studio.snapshot).keys[0]!.count, 1);
+            assert.strictEqual((yield* studio.snapshot).model, Mock.plusXl.model);
           }),
         ).pipe(Effect.provide(Layer.mergeAll(state.layer, Audio.demoLayer)));
       }),
     ).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.live('the connection uses discovered model metadata rather than the offline canvas name', () =>
+  Effect.gen(function* () {
+    for (const model of ['Stream Deck Mini', 'Stream Deck XL', 'Stream Deck +']) {
+      const mock = Mock.make({ devices: [{ ...Mock.plusXl, model }] });
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const connection = yield* DeckConnection;
+          assert.strictEqual(yield* connection.detectedModel, model);
+          yield* wait(connection.connected);
+          assert.strictEqual(yield* connection.detectedModel, model);
+        }).pipe(Effect.provide(DeckConnection.layer().pipe(Layer.provide(mock.driverLayer)))),
+      );
+      assert.strictEqual(mock.opens, mock.closes);
+    }
+  }),
 );

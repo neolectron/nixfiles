@@ -33,6 +33,7 @@ export const make = (options: OpenOptions = {}) =>
       model: 'Stream Deck + XL',
       path: options.path ?? 'studio://plus-xl',
     };
+    let detectedModel: string | null = initial?.model ?? null;
     const lock = yield* Semaphore.make(1);
     const events = yield* Effect.acquireRelease(
       PubSub.bounded<DeckEvent>(capacity),
@@ -118,6 +119,7 @@ export const make = (options: OpenOptions = {}) =>
             for (const restore of restorers) yield* restore(opened);
             if (yield* Deferred.isDone(failed)) return;
             connection = opened;
+            detectedModel = opened.info.model;
             offline = null;
             yield* PubSub.publish(changes, true);
           }),
@@ -135,6 +137,7 @@ export const make = (options: OpenOptions = {}) =>
     yield* Effect.forkScoped(Effect.forever(attempt.pipe(Effect.andThen(Effect.sleep(1000)))));
     return {
       info,
+      detectedModel: Effect.sync(() => detectedModel),
       connected: Effect.sync(() => offline === null),
       changes: Stream.fromPubSub(changes),
       error: Effect.sync(() => offline),

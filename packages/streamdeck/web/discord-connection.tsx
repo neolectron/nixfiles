@@ -44,23 +44,18 @@ export function DiscordConnection({
       onBusy(false);
     }
   };
-  const connected = snapshot.plugins.items.some(
-    (plugin) => plugin.id === 'discord' && plugin.phase === 'enabled',
-  );
   return (
-    <details className="discord-connection">
-      <summary>
+    <section className="discord-connection" aria-label="Connexion Discord">
+      <h3>
         Connexion Discord
         <span className="plugin-phase" role="status">
-          {connected
-            ? 'RPC connecté'
-            : connection.authorized
-              ? 'Autorisation enregistrée'
-              : connection.configured
-                ? 'À autoriser'
-                : 'À configurer'}
+          {connection.authorized
+            ? 'Autorisation enregistrée'
+            : connection.configured
+              ? 'À autoriser'
+              : 'À configurer'}
         </span>
-      </summary>
+      </h3>
       <p className="field-hint">
         {'Crée une application dans le '}
         <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">
@@ -135,6 +130,6 @@ export function DiscordConnection({
           {error}
         </p>
       ) : null}
-    </details>
+    </section>
   );
 }

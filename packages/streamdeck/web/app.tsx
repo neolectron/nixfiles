@@ -12,6 +12,8 @@ import * as Fields from '../src/plugin-fields.ts';
 import { PluginTiles } from './plugin-tiles.tsx';
 import { PluginFields } from './plugin-fields.tsx';
 import { PluginControls } from './plugin-controls.tsx';
+import { EditorTabs, type EditorTab } from './editor-tabs.tsx';
+import { DeckHeading } from './deck-heading.tsx';
 import { KeyGrid } from './key-grid.tsx';
 import { DialControl } from './dial-control.tsx';
 import { delay, type KeyTrigger } from '../src/press-trigger.ts';
@@ -20,7 +22,7 @@ function Icon({
   name,
   size = 20,
 }: {
-  name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck';
+  name: 'plus' | 'left' | 'right' | 'play' | 'save';
   size?: number;
 }) {
   const paths = {
@@ -29,7 +31,6 @@ function Icon({
     right: 'm10 6 6 6-6 6',
     play: 'm8 5 11 7-11 7Z',
     save: 'M5 3h12l4 4v14H3V3h2Zm2 0v6h10V3M7 21v-8h10v8',
-    deck: 'M3 4h18v16H3ZM7 8h2m3 0h2m3 0h1M7 12h2m3 0h2m3 0h1M7 16h11',
   };
   return (
     <svg
@@ -716,6 +717,7 @@ function App() {
   const [error, setError] = useState('');
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 });
   const [dirty, setDirty] = useState(false);
+  const [tab, setTab] = useState<EditorTab>('edit');
   const acceptSnapshot = (value: Snapshot) =>
     setSnapshot((previous) =>
       previous?.sessionId === value.sessionId &&
@@ -755,10 +757,14 @@ function App() {
     };
   }, [snapshot?.sessionId]);
   const select = (next: Selection) => {
-    if (selection.kind === next.kind && selection.index === next.index) return;
+    if (selection.kind === next.kind && selection.index === next.index) {
+      setTab('edit');
+      return;
+    }
     if (dirty && !window.confirm('Abandonner les modifications non enregistrées ?')) return;
     setDirty(false);
     setSelection(next);
+    setTab('edit');
   };
   const selectedKey = snapshot?.keys.find(
     (key) => selection.kind === 'key' && key.index === selection.index,
@@ -794,36 +800,9 @@ function App() {
   };
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <Icon name="deck" size={27} />
-          <h1>Stream Deck</h1>
-        </div>
-        <div className="connection" role="status" title={snapshot?.connectionError ?? undefined}>
-          <span className={online && snapshot?.connected ? 'status-dot online' : 'status-dot'} />
-          {online
-            ? snapshot?.mock
-              ? 'Deck simulé'
-              : snapshot?.connected
-                ? 'Connecté'
-                : 'Déconnecté'
-            : snapshot
-              ? 'Reconnexion…'
-              : 'Connexion…'}
-        </div>
-      </header>
       <main className="workspace">
         <section className="preview-panel" aria-label="Aperçu du deck">
-          <div className="preview-heading">
-            <div>
-              <h2>{snapshot?.model.replace(/^Mock /, '') ?? 'Ton deck'}</h2>
-              <p>
-                Appuie sur une touche pour l’utiliser. Pour la configurer : crayon au survol ou clic
-                droit.
-              </p>
-            </div>
-            <span className="profile-name">Profil principal</span>
-          </div>
+          <DeckHeading snapshot={snapshot} online={online} />
           <div className="device" style={{ '--columns': columns } as import('react').CSSProperties}>
             {snapshot ? (
               <KeyGrid
@@ -951,14 +930,6 @@ function App() {
             </div>
           </div>
           {snapshot ? (
-            <PluginControls
-              snapshot={invariant(snapshot, 'editor-snapshot')}
-              online={online}
-              dirty={dirty}
-              onSnapshot={acceptSnapshot}
-            />
-          ) : null}
-          {snapshot ? (
             <LayoutControls
               snapshot={invariant(snapshot, 'editor-snapshot')}
               selected={selectedKey}
@@ -977,72 +948,91 @@ function App() {
             </p>
           ) : null}
         </section>
-        {selectedKey && !shortcutsActive ? (
-          <section className="inspector">
-            <h2>{`Touche ${selectedKey.index + 1}`}</h2>
-            <p className="inspector-intro">
-              {snapshot?.plugins.items.some(
-                (plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index),
-              )
-                ? `Cette touche est pilotée par ${
-                    invariant(
-                      snapshot.plugins.items.find(
-                        (plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index),
-                      ),
-                      'app',
-                    ).name
-                  }. Désactive ce plugin avant de lui affecter un raccourci.`
-                : 'Le plugin Raccourcis est désactivé. Active-le dans Fonctionnalités pour configurer et utiliser les touches.'}
-            </p>
-          </section>
-        ) : selectedDial && !mixerActive ? (
-          <section className="inspector">
-            <h2>{`Potard ${selectedDial.index + 1}`}</h2>
-            <p className="inspector-intro">
-              Le mixer audio est désactivé. Ce potard est disponible pour un autre plugin.
-            </p>
-          </section>
-        ) : selectedKey && catalogue ? (
-          <KeyInspector
-            key={selectedKey.index}
-            selected={selectedKey}
-            catalogue={catalogue}
-            snapshot={invariant(snapshot, 'editor-snapshot')}
-            online={online}
-            onSnapshot={acceptSnapshot}
-            onDirty={setDirty}
-          />
-        ) : selectedDial ? (
-          <section className="inspector dial-inspector">
-            <h2>{selectedDial.master ? 'Master' : `Potard ${selectedDial.index + 1}`}</h2>
-            <p className="inspector-intro">Mixer audio</p>
-            <div className="dial-assignment">
-              <h3>{selectedDial.name ?? 'Aucune application'}</h3>
-              <p>
-                {selectedDial.volume === null
-                  ? 'Ce potard est libre sur cette page.'
-                  : `${Math.round(selectedDial.volume)} %${selectedDial.muted ? ' · Son coupé' : ''}`}
+        <EditorTabs
+          selected={tab}
+          onSelect={setTab}
+          plugins={
+            snapshot ? (
+              <PluginControls
+                snapshot={snapshot}
+                online={online}
+                dirty={dirty}
+                onSnapshot={acceptSnapshot}
+              />
+            ) : (
+              <p className="field-hint" role="status">
+                Chargement des plugins…
               </p>
-            </div>
-            <dl className="behaviors">
-              <dt>Rotation</dt>
-              <dd>Volume de la source affichée</dd>
-              <dt>Appui</dt>
-              <dd>Couper ou rétablir le son</dd>
-            </dl>
-            <p className="action-description">
-              {selectedDial.master
-                ? 'Master reste fixe sur toutes les pages.'
-                : 'Un glissement sur le LCD parcourt les applications. Le potard suit la source affichée.'}
-            </p>
-          </section>
-        ) : (
-          <section className="inspector skeleton" aria-label="Chargement de l’inspecteur">
-            <div />
-            <div />
-            <div />
-          </section>
-        )}
+            )
+          }
+        >
+          {selectedKey && !shortcutsActive ? (
+            <section className="inspector">
+              <h2>{`Touche ${selectedKey.index + 1}`}</h2>
+              <p className="inspector-intro">
+                {snapshot?.plugins.items.some(
+                  (plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index),
+                )
+                  ? `Cette touche est pilotée par ${
+                      invariant(
+                        snapshot.plugins.items.find(
+                          (plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index),
+                        ),
+                        'app',
+                      ).name
+                    }. Désactive ce plugin avant de lui affecter un raccourci.`
+                  : 'Le plugin Raccourcis est désactivé. Active-le dans l’onglet Plugins pour configurer et utiliser les touches.'}
+              </p>
+            </section>
+          ) : selectedDial && !mixerActive ? (
+            <section className="inspector">
+              <h2>{`Potard ${selectedDial.index + 1}`}</h2>
+              <p className="inspector-intro">
+                Le mixer audio est désactivé. Ce potard est disponible pour un autre plugin.
+              </p>
+            </section>
+          ) : selectedKey && catalogue ? (
+            <KeyInspector
+              key={selectedKey.index}
+              selected={selectedKey}
+              catalogue={catalogue}
+              snapshot={invariant(snapshot, 'editor-snapshot')}
+              online={online}
+              onSnapshot={acceptSnapshot}
+              onDirty={setDirty}
+            />
+          ) : selectedDial ? (
+            <section className="inspector dial-inspector">
+              <h2>{selectedDial.master ? 'Master' : `Potard ${selectedDial.index + 1}`}</h2>
+              <p className="inspector-intro">Mixer audio</p>
+              <div className="dial-assignment">
+                <h3>{selectedDial.name ?? 'Aucune application'}</h3>
+                <p>
+                  {selectedDial.volume === null
+                    ? 'Ce potard est libre sur cette page.'
+                    : `${Math.round(selectedDial.volume)} %${selectedDial.muted ? ' · Son coupé' : ''}`}
+                </p>
+              </div>
+              <dl className="behaviors">
+                <dt>Rotation</dt>
+                <dd>Volume de la source affichée</dd>
+                <dt>Appui</dt>
+                <dd>Couper ou rétablir le son</dd>
+              </dl>
+              <p className="action-description">
+                {selectedDial.master
+                  ? 'Master reste fixe sur toutes les pages.'
+                  : 'Un glissement sur le LCD parcourt les applications. Le potard suit la source affichée.'}
+              </p>
+            </section>
+          ) : (
+            <section className="inspector skeleton" aria-label="Chargement de l’inspecteur">
+              <div />
+              <div />
+              <div />
+            </section>
+          )}
+        </EditorTabs>
       </main>
     </div>
   );
