@@ -1,12 +1,32 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 
-const underPointer = (event: PointerEvent<HTMLButtonElement>) => {
-  const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-deck-slot]');
+export type DropTarget =
+  | { readonly kind: 'key'; readonly index: number }
+  | { readonly kind: 'lcd'; readonly index: number; readonly x: number };
+const underPointer = (
+  event: PointerEvent<HTMLButtonElement>,
+  key: boolean,
+  lcd: boolean,
+): DropTarget | null => {
+  const element = document.elementFromPoint(event.clientX, event.clientY);
+  const strip = element?.closest('[data-lcd-slot]');
+  if (lcd && strip?.getAttribute('data-lcd-drop-allowed') === 'true') {
+    const rect = strip.getBoundingClientRect();
+    return {
+      kind: 'lcd',
+      index: Number(strip.getAttribute('data-lcd-slot')),
+      x: Math.round(
+        ((event.clientX - rect.left) / rect.width) * Number(strip.getAttribute('data-lcd-width')),
+      ),
+    };
+  }
+  const cell = element?.closest('[data-deck-slot]');
   const slot = cell?.getAttribute('data-deck-slot');
-  return cell?.getAttribute('data-tile-drop-allowed') === 'true' &&
+  return key &&
+    cell?.getAttribute('data-tile-drop-allowed') === 'true' &&
     slot !== null &&
     slot !== undefined
-    ? Number(slot)
+    ? { kind: 'key', index: Number(slot) }
     : null;
 };
 
@@ -15,20 +35,24 @@ export function useTileDrag({
   disabled,
   onDrop,
   onTarget,
+  key = true,
+  lcd = true,
 }: {
   readonly disabled: boolean;
-  readonly onDrop: (index: number) => void;
-  readonly onTarget: (index: number | null) => void;
+  readonly onDrop: (target: DropTarget) => void;
+  readonly onTarget: (target: DropTarget | null) => void;
+  readonly key?: boolean;
+  readonly lcd?: boolean;
 }) {
   const pointer = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
   // Keep this through pointer-up/cancellation: browsers can emit a click after a drag.
   const suppressClick = useRef(false);
   const callbacks = useRef({ onDrop, onTarget });
   callbacks.current = { onDrop, onTarget };
-  const target = useRef<number | null>(null);
+  const target = useRef<DropTarget | null>(null);
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
-  const hover = (index: number | null) => {
-    if (target.current === index) return;
+  const hover = (index: DropTarget | null) => {
+    if (JSON.stringify(target.current) === JSON.stringify(index)) return;
     target.current = index;
     callbacks.current.onTarget(index);
   };
@@ -76,11 +100,11 @@ export function useTileDrag({
         current.moving = true;
         suppressClick.current = true;
         setPreview({ x: event.clientX, y: event.clientY });
-        hover(underPointer(event));
+        hover(underPointer(event, key, lcd));
       },
       onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
         const current = pointer.current;
-        const index = underPointer(event);
+        const index = underPointer(event, key, lcd);
         clear();
         if (!disabled && current?.id === event.pointerId && current.moving && index !== null)
           callbacks.current.onDrop(index);

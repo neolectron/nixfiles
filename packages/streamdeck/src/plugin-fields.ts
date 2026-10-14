@@ -6,7 +6,15 @@ export interface Field {
   readonly label: string;
   readonly hint: string;
   readonly required: boolean;
-  readonly kind: 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'json';
+  readonly kind:
+    | 'text'
+    | 'multiline'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'json'
+    | 'lcd-zone'
+    | 'lcd-folder';
   readonly options: ReadonlyArray<string | number | boolean>;
   readonly min?: number;
   readonly max?: number;
@@ -61,17 +69,22 @@ export const fields = (document: unknown): ReadonlyArray<Field> => {
         label: typeof schema.title === 'string' ? schema.title : key,
         hint: typeof schema.description === 'string' ? schema.description : '',
         required: Array.isArray(root.required) && root.required.includes(key),
-        kind: options.length
-          ? 'select'
-          : schema.type === 'string'
-            ? schema.contentMediaType === 'text/plain'
-              ? 'multiline'
-              : 'text'
-            : schema.type === 'integer' || schema.type === 'number'
-              ? 'number'
-              : schema.type === 'boolean'
-                ? 'boolean'
-                : 'json',
+        kind:
+          schema.contentMediaType === 'application/x-streamdeck-lcd-zone'
+            ? 'lcd-zone'
+            : schema.contentMediaType === 'application/x-streamdeck-lcd-folder'
+              ? 'lcd-folder'
+              : options.length
+                ? 'select'
+                : schema.type === 'string'
+                  ? schema.contentMediaType === 'text/plain'
+                    ? 'multiline'
+                    : 'text'
+                  : schema.type === 'integer' || schema.type === 'number'
+                    ? 'number'
+                    : schema.type === 'boolean'
+                      ? 'boolean'
+                      : 'json',
         options,
       } satisfies Field,
       typeof schema.minLength === 'number' ? { minLength: schema.minLength } : {},

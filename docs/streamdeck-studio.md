@@ -501,3 +501,29 @@ with its original profile and real audio applications. All 77 Stream Deck tests,
 22 keep-awake tests and both package type checks pass. The subsequent application
 plugin increment adds seven tests (84 total) and optional OBS/Discord/voice plugins;
 see [connection requirements and verification](streamdeck-integrations.md).
+
+## Composer le LCD
+
+Glisser une tile depuis Plugins sur la bande LCD crée une zone à cet emplacement,
+ou insère la tile dans la zone présente. Le panneau LCD règle le nom, la position,
+la largeur, la visibilité selon l’application active, les pages et les dossiers.
+Le bouton Configurer le LCD et le clic droit permettent d’y revenir ; le crayon au
+survol édite une tile particulière. Le mixer reste visible en dehors des zones.
+
+Toutes les tiles d’une page figurent dans la liste, y compris hors écran. Depuis
+cette sélection LCD, cliquer une tile dans Plugins l’ajoute en fin de bande, même
+au-delà de la largeur visible. Le swipe tactile, le glisser horizontal dans Chrome
+et les flèches de défilement permettent de parcourir le débordement. Les flèches de
+chaque ligne réordonnent les tiles. Les boutons d’une page ou d’un dossier peuvent
+être déplacés dans un dossier via leur sélecteur de destination.
+
+Les pages/dossiers ont la largeur de leur zone. Un dossier ajoute automatiquement
+Retour ; les actions Page LCD et Dossier LCD exportées par Système peuvent aussi
+être affectées à une touche physique, avec la zone cible choisie dans le formulaire.
+Les largeurs sont en pixels logiques du modèle détecté, et validées avant écriture.
+
+Les changements LCD et les changements de touches partagent le même brouillon,
+le même bouton Enregistrer, la même sauvegarde atomique et le même contrôle de
+conflit. Déposer, redimensionner ou réordonner ne lance aucune action. Pendant un
+brouillon, le LCD peut prévisualiser pages/dossiers/défilement ; les autres actions
+ne sont exécutées qu’après enregistrement. Annuler restaure la configuration live.

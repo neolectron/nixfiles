@@ -5,6 +5,7 @@ import type { Catalogue, Snapshot, Organize, Navigate } from '../src/studio-cont
 import * as Drafts from './profile-draft.ts';
 import type { Draft } from './key-draft.ts';
 import * as Api from './api.ts';
+import * as LcdLayout from '../src/lcd-layout.ts';
 
 export function useProfileEditor(
   live: Snapshot | undefined,
@@ -96,6 +97,32 @@ export function useProfileEditor(
     },
     form: (key: Snapshot['keys'][number]) =>
       state && catalogue ? Drafts.formOf(state, key, catalogue) : undefined,
+    editLcd: (lcd: LcdLayout.Configuration) => {
+      if (current.current && !saving.current)
+        replace({ ...current.current, profile: { ...current.current.profile, lcd } });
+    },
+    navigateLcd: (command: LcdLayout.Command) => {
+      if (!current.current || saving.current) return;
+      if (Drafts.dirty(current.current)) {
+        try {
+          replace({
+            ...current.current,
+            lcdNavigation: LcdLayout.navigate(
+              current.current.profile.lcd ?? LcdLayout.empty,
+              current.current.lcdNavigation ?? live?.lcdLayout?.navigation ?? {},
+              command,
+            ),
+          });
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        }
+      } else
+        void Api.run(Api.lcdNavigate(command))
+          .then(onSnapshot)
+          .catch((cause: unknown) =>
+            setError(cause instanceof Error ? cause.message : String(cause)),
+          );
+    },
     organize: (command: Organize) =>
       local((before, actions) =>
         Drafts.organize(

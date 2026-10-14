@@ -4,6 +4,7 @@ import { ConfigProvider, Effect, FileSystem, Ref, Result } from 'effect';
 import { TestClock } from 'effect/testing';
 import { DesktopBackend, discover, make, type Window } from '../src/desktop.ts';
 import { IntegrationError } from '../src/errors.ts';
+import { make as makeIcons } from '../src/desktop-icons.ts';
 
 const application = {
   id: 'discord.desktop',
@@ -127,7 +128,7 @@ it.live('Desktop discovery respects XDG overrides, hidden entries and stable IDs
       yield* fs.writeFileString(`${system}/applications/discord.desktop`, entry('System Discord'));
       yield* fs.writeFileString(
         `${local}/applications/discord.desktop`,
-        entry('Local Discord', 'StartupWMClass=discord\n'),
+        entry('Local Discord', 'StartupWMClass=discord\nIcon=discord\n'),
       );
       yield* fs.writeFileString(`${system}/applications/hidden.desktop`, entry('Visible system'));
       yield* fs.writeFileString(
@@ -150,8 +151,48 @@ it.live('Desktop discovery respects XDG overrides, hidden entries and stable IDs
           name: 'Local Discord',
           file: `${local}/applications/discord.desktop`,
           windowClass: 'discord',
+          icon: 'discord',
         },
       ]);
+    }),
+  ).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.live('desktop icons resolve XDG SVG/PNG and absolute files with bounded, cached reads', () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'desktop-icons-' });
+      const iconDirectory = `${directory}/icons/hicolor/scalable/apps`;
+      yield* fs.makeDirectory(iconDirectory, { recursive: true });
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>';
+      yield* fs.writeFileString(`${iconDirectory}/test.svg`, svg);
+      const pngDirectory = `${directory}/icons/hicolor/256x256/apps`;
+      yield* fs.makeDirectory(pngDirectory, { recursive: true });
+      yield* fs.writeFile(`${pngDirectory}/high-resolution.png`, new Uint8Array([137, 80, 78, 71]));
+      const api = yield* makeIcons.pipe(
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          ConfigProvider.fromEnvRecord({
+            HOME: directory,
+            XDG_DATA_HOME: directory,
+            XDG_DATA_DIRS: `${directory}/empty`,
+          }),
+        ),
+      );
+      const icon = yield* api.resolve('test');
+      assert.strictEqual(icon?.contentType, 'image/svg+xml');
+      assert.strictEqual(new TextDecoder().decode(icon?.bytes), svg);
+      const highResolution = yield* api.resolve('high-resolution');
+      assert.strictEqual(highResolution?.contentType, 'image/png');
+      assert.deepStrictEqual([...highResolution!.bytes], [137, 80, 78, 71]);
+      yield* fs.remove(`${iconDirectory}/test.svg`);
+      assert.deepStrictEqual(yield* api.resolve('test'), icon);
+      yield* fs.writeFileString(`${directory}/large.svg`, 'x'.repeat(1048577));
+      assert.strictEqual(yield* api.resolve(`${directory}/large.svg`), undefined);
+      assert.strictEqual(yield* api.resolve('../test'), undefined);
+      assert.strictEqual(yield* api.resolve(`${directory}/missing.png`), undefined);
     }),
   ).pipe(Effect.provide(NodeServices.layer)),
 );

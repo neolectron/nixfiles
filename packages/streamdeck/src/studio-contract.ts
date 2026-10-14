@@ -3,6 +3,7 @@ import { KeyFeedback } from './key-feedback.ts';
 import { PublicConnection } from '@nixfiles/system-control/discord-contract.ts';
 import { KeyTrigger } from './press-trigger.ts';
 import { Region } from './presentation.tsx';
+import * as LcdLayout from './lcd-layout.ts';
 
 const shortText = Schema.String.check(Schema.isMaxLength(80));
 const argument = Schema.String.check(Schema.isMaxLength(4096));
@@ -104,6 +105,7 @@ const minimumPages = Schema.optional(
 const items = Schema.Array(Schema.NullOr(Entry)).check(Schema.isMaxLength(4096));
 export const Profile = Schema.Struct({
   version: Schema.Literal(2),
+  lcd: Schema.optionalKey(LcdLayout.Configuration),
   zones: Schema.Array(
     Schema.Struct({
       id: Schema.NonEmptyString,
@@ -290,7 +292,16 @@ export const Catalogue = Schema.Struct({
       schema: Schema.Unknown,
       defaults: Schema.Unknown,
       interaction: Schema.Literals(['press', 'hold']),
-      tile: Schema.optional(Schema.Struct({ label: Schema.String, icon: KeyFeedback.fields.icon })),
+      tile: Schema.optional(
+        Schema.Struct({
+          label: Schema.String,
+          icon: KeyFeedback.fields.icon,
+          surfaces: Schema.optionalKey(Schema.Array(Schema.Literals(['key', 'lcd']))),
+          width: Schema.optionalKey(
+            Schema.Int.check(Schema.isBetween({ minimum: 40, maximum: 8192 })),
+          ),
+        }),
+      ),
     }),
   ),
   applications: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
@@ -327,6 +338,7 @@ const PluginStatus = Schema.Struct({
   lcds: Schema.Array(Schema.Int),
 });
 export const Snapshot = Schema.Struct({
+  lcdLayout: Schema.optionalKey(LcdLayout.View),
   configuration: Configuration,
   discordConnection: PublicConnection,
   plugins: Schema.Struct({ revision: Schema.Int, items: Schema.Array(PluginStatus) }),

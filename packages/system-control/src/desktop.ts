@@ -8,6 +8,7 @@ export interface Application {
   readonly name: string;
   readonly file: string;
   readonly windowClass?: string;
+  readonly icon?: string;
 }
 export interface Target {
   /** Ordered preference, e.g. Spotifast before Spotify. */
@@ -18,6 +19,7 @@ export interface Window {
   readonly id: number;
   readonly app_id: string | null;
   readonly is_focused?: boolean;
+  readonly title?: string;
 }
 export interface Status {
   readonly application: Application | null;
@@ -67,6 +69,7 @@ export const discover = Effect.gen(function* () {
           name,
           file,
           ...(properties.StartupWMClass ? { windowClass: properties.StartupWMClass } : {}),
+          ...(properties.Icon ? { icon: properties.Icon } : {}),
         });
     }
   }
@@ -137,6 +140,7 @@ export class DesktopBackend extends Context.Service<
                     id: Schema.Int,
                     app_id: Schema.NullOr(Schema.String),
                     is_focused: Schema.optionalKey(Schema.Boolean),
+                    title: Schema.optionalKey(Schema.String),
                   }),
                 ),
               ),

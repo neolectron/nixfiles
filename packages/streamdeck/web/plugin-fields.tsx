@@ -8,6 +8,7 @@ export function PluginFields({
   label,
   busy,
   onChange,
+  surface = 'key',
 }: {
   catalogue: Catalogue;
   snapshot: Snapshot;
@@ -15,6 +16,7 @@ export function PluginFields({
   label: string;
   busy: boolean;
   onChange: (values: Record<string, string>, label: string) => void;
+  surface?: 'key' | 'lcd';
 }) {
   const info = catalogue.pluginActions.find(
     (action) => action.plugin === values.plugin && action.id === values.command,
@@ -72,6 +74,11 @@ export function PluginFields({
           <option value="">Choisir une action</option>
           {catalogue.pluginActions
             .filter((action) => action.plugin === values.plugin)
+            .filter(
+              (action) =>
+                (!action.tile?.surfaces || action.tile.surfaces.includes(surface)) &&
+                (surface !== 'lcd' || action.interaction !== 'hold'),
+            )
             .map((action) => (
               <option key={action.id} value={action.id}>
                 {action.name}
@@ -87,7 +94,30 @@ export function PluginFields({
             </span>
           ) : null}
           <span>{field.label}</span>
-          {field.kind === 'select' || field.kind === 'boolean' ? (
+          {field.kind === 'lcd-zone' || field.kind === 'lcd-folder' ? (
+            <select
+              aria-label={field.label}
+              value={values[`input:${field.key}`] ?? ''}
+              disabled={busy}
+              onChange={(event) =>
+                onChange({ ...values, [`input:${field.key}`]: event.currentTarget.value }, label)
+              }
+            >
+              <option value={field.kind === 'lcd-zone' ? 'current' : ''}>
+                {field.kind === 'lcd-zone'
+                  ? 'Zone courante / première zone LCD'
+                  : 'Choisir un dossier LCD'}
+              </option>
+              {(field.kind === 'lcd-zone'
+                ? (snapshot.configuration.profile.lcd?.zones ?? [])
+                : (snapshot.configuration.profile.lcd?.folders ?? [])
+              ).map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          ) : field.kind === 'select' || field.kind === 'boolean' ? (
             <select
               aria-label={field.label}
               aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}

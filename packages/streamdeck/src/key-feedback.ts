@@ -7,6 +7,8 @@ export const KeyFeedback = Schema.Struct({
   tone: Schema.Literals(['neutral', 'positive', 'danger']),
   icon: Schema.Literals([
     'plugin',
+    'window',
+    'folder',
     'sun',
     'moon',
     'theme',

@@ -74,6 +74,9 @@ import { AppInput } from '@nixfiles/system-control/discord-contract.ts';
 import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import type { RendererKind } from '../mixer-renderer.ts';
 import * as Cards from '../mixer-cards.ts';
+import * as LcdSurface from '../lcd-surface.tsx';
+import * as LcdLayout from '../lcd-layout.ts';
+import { Desktop as SystemDesktop } from '@nixfiles/system-control/desktop.ts';
 const json = (body: unknown) =>
   Response.jsonUnsafe(body, { headers: { 'cache-control': 'no-store' } });
 const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -116,7 +119,12 @@ export const startStudio = (options: {
     const sessionId = yield* (yield* Crypto.Crypto).randomUUIDv4();
     const events = yield* Events.make(original);
     const preview = yield* Preview.make(events.device);
-    const deck = preview.device;
+    const renderer = Context.get(
+      yield* Layer.build(Takumi.ReactRenderer.layer),
+      Takumi.ReactRenderer,
+    );
+    const lcdSurface = yield* LcdSurface.make(preview.device, renderer);
+    const deck = lcdSurface.device;
     const applications = options.applications ?? (yield* DesktopApps.discover);
     const input = yield* Ref.make<{
       readonly pressed: ReadonlySet<number>;
@@ -128,10 +136,6 @@ export const startStudio = (options: {
     const heldKeys = new Map<string, number>();
     const heldDials = new Map<string, number>();
     const lastEvent = yield* Ref.make('');
-    const renderer = Context.get(
-      yield* Layer.build(Takumi.ReactRenderer.layer),
-      Takumi.ReactRenderer,
-    );
     const cards = yield* Cards.make;
     const assets = yield* PresentationAssets.make;
     const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
@@ -181,7 +185,7 @@ export const startStudio = (options: {
           pluginActions: {
             validate: (plugin, command, currentInput) =>
               host
-                .validateAction(plugin, command, currentInput)
+                .validateAction(plugin, command, currentInput, 'key')
                 .pipe(
                   Effect.mapError(
                     (error) => new StudioError({ message: error.message, status: 400 }),
@@ -223,6 +227,7 @@ export const startStudio = (options: {
         );
     else
       yield* PersonalPlugins.configure(host).pipe(
+        Effect.provideService(LcdSurface.LcdSurface, lcdSurface),
         Effect.provideService(PresentationAssets.PresentationAssets, assets),
         Effect.provideContext(persistenceServices),
         Effect.provideService(Notes.Notes, notes),
@@ -234,7 +239,11 @@ export const startStudio = (options: {
         Effect.provideService(Cards.MixerCards, cards),
       );
     for (const { id } of (yield* host.snapshot).items)
-      if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id))
+      if (
+        settings.initial[id] ??
+        (['audio-mixer', 'shortcuts', 'commands'].includes(id) ||
+          (id === 'system' && !options.mock))
+      )
         yield* host
           .setEnabled(id, true)
           .pipe(
@@ -242,7 +251,14 @@ export const startStudio = (options: {
           );
     const actions = {
       saveProfile: (...args: Parameters<Shortcuts.Controller['saveProfile']>) =>
-        shortcuts.use((api) => api.saveProfile(...args)),
+        Effect.gen(function* () {
+          const candidate = yield* Schema.decodeUnknownEffect(UpdateProfile.fields.profile)(
+            args[0],
+          );
+          yield* lcdSurface.validate(candidate.lcd ?? LcdLayout.empty, host);
+          yield* shortcuts.use((api) => api.saveProfile(...args));
+          yield* refreshSurface;
+        }),
       save: (...args: Parameters<Shortcuts.Controller['save']>) =>
         shortcuts.use((api) => api.save(...args)),
       press: (...args: Parameters<Shortcuts.Controller['press']>) =>
@@ -360,6 +376,20 @@ export const startStudio = (options: {
           );
         }),
     }).pipe(Effect.provideService(StreamDeck, deck));
+    const sharedDesktop = Context.getOption(systemServices, SystemDesktop);
+    const focusedApplication = Option.isSome(sharedDesktop)
+      ? sharedDesktop.value.focused.pipe(
+          Effect.map((window) => window?.app_id ?? null),
+          Effect.orElseSucceed(() => null),
+        )
+      : Effect.succeed(null);
+    const refreshSurface = Effect.gen(function* () {
+      const current = yield* shortcuts.current;
+      const profile = Option.isSome(current)
+        ? yield* current.value.profile
+        : (yield* Ref.get(lastActions)).configuration.profile;
+      yield* lcdSurface.refresh(profile.lcd ?? LcdLayout.empty, host, yield* focusedApplication);
+    }).pipe(Effect.catch((cause) => Effect.logWarning('LCD surface', cause)));
     const readSnapshot: Effect.Effect<Snapshot> = Effect.gen(function* () {
       const inputView = yield* Ref.get(input);
       const currentActions = yield* shortcuts.current;
@@ -402,7 +432,20 @@ export const startStudio = (options: {
           };
         }),
       );
+      const lcds = yield* Effect.forEach(deck.lcds, (lcd) =>
+        Effect.gen(function* () {
+          const composedScene = yield* lcdSurface.scene(lcd.index, lcd.index === 0 ? scene : []);
+          return {
+            index: lcd.index,
+            width: invariant(lcd.pixelSize, 'studio').width,
+            height: invariant(lcd.pixelSize, 'studio').height,
+            revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0,
+            ...(composedScene ? { scene: composedScene } : {}),
+          };
+        }),
+      );
       return {
+        lcdLayout: yield* lcdSurface.snapshot,
         discordConnection: yield* discordConnection.publicState,
         plugins: yield* host.snapshot,
         configuration: actionView.configuration,
@@ -435,13 +478,7 @@ export const startStudio = (options: {
             feedback: slot.state.feedback ?? null,
           };
         }),
-        lcds: deck.lcds.map((lcd) => ({
-          index: lcd.index,
-          width: invariant(lcd.pixelSize, 'studio').width,
-          height: invariant(lcd.pixelSize, 'studio').height,
-          revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0,
-          ...(lcd.index === 0 && scene ? { scene } : {}),
-        })),
+        lcds,
         dials,
         page,
         pages: Math.max(
@@ -581,9 +618,24 @@ export const startStudio = (options: {
         mixer.use((api) =>
           api.tapDial(candidateInput.dial, candidateInput.application, candidateInput.page),
         ),
+      lcdInput: (body: typeof LcdLayout.Input.Type) =>
+        Effect.gen(function* () {
+          const current = yield* lcdSurface.snapshot;
+          if (body.sessionId !== sessionId || body.revision !== current.revision)
+            return yield* new StudioError({
+              status: 409,
+              message: 'La surface LCD a changé. Recommence le geste.',
+            });
+          yield* lcdSurface.input(body.lcd, body.kind, body.x, body.y, body.toX);
+          yield* refreshSurface;
+        }),
+      lcdNavigate: (command: LcdLayout.Command) =>
+        lcdSurface.navigate(command).pipe(Effect.andThen(refreshSurface)),
+      lcdSurface,
       run: Effect.all(
         [
           binding.run,
+          Effect.forever(refreshSurface.pipe(Effect.andThen(Effect.sleep(250)))),
           Stream.runForEach(deck.connectionChanges ?? Stream.empty, (connected) =>
             connected
               ? Effect.void
@@ -620,6 +672,38 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
         }),
       );
     yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+    yield* router.add(
+      'POST',
+      '/api/lcd-input',
+      mutate(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const input = yield* request.json.pipe(
+            Effect.flatMap(
+              Schema.decodeUnknownEffect(LcdLayout.Input, { onExcessProperty: 'error' }),
+            ),
+          );
+          yield* controller.lcdInput(input);
+          return json(yield* controller.snapshot);
+        }),
+      ),
+    );
+    yield* router.add(
+      'POST',
+      '/api/lcd-navigation',
+      mutate(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const input = yield* request.json.pipe(
+            Effect.flatMap(
+              Schema.decodeUnknownEffect(LcdLayout.Command, { onExcessProperty: 'error' }),
+            ),
+          );
+          yield* controller.lcdNavigate(input);
+          return json(yield* controller.snapshot);
+        }),
+      ),
+    );
     yield* router.add(
       'GET',
       '/api/notes',

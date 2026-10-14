@@ -1131,6 +1131,126 @@ button.zone-edit-link {
 .plugin-tile-grip {
   height: 24px;
 }
+.plugin-tile-surface {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  font-size: 8px;
+  color: var(--accent);
+  pointer-events: none;
+}
+.lcd-strip {
+  touch-action: none;
+  user-select: none;
+}
+.lcd-drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.lcd-zone-hit,
+.lcd-tile-hit {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+.lcd-zone-hit {
+  z-index: 2;
+  overflow: hidden;
+}
+.lcd-tile-hit {
+  overflow: hidden;
+}
+.lcd-tile-action {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+}
+.lcd-tile-action:hover {
+  background: #ffffff08;
+}
+.lcd-tile-edit {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  opacity: 0;
+  background: #24262dee;
+}
+.lcd-tile-hit:hover .lcd-tile-edit,
+.lcd-tile-edit:focus-visible {
+  opacity: 1;
+}
+.lcd-draft-background {
+  position: absolute;
+  inset: 0;
+  background: #101217;
+}
+.lcd-configure {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.lcd-inspector .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.lcd-inspector .field-row > .field {
+  margin-top: 0;
+  min-width: 0;
+}
+.lcd-editor-pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 12px;
+}
+.lcd-editor-pagination button {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.lcd-virtual-strip {
+  border-block: 1px solid var(--line);
+  margin-block: 20px;
+  padding-block: 8px;
+}
+.lcd-item-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+}
+.lcd-item-row > button:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.lcd-item-row small {
+  color: var(--muted);
+  margin-left: 8px;
+}
+.lcd-item-row .selected {
+  color: var(--accent);
+}
+.lcd-tile-settings,
+.lcd-folder-create {
+  margin-block: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+@media (hover: none) {
+  .lcd-tile-edit {
+    opacity: 1;
+  }
+}
 .plugin-tile.dragging > .plugin-tile-button {
   opacity: 0.45;
 }

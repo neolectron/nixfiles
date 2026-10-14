@@ -6,6 +6,8 @@ import type { PressContext } from './press-gestures.ts';
 import { defaults } from './press-trigger.ts';
 import { invalid, invariant } from './errors.ts';
 import { DeckOverlays, type KeyOverlay } from './deck-overlays.ts';
+import type { Size } from './model.ts';
+import type { Frame } from './mixer-cards.ts';
 export interface Controls {
   readonly keys?: ReadonlyArray<number>;
   readonly dials?: ReadonlyArray<number>;
@@ -87,6 +89,9 @@ export interface ActionInfo {
 export interface Tile {
   readonly label: string;
   readonly icon: KeyFeedback['icon'];
+  /** Actions are portable by default; display-only widgets may opt into LCD only. */
+  readonly surfaces?: ReadonlyArray<'key' | 'lcd'>;
+  readonly width?: number;
 }
 export interface Invocation {
   readonly output: (text: string) => Effect.Effect<void>;
@@ -95,6 +100,7 @@ export interface Invocation {
   /** Completes only for an abandoned press (pointer cancellation, lost focus). */
   readonly cancelled?: Effect.Effect<void>;
   readonly gesture?: PressContext['gesture'];
+  readonly surface?: { readonly kind: 'lcd'; readonly zone: string };
 }
 /** Shared tap/hold arbitration. A preclassified long press does not wait twice. */
 export const tapOrHold = <A, E, R, B, E2, R2>(
@@ -137,6 +143,11 @@ export interface Action<Api, Input = unknown, E = unknown, R = StreamDeck | Scop
     input: unknown,
   ) => Effect.Effect<KeyFeedback, E | Schema.SchemaError, R>;
   readonly unavailable?: KeyFeedback;
+  readonly lcd?: (
+    api: Api,
+    input: unknown,
+    size: Size,
+  ) => Effect.Effect<Frame<E, R>, E | Schema.SchemaError, R>;
 }
 /** Reuse a declared action on any control/gesture, without studio or timer code.
  * Execution is supervised by Bindings and canceled with the binding/plugin scope.
@@ -194,6 +205,11 @@ export const action = <Api, Input, Encoded, E, R>(options: {
   readonly tile?: Tile;
   readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, R>;
   readonly unavailable?: KeyFeedback;
+  readonly lcd?: (
+    api: Api,
+    input: Input,
+    size: Size,
+  ) => Effect.Effect<Frame<E, R>, E | Schema.SchemaError, R>;
   readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, R>;
 }): Action<Api, Encoded, E, R> => ({
   info: {
@@ -213,6 +229,14 @@ export const action = <Api, Input, Encoded, E, R>(options: {
     Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
       Effect.flatMap((value) => options.run(api, value, context)),
     ),
+  ...(options.lcd
+    ? {
+        lcd: (api: Api, input: unknown, size: Size) =>
+          Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
+            Effect.flatMap((value) => invariant(options.lcd, 'plugin')(api, value, size)),
+          ),
+      }
+    : {}),
   ...(options.feedback || options.tile
     ? {
         feedback: (api: Api, input: unknown) =>

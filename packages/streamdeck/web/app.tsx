@@ -5,7 +5,11 @@ import { HeldAction } from './held-action.tsx';
 import { Effect, Fiber, Schedule } from 'effect';
 import type { ActionId, Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.tsx';
-import { LcdView } from './lcd-view.tsx';
+import { LcdCanvas } from './lcd-canvas.tsx';
+import { LcdEditor } from './lcd-editor.tsx';
+import * as LcdLayout from '../src/lcd-layout.ts';
+import * as LcdDraft from './lcd-draft.ts';
+import type { DropTarget } from './use-tile-drag.ts';
 import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.tsx';
 import { TargetPreview, zoneLabel } from './zone-map.tsx';
@@ -54,7 +58,7 @@ function Icon({
 }
 type KeyView = Snapshot['keys'][number];
 type Selection = {
-  kind: 'key' | 'dial';
+  kind: 'key' | 'dial' | 'lcd';
   index: number;
 };
 const messageOf = (error: unknown) =>
@@ -536,6 +540,9 @@ function App() {
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 });
   const [tab, setTab] = useState<EditorTab>('edit');
   const [tileTarget, setTileTarget] = useState<number | null>(null);
+  const [lcdDropTarget, setLcdDropTarget] = useState<number | null>(null);
+  const [selectedLcdTile, setSelectedLcdTile] = useState<string | null>(null);
+  const [selectedLcdZone, setSelectedLcdZone] = useState<string | null>(null);
   const acceptSnapshot = (value: Snapshot) =>
     setLiveSnapshot((previous) =>
       previous?.sessionId === value.sessionId &&
@@ -624,6 +631,43 @@ function App() {
     });
     setTileTarget(null);
     setTab('edit');
+  };
+  const chooseLcdTile = (
+    action: Catalogue['pluginActions'][number],
+    target?: Extract<DropTarget, { kind: 'lcd' }>,
+  ) => {
+    if (!snapshot || editor.busy) return;
+    const lcd = snapshot.lcds.find(
+      (entry) =>
+        entry.index === (target?.index ?? (selection.kind === 'lcd' ? selection.index : 0)),
+    );
+    if (!lcd) return;
+    const config = snapshot.configuration.profile.lcd ?? LcdLayout.empty;
+    const zone =
+      config.zones.find((entry) => entry.id === selectedLcdZone && entry.lcd === lcd.index) ??
+      config.zones.find((entry) =>
+        entry.pages.some((page) => page.some((tile) => tile.id === selectedLcdTile)),
+      ) ??
+      config.zones.find((entry) => entry.lcd === lcd.index);
+    try {
+      const next = LcdDraft.insert(
+        config,
+        snapshot.lcdLayout?.navigation ?? {},
+        action,
+        lcd,
+        target?.x ?? zone?.x ?? 0,
+        { tile: crypto.randomUUID(), zone: crypto.randomUUID() },
+        !target,
+      );
+      editor.editLcd(next.config);
+      setSelectedLcdTile(next.tile.id);
+      setSelectedLcdZone(next.zone);
+      select({ kind: 'lcd', index: lcd.index });
+      setLcdDropTarget(null);
+      setTileTarget(null);
+    } catch (cause) {
+      setError(messageOf(cause));
+    }
   };
   const columns = snapshot ? Math.max(...snapshot.keys.map((key) => key.column)) + 1 : 9;
   const turnPage = (direction: number) => {
@@ -727,29 +771,45 @@ function App() {
             {(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map(
               (lcd) => (
                 <div className="lcd-bezel" key={lcd.index}>
-                  <div
-                    className="lcd-strip"
-                    style={{ aspectRatio: `${lcd.width}/${lcd.height}` }}
-                    aria-label="Écran LCD du mixer audio"
-                  >
-                    <LcdView lcd={lcd} sessionId={snapshot?.sessionId ?? ''} />
-                    {(lcd.index === 0 ? (snapshot?.dials ?? []) : [])
-                      .filter((dial) => dial.interaction)
-                      .map((dial) => (
-                        <button
-                          key={dial.index}
-                          className="lcd-card-hit"
-                          style={{
-                            left: `${(dial.x / lcd.width) * 100}%`,
-                            width: `${(dial.cardWidth / lcd.width) * 100}%`,
-                          }}
-                          title={`${dial.name} · ${dial.interaction}`}
-                          aria-label={`${dial.name} · ${dial.interaction}`}
-                          disabled={!online || !mixerActive}
-                          onClick={() => currentTapLcd(dial)}
-                        />
-                      ))}
-                  </div>
+                  {snapshot ? (
+                    <LcdCanvas
+                      lcd={lcd}
+                      snapshot={snapshot}
+                      catalogue={catalogue}
+                      draft={dirty}
+                      disabled={!online || editor.busy}
+                      dropTarget={lcdDropTarget === lcd.index}
+                      onSelect={(id) => {
+                        setSelectedLcdTile(id);
+                        select({ kind: 'lcd', index: lcd.index });
+                      }}
+                      onNavigate={editor.navigateLcd}
+                      onSnapshot={acceptSnapshot}
+                      onError={(cause) => setError(messageOf(cause))}
+                    >
+                      {(lcd.index === 0 ? (snapshot?.dials ?? []) : [])
+                        .filter((dial) => dial.interaction)
+                        .map((dial) => (
+                          <button
+                            key={dial.index}
+                            className="lcd-card-hit"
+                            style={{
+                              left: `${(dial.x / lcd.width) * 100}%`,
+                              width: `${(dial.cardWidth / lcd.width) * 100}%`,
+                            }}
+                            title={`${dial.name} · ${dial.interaction}`}
+                            aria-label={`${dial.name} · ${dial.interaction}`}
+                            disabled={!online || !mixerActive}
+                            onClick={() => currentTapLcd(dial)}
+                          />
+                        ))}
+                    </LcdCanvas>
+                  ) : (
+                    <div
+                      className="lcd-strip"
+                      style={{ aspectRatio: `${lcd.width}/${lcd.height}` }}
+                    />
+                  )}
                 </div>
               ),
             )}
@@ -790,6 +850,18 @@ function App() {
           </DeviceShell>
           <div className="preview-footer">
             <span>{online ? 'Aperçu en direct' : 'Reconnexion au moteur…'}</span>
+            {(snapshot?.lcds ?? []).map((lcd) => (
+              <button
+                key={lcd.index}
+                className="lcd-configure"
+                onClick={() => {
+                  setSelectedLcdTile(null);
+                  select({ kind: 'lcd', index: lcd.index });
+                }}
+              >
+                Configurer le LCD
+              </button>
+            ))}
             <div className="pagination">
               <button
                 aria-label="Applications précédentes"
@@ -843,9 +915,19 @@ function App() {
                     ? selectedKey.index
                     : null
                 }
-                onChooseTile={chooseTile}
-                onDropTile={chooseTile}
-                onTileTarget={setTileTarget}
+                surface={selection.kind === 'lcd' ? 'lcd' : 'key'}
+                onChooseTile={(action) =>
+                  selection.kind === 'lcd' ? chooseLcdTile(action) : chooseTile(action)
+                }
+                onDropTile={(action, target) =>
+                  target.kind === 'key'
+                    ? chooseTile(action, target.index)
+                    : chooseLcdTile(action, target)
+                }
+                onTileTarget={(target) => {
+                  setTileTarget(target?.kind === 'key' ? target.index : null);
+                  setLcdDropTarget(target?.kind === 'lcd' ? target.index : null);
+                }}
                 onSnapshot={acceptSnapshot}
               />
             ) : (
@@ -855,7 +937,26 @@ function App() {
             )
           }
         >
-          {selectedKey && !shortcutsActive ? (
+          {selection.kind === 'lcd' &&
+          snapshot &&
+          catalogue &&
+          snapshot.lcds.find((lcd) => lcd.index === selection.index) ? (
+            <LcdEditor
+              lcd={invariant(
+                snapshot.lcds.find((lcd) => lcd.index === selection.index),
+                'lcd-editor',
+              )}
+              snapshot={snapshot}
+              catalogue={catalogue}
+              selected={selectedLcdTile}
+              chosen={selectedLcdZone}
+              onZone={setSelectedLcdZone}
+              disabled={!online || editor.busy}
+              onChange={editor.editLcd}
+              onNavigate={editor.navigateLcd}
+              onSelect={setSelectedLcdTile}
+            />
+          ) : selectedKey && !shortcutsActive ? (
             <section className="inspector">
               <h2>{`Touche ${selectedKey.index + 1}`}</h2>
               <p className="inspector-intro">

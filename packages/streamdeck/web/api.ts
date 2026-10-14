@@ -5,6 +5,7 @@ import { Note, Update as NoteUpdate } from '@nixfiles/system-control/notes-contr
 import { Activity } from '@nixfiles/system-control/speech-contract.ts';
 import { Catalogue, Snapshot, type DialInput, type UpdateProfile } from '../src/studio-contract.ts';
 import type { AppInput } from '@nixfiles/system-control/discord-contract.ts';
+import type * as LcdLayout from '../src/lcd-layout.ts';
 class RequestError extends Data.TaggedError('RequestError')<{
   readonly message: string;
 }> {}
@@ -89,6 +90,12 @@ export const page = (direction: number) =>
   );
 export const lcdTap = (dial: number, application: string, candidatePage: number) =>
   json('/api/lcd-tap', 'POST', { dial, application, page: candidatePage }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),
+  );
+export const lcdInput = (input: typeof LcdLayout.Input.Type) =>
+  json('/api/lcd-input', 'POST', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const lcdNavigate = (input: LcdLayout.Command) =>
+  json('/api/lcd-navigation', 'POST', input).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)),
   );
 export const configureDiscord = (input: typeof AppInput.Type) =>

@@ -1,10 +1,37 @@
 import type { Snapshot } from '../src/studio-contract.ts';
-import { registry } from '../src/presentation.tsx';
+import { registry, View } from '../src/presentation.tsx';
 import { presentation as volume } from '../src/ui/volume-presentation.tsx';
 import { presentation as spotify } from '../src/plugins/spotify-presentation.tsx';
+import { presentation as activeWindow } from '../src/plugins/system-presentation.tsx';
+import { presentation as action } from '../src/ui/action-presentation.tsx';
+import { Schema } from 'effect';
+import type { ReactNode } from 'react';
 
 /** Explicit client entry points keep system services out of the browser bundle. */
-const renderView = registry([volume, spotify]);
+const renderView = registry([volume, spotify, activeWindow, action]);
+const Clip = Schema.Struct({
+  view: View,
+  left: Schema.Number,
+  width: Schema.Number,
+  height: Schema.Number,
+});
+export const renderLcdView = (view: View): ReactNode => {
+  if (view.type === 'lcd.blank.v1')
+    return <div style={{ width: '100%', height: '100%', background: '#101217' }} />;
+  if (view.type !== 'lcd.clip.v1') return renderView(view);
+  try {
+    const data = Schema.decodeUnknownSync(Clip)(view.data);
+    return (
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+        <div style={{ width: data.width, height: data.height, marginLeft: -data.left }}>
+          {renderView(data.view)}
+        </div>
+      </div>
+    );
+  } catch {
+    return null;
+  }
+};
 export function LcdView({ lcd, sessionId }: { lcd: Snapshot['lcds'][number]; sessionId: string }) {
   if (!lcd.scene)
     return lcd.revision ? (
@@ -25,7 +52,7 @@ export function LcdView({ lcd, sessionId }: { lcd: Snapshot['lcds'][number]; ses
         <div style={{ width: lcd.width, height: lcd.height, position: 'relative' }}>
           {lcd.scene.map((region) => (
             <div
-              key={`${region.x}/${region.y}`}
+              key={`${region.x}/${region.y}/${region.view.type}`}
               style={{
                 position: 'absolute',
                 left: region.x,
@@ -34,7 +61,7 @@ export function LcdView({ lcd, sessionId }: { lcd: Snapshot['lcds'][number]; ses
                 height: region.height,
               }}
             >
-              {renderView(region.view)}
+              {renderLcdView(region.view)}
             </div>
           ))}
         </div>
