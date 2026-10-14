@@ -35,7 +35,7 @@ export function PluginControls({
       {snapshot.plugins.items.map((plugin) => (
         <div key={plugin.id} className="plugin-entry">
           <details className="plugin-details">
-            <summary aria-label={`Configurer ${plugin.name}`}>
+            <summary aria-label={`Configurer ${plugin.name}`} title={plugin.description}>
               <svg
                 className="plugin-chevron"
                 width={16}
@@ -64,7 +64,6 @@ export function PluginControls({
               </span>
             </summary>
             <div className="plugin-body">
-              <p className="field-hint">{plugin.description}</p>
               <p className="plugin-controls-used">
                 {[
                   plugin.keys.length ? `Touches ${keyRanges(plugin.keys)}` : '',
@@ -100,11 +99,7 @@ export function PluginControls({
           ) : null}
         </div>
       ))}
-      {dirty ? (
-        <p className="field-hint">
-          Enregistre ou annule l’affectation dans Édition avant de changer les plugins.
-        </p>
-      ) : null}
+      {dirty ? <p className="field-hint">Modifications non enregistrées.</p> : null}
       {error ? (
         <p className="error" role="alert">
           {error}

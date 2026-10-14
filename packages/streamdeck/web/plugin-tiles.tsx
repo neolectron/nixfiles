@@ -18,15 +18,13 @@ export function PluginTiles({
   return (
     <details className="plugin-tiles">
       <summary>Tiles des plugins</summary>
-      <p className="field-hint">
-        Icône et état en direct inclus. Choisis une tile, puis enregistre la touche.
-      </p>
       <div className="plugin-tile-list">
         {tiles.map(({ action, tile }) => (
           <button
             key={`${action.plugin}/${action.id}`}
             type="button"
             className="plugin-tile"
+            title={action.description}
             disabled={busy}
             onClick={() => onChoose(action)}
           >

@@ -56,25 +56,28 @@ export function DiscordConnection({
               : 'À configurer'}
         </span>
       </h3>
-      <p className="field-hint">
-        {'Crée une application dans le '}
-        <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">
-          Discord Developer Portal
-        </a>
-        . Ton compte doit avoir accès au RPC comme testeur, ou l’application doit être approuvée par
-        Discord.
-      </p>
-      <p className="field-hint">
-        {'Dans OAuth2 → Redirects, ajoute exactement '}
-        <code>{RedirectUri}</code>
-        {' puis enregistre les changements dans le portail.'}
-      </p>
+      <a
+        href="https://discord.com/developers/applications"
+        target="_blank"
+        rel="noreferrer"
+        title="Ton compte doit avoir accès au RPC comme testeur, ou l’application doit être approuvée par Discord."
+      >
+        Discord Developer Portal
+      </a>
       <form
         onSubmit={(event) => {
           event.preventDefault();
           void operation('save');
         }}
       >
+        <label>
+          Redirect URI
+          <input
+            readOnly={true}
+            value={RedirectUri}
+            title="À ajouter dans OAuth2 → Redirects dans le Developer Portal."
+          />
+        </label>
         <label>
           Application ID
           <input
@@ -100,10 +103,6 @@ export function DiscordConnection({
             onChange={(event) => setSecret(event.currentTarget.value)}
           />
         </label>
-        <p className="field-hint">
-          Secret et jetons conservés uniquement dans le fichier privé local. Discord Desktop doit
-          être ouvert.
-        </p>
         <div className="discord-connection-actions">
           <button
             type="submit"

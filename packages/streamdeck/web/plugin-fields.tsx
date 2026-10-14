@@ -58,6 +58,7 @@ export function PluginFields({
         <span>Action du plugin</span>
         <select
           aria-label="Action du plugin"
+          title={info?.description}
           required={true}
           value={values.command ?? ''}
           disabled={busy || !values.plugin}
@@ -78,13 +79,19 @@ export function PluginFields({
             ))}
         </select>
       </label>
-      {info ? <p className="action-description">{info.description}</p> : null}
       {(info ? Fields.fields(info.schema) : []).map((field) => (
-        <label key={field.key} className="field">
+        <label key={field.key} className="field" title={field.hint || undefined}>
+          {field.hint ? (
+            <span id={`plugin-hint-${field.key}`} hidden={true}>
+              {field.hint}
+            </span>
+          ) : null}
           <span>{field.label}</span>
           {field.kind === 'select' || field.kind === 'boolean' ? (
             <select
               aria-label={field.label}
+              aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
+              title={field.hint || undefined}
               value={values[`input:${field.key}`] ?? ''}
               required={field.required}
               disabled={busy}
@@ -110,6 +117,8 @@ export function PluginFields({
           ) : field.kind === 'json' ? (
             <textarea
               aria-label={field.label}
+              aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
+              title={field.hint || undefined}
               rows={4}
               className="code-input"
               value={values[`input:${field.key}`] ?? ''}
@@ -128,6 +137,8 @@ export function PluginFields({
           ) : (
             <input
               aria-label={field.label}
+              aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
+              title={field.hint || undefined}
               type={field.kind === 'number' ? 'number' : 'text'}
               step="any"
               min={field.min}
@@ -148,17 +159,12 @@ export function PluginFields({
               }
             />
           )}
-          {field.hint ? <small>{field.hint}</small> : null}
         </label>
       ))}
-      {info && Fields.fields(info.schema).length === 0 ? (
-        <p className="field-hint">Aucun paramètre.</p>
-      ) : null}
       {values.plugin &&
       !snapshot.plugins.items.find((plugin) => plugin.id === values.plugin)?.enabled ? (
-        <p className="field-hint">
-          Cette affectation peut être enregistrée. Active le plugin dans l’onglet Plugins pour
-          l’utiliser.
+        <p className="field-hint" role="status">
+          Plugin désactivé.
         </p>
       ) : null}
     </div>

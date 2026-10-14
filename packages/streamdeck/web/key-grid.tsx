@@ -81,7 +81,6 @@ function DeckCell({
           className="key-number key-drag-handle"
           {...dragHandlers}
           aria-label={`Déplacer la touche ${deckKey.index + 1} · ${deckKey.binding?.label ?? ''}`}
-          aria-describedby="rearrange-help"
           title="Glisser pour déplacer · Alt + flèches au clavier"
           onPointerDown={(event) => {
             cancel();
@@ -336,10 +335,11 @@ export function KeyGrid({
           ))}
         </div>
       </div>
-      <p id="rearrange-help" className="rearrange-help">
-        {disabledReason ??
-          'Glisse la poignée à six points pour déplacer une touche. Une case occupée échange les raccourcis. Au clavier : Alt + flèches.'}
-      </p>
+      {disabledReason ? (
+        <p className="rearrange-status" role="status">
+          {disabledReason}
+        </p>
+      ) : null}
       {busy || notice ? (
         <p className="rearrange-status" role="status">
           {busy ? 'Enregistrement du déplacement…' : notice}

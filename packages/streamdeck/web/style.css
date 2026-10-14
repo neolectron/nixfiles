@@ -197,7 +197,6 @@ small {
   outline: 3px dashed var(--accent);
   outline-offset: 3px;
 }
-.rearrange-help,
 .rearrange-status {
   font-size: 0.8rem;
   line-height: 1.5;
@@ -318,12 +317,7 @@ button.lcd-card-hit:hover:not(:disabled) {
   border-color: transparent;
   background: transparent;
 }
-.preview-note {
-  font-size: 12px;
-  line-height: 1.6;
-  max-width: 65ch;
-  color: var(--muted);
-}
+
 .editor-sidebar {
   border-left: 1px solid var(--line);
   padding-left: 28px;
@@ -359,17 +353,15 @@ button.lcd-card-hit:hover:not(:disabled) {
   font-size: 13px;
   font-weight: 700;
 }
+.field > span[hidden] {
+  display: none;
+}
 .field > small {
   display: block;
   margin-top: 7px;
   font-size: 12px;
 }
-.action-description {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.6;
-  margin-top: 12px;
-}
+
 .code-input,
 .command-result pre {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -435,12 +427,7 @@ button.lcd-card-hit:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
 }
-.test-action p {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--muted);
-  margin-top: 10px;
-}
+
 .command-result {
   margin-top: 24px;
 }

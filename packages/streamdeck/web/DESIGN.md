@@ -9,6 +9,10 @@ marks selection and the primary save action; green communicates connected state.
 Use Liberation Sans throughout, tabular numbers for controls and code type only
 for command arguments/output. Keep the deck visually dominant, inspect selected
 keys without modal interruption, and make saved/unsaved/error states explicit.
+Visible copy uses labels, values and operational status; omit routine explanatory
+paragraphs. Parameter guidance and plugin descriptions remain in tooltips, with
+ARIA descriptions on fields. Connection setup retains its required identifiers,
+redirect URI and portal link instead of a prose walkthrough.
 
 Desktop: device preview at left, tabbed configuration at right, without a global
 navbar. The detected model name and connection indicator lead the preview; the
