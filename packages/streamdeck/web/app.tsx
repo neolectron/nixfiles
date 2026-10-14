@@ -270,9 +270,6 @@ function KeyInspector({
     return (
       <section className="inspector">
         <h2>Retour du dossier</h2>
-        <p className="inspector-intro">
-          Cette touche reste disponible sur toutes les pages du dossier pour revenir à son parent.
-        </p>
         <button disabled={busy || !online} onClick={test}>
           Revenir
         </button>
@@ -284,7 +281,6 @@ function KeyInspector({
         <h2 id="inspector-title">{`Touche ${selected.index + 1}`}</h2>
         <span className="coordinate">{`${selected.row + 1} : ${selected.column + 1}`}</span>
       </div>
-      <p className="inspector-intro">Choisis ce que fait cette touche.</p>
       <form onSubmit={submit}>
         <PluginTiles
           catalogue={catalogue}
@@ -309,6 +305,7 @@ function KeyInspector({
           <span>Action</span>
           <select
             value={draft.action}
+            title={definition?.description}
             disabled={busy}
             onChange={(event) => {
               const id = (
@@ -338,11 +335,6 @@ function KeyInspector({
             ))}
           </select>
         </label>
-        {definition ? (
-          <p className="action-description">{definition.description}</p>
-        ) : (
-          <p className="action-description">Une touche libre ne déclenche rien.</p>
-        )}
         {definition ? (
           <label className="field">
             <span>Nom sur la touche</span>
@@ -417,26 +409,26 @@ function KeyInspector({
               disabled={busy}
               onChange={(event) => setDraft({ ...draft, milliseconds: event.currentTarget.value })}
             />
-            <small>
-              {draft.activation === 'long-press'
-                ? 'L’action se déclenche une seule fois au seuil. Relâcher avant annule l’appui.'
-                : 'Deux appuis courts dans cet intervalle déclenchent une seule action. Un appui isolé ne fait rien.'}
-            </small>
           </label>
         ) : null}
-        {draftHeld ? (
-          <p className={invalidTrigger ? 'error' : 'action-description'}>
-            {invalidTrigger
-              ? 'Choisis un appui simple ou long pour cette action à maintenir.'
-              : 'L’action reste active pendant l’appui et s’arrête au relâchement.'}
+        {invalidTrigger ? (
+          <p className="error" role="alert">
+            Choisis un appui simple ou long pour cette action à maintenir.
           </p>
         ) : null}
         {(definition?.fields ?? []).map((field) => (
-          <label key={field.key} className="field">
+          <label key={field.key} className="field" title={field.hint || undefined}>
+            {field.hint ? (
+              <span id={`hint-${field.key}`} hidden={true}>
+                {field.hint}
+              </span>
+            ) : null}
             <span>{field.label}</span>
             {field.kind === 'folder' || field.kind === 'zone' ? (
               <select
                 aria-label={field.label}
+                aria-describedby={field.hint ? `hint-${field.key}` : undefined}
+                title={field.hint || undefined}
                 value={draft.values[field.key] ?? ''}
                 required={true}
                 disabled={busy}
@@ -481,6 +473,8 @@ function KeyInspector({
             ) : field.kind === 'app' ? (
               <select
                 aria-label={field.label}
+                aria-describedby={field.hint ? `hint-${field.key}` : undefined}
+                title={field.hint || undefined}
                 required={true}
                 value={draft.values[field.key] ?? ''}
                 disabled={busy}
@@ -522,6 +516,7 @@ function KeyInspector({
               <textarea
                 aria-label={field.label}
                 aria-describedby={field.hint ? `hint-${field.key}` : undefined}
+                title={field.hint || undefined}
                 rows={4}
                 className="code-input"
                 value={draft.values[field.key] ?? ''}
@@ -545,6 +540,7 @@ function KeyInspector({
               <input
                 aria-label={field.label}
                 aria-describedby={field.hint ? `hint-${field.key}` : undefined}
+                title={field.hint || undefined}
                 type={field.kind === 'number' ? 'number' : 'text'}
                 required={field.key === 'executable'}
                 min={field.kind === 'number' ? -9999 : undefined}
@@ -570,7 +566,6 @@ function KeyInspector({
                 }
               />
             )}
-            {field.hint ? <small id={`hint-${field.key}`}>{field.hint}</small> : null}
           </label>
         ))}
         {draft.action === 'open-folder' ||
@@ -679,13 +674,6 @@ function KeyInspector({
                 : 'Tester l’action'}
           </button>
         )}
-        <p>
-          {gestureTest
-            ? selected.binding?.trigger?.type === 'double-tap'
-              ? 'Clique deux fois, ou appuie deux fois sur Espace. Le geste est reconnu par le moteur du deck.'
-              : 'Maintiens le bouton ou la touche Espace pour tester le geste enregistré.'
-            : 'Exécute l’action enregistrée, comme un appui sur la touche.'}
-        </p>
       </div>
       <ShortcutOrganization
         key={selected.id}
@@ -811,11 +799,11 @@ function App() {
                 editable={online && shortcutsActive && !dirty}
                 disabledReason={
                   dirty
-                    ? 'Enregistre ou annule les modifications avant de déplacer les touches.'
+                    ? 'Modifications non enregistrées.'
                     : !online
-                      ? 'Le déplacement sera disponible après reconnexion.'
+                      ? 'Moteur déconnecté.'
                       : !shortcutsActive
-                        ? 'Active Raccourcis pour déplacer les touches.'
+                        ? 'Raccourcis désactivé.'
                         : undefined
                 }
                 onSelect={(index) => select({ kind: 'key', index })}
@@ -934,10 +922,6 @@ function App() {
               onSnapshot={acceptSnapshot}
             />
           ) : null}
-          <p className="preview-note">
-            Les touches libres restent sans affectation. Leur ancienne image physique n’est pas
-            disponible.
-          </p>
           {error ? (
             <p className="error" role="alert">
               {error}
@@ -1015,11 +999,6 @@ function App() {
                 <dt>Appui</dt>
                 <dd>Couper ou rétablir le son</dd>
               </dl>
-              <p className="action-description">
-                {selectedDial.master
-                  ? 'Master reste fixe sur toutes les pages.'
-                  : 'Un glissement sur le LCD parcourt les applications. Le potard suit la source affichée.'}
-              </p>
             </section>
           ) : (
             <section className="inspector skeleton" aria-label="Chargement de l’inspecteur">

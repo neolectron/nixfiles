@@ -79,10 +79,6 @@ function ZoneEditor({
           />
         </label>
       )}
-      <p className="field-hint">
-        Clique sur les touches à inclure. Les touches fixes restent en place ; les touches d’autres
-        zones sont indisponibles.
-      </p>
       <ZoneMap
         snapshot={snapshot}
         keys={keys}
@@ -98,11 +94,6 @@ function ZoneEditor({
         {keys.length
           ? `Touches ${keyRanges(keys)} · ${keys.length - fixed} icônes par page, ou ${Math.max(0, keys.length - fixed - 1)} + Retour pour un dossier.`
           : 'Sélectionne au moins une touche.'}
-      </p>
-      <p className="field-hint">
-        Les raccourcis suivent leurs touches sur toutes les pages. Les touches retirées reviennent à
-        la zone principale. Après enregistrement, les zones concernées reviennent à leur première
-        page.
       </p>
       <div className="form-actions">
         <button
@@ -244,8 +235,8 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
             <h3>Nouveau dossier</h3>
             <p className="field-hint">
               {selected && !selected.binding
-                ? `Il sera placé sur la touche ${selected.index + 1}.`
-                : 'Sélectionne une touche libre dans l’aperçu.'}
+                ? `Touche ${selected.index + 1}`
+                : 'Aucune touche libre sélectionnée.'}
             </p>
             <label className="field">
               <span>Nom du nouveau dossier</span>
@@ -348,11 +339,7 @@ export function LayoutControls({ snapshot, selected, online, dirty, onSnapshot }
           {error}
         </p>
       ) : null}
-      {dirty ? (
-        <p className="field-hint">
-          Enregistre ou annule l’affectation avant de changer la disposition.
-        </p>
-      ) : null}
+      {dirty ? <p className="field-hint">Modifications non enregistrées.</p> : null}
     </section>
   );
 }
