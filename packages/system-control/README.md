@@ -1,0 +1,112 @@
+# System control
+
+Effect v4 services for Linux audio, MPRIS players and Discord RPC. This package has
+no dependency on Stream Deck, React or the Studio. Its Layers own polling,
+connections, reconnection and cleanup. Consumers never start a monitor.
+
+Import concrete modules with `.ts` extensions; there is no barrel or build step.
+Node 24 executes these TypeScript sources directly with `noEmit`. Platform I/O
+uses Effect's process, socket, HTTP, filesystem, clock and crypto services.
+
+## Use a service
+
+```ts
+import { NodeRuntime, NodeServices } from '@effect/platform-node';
+import { Console, Effect } from 'effect';
+import { Audio, layer } from '@nixfiles/system-control/audio.ts';
+
+const program = Effect.gen(function* () {
+  const audio = yield* Audio;
+  yield* Console.log(yield* audio.state);
+  // Only execute these when the caller actually wants to change the system:
+  // yield* audio.setVolume('spotifast', 45);
+  // yield* audio.setMuted('spotifast', true);
+});
+
+NodeRuntime.runMain(program.pipe(Effect.provide(layer), Effect.provide(NodeServices.layer)));
+```
+
+The scope created by providing the Layer owns the service. Closing it stops its
+background tasks and in-flight operations; canceled callers also cancel their
+operations. Keep the Layer at the application root for long-lived consumers.
+Do not return a service from a finished scope and then use it elsewhere.
+
+## Current API
+
+| Service / module            | Operations                                                                                                                                     | State                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `Audio` / `audio.ts`        | `setVolume(key, percent)`, `setMuted(key, boolean)`, `setMasterVolume(percent)`, `setMasterMuted(boolean)`, relative `change` / `changeMaster` | `state`, `snapshot`, `observe`, `refresh`; fresh compatibility reads `list`, `master` |
+| `MprisPlayer` / `mpris.ts`  | `command`, `seek`, `toggleShuffle`, `cycleLoop`; Layer takes a D-Bus name                                                                      | `state`, `snapshot`, `observe`, fresh `current`                                       |
+| `Spotify` / `spotify.ts`    | Same playback operations; discovers Spotify / Spotifast, `forApplication(key)`, `applications`                                                 | `state`, `snapshot`, `observe`, fresh `current`                                       |
+| `MediaPlayers` / `media.ts` | `command` selects the active controllable MPRIS player                                                                                         | `state`, `snapshot`, `observe`, fresh `current`                                       |
+| `Discord` / `discord.ts`    | `set('mute' \| 'deaf', boolean)`, `toggle`, `reconnect`                                                                                        | `state` / `voice`, `snapshot`, `observe`, fresh `current`                             |
+
+`state` fails with a typed `AudioError` or `IntegrationError` when unavailable.
+`snapshot` returns an Effect `Result`, and `observe` emits the current Result
+followed by changes, including unavailability and recovery. Streams broadcast
+to independent subscribers with a sliding buffer of 64 replaceable snapshots.
+Reads of cached state do not change the system. Explicit commands are serialized
+per service. App volume is bounded to 200%, Master to 150%; channel balance and
+stream identities are preserved. Absolute mute applies to every current stream
+of an application, including mixed mute states.
+
+The primary APIs are the service classes and their Layers. The lower-level
+protocol factories remain available for transport tests and advanced composition;
+they are not the managed service API.
+
+## Compose once
+
+`runtime.ts` exports `integrationsLayer` (Spotify, media, Discord) and `layer`
+(also Audio). These are compositions, not re-exports. The live implementation
+needs `pactl`, `busctl`, the desktop session bus and the usual Node platform services.
+Providing the same Layer object once at a root scope shares its instances;
+Effect memoization does not create a singleton between separate processes.
+
+The Studio builds this runtime once and its presentation plugins reuse it. A
+presentation plugin can be disabled without closing the shared system service.
+Outside that runtime, plugins can still acquire their own scoped service.
+
+## Discord credentials
+
+`Discord.serviceLayer(optionsEffect)` accepts an application client ID and a
+`Redacted` access token, with an injectable `DiscordTransport`. `Discord.layer`
+uses an optional `DiscordConnection` service or the existing
+`STREAMDECK_DISCORD_CLIENT_ID` / `STREAMDECK_DISCORD_ACCESS_TOKEN` environment
+variables. Existing environment names and saved mode-0600 OAuth files remain
+compatible. The `make(path)` factory in `discord-connection.ts` takes the path from its caller; the
+library does not assume a Studio profile location. Authorization remains an
+explicit action. Starting the service never mutes, deafens or starts sharing.
+
+The stable service survives disconnects. IPC events update voice state; a
+read-only poll recovers missed events. Failed sessions release their socket and
+retry after one second. Currently configuration and protocol failures share the
+typed `IntegrationError`; finer failure categories belong to the next phase.
+
+## Inspect without USB
+
+From the repository root:
+
+```sh
+nix-shell packages/streamdeck/shell.nix
+pnpm system inspect
+pnpm system inspect --discord-connection /absolute/path/to/existing-oauth.json
+```
+
+This Effect CLI prints public state or a short availability error for each
+service. It does not import HID, acquire USB, change volume, send playback
+commands or launch interactive authorization. The optional connection file may
+refresh an already authorized OAuth token. No credentials are printed.
+
+## Tests and next phases
+
+`pnpm check` includes this package's Oxlint/Oxfmt, TypeScript and Vitest checks.
+Tests inject `Pactl`, `MprisTransport` and `DiscordTransport`; no real playback or
+account is needed. They cover external state changes, exact setters, concurrent
+writes, reconnects, shared Layers, cancellation and scope cleanup, plus existing
+OAuth/IPC tests.
+
+The shared schema action catalogue, HTTP/MCP adapters, OBS/Desktop/Voice services
+and SurfaceHost are subsequent stages of the
+[architecture plan](../../docs/system-control-streamdeck-plan.md).
+LCD tiles, artwork, gestures and navigation remain in Stream Deck presentation
+code for this first migration stage.

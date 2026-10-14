@@ -4,7 +4,8 @@ import { ConfigProvider, Deferred, Effect, Fiber, FileSystem, Layer, Redacted } 
 import { authorize, DiscordOAuth, make, makeOAuth } from '../src/discord-connection.ts';
 import { HttpClient, HttpClientResponse, type HttpClientRequest } from 'effect/http';
 import { Decoder, DiscordTransport, encode } from '../src/discord-ipc.ts';
-import { IntegrationError, type Message } from '../src/json-socket.ts';
+import { IntegrationError } from '../src/errors.ts';
+import { type Message } from '../src/json-socket.ts';
 import { rpcError } from '../src/discord-rpc-error.ts';
 
 const transport = (denied = false) => {

@@ -1,4 +1,4 @@
-import { invariant } from './errors.ts';
+import { invariant, IntegrationError } from './errors.ts';
 import {
   Clock,
   Context,
@@ -13,7 +13,7 @@ import {
   Semaphore,
 } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/http';
-import { IntegrationError, requests } from './json-socket.ts';
+import { requests } from './json-socket.ts';
 import { DiscordTransport } from './discord-ipc.ts';
 import { AppInput } from './discord-contract.ts';
 import { rpcError } from './discord-rpc-error.ts';
@@ -68,7 +68,7 @@ export const makeOAuth = Effect.map(HttpClient.HttpClient, (http) => ({
 }));
 /** OAuth secrets stay in the service and mode-0600 file; public snapshots never return them. */
 export class DiscordOAuth extends Context.Service<DiscordOAuth, Effect.Success<typeof makeOAuth>>()(
-  '@nixfiles/streamdeck/DiscordOAuth',
+  '@nixfiles/system-control/DiscordOAuth',
 ) {
   static readonly layer = Layer.effect(DiscordOAuth, makeOAuth).pipe(
     Layer.provide(FetchHttpClient.layer),
@@ -231,6 +231,6 @@ export const make = (file: string) =>
 export class DiscordConnection extends Context.Service<
   DiscordConnection,
   Effect.Success<ReturnType<typeof make>>
->()('@nixfiles/streamdeck/DiscordConnection') {
+>()('@nixfiles/system-control/DiscordConnection') {
   static readonly layer = (file: string) => Layer.effect(DiscordConnection, make(file));
 }

@@ -6,7 +6,7 @@ import { DeckConnection } from '../src/deck-connection.ts';
 import * as StudioDevice from '../src/studio-device.ts';
 import * as Mock from '../src/mock.ts';
 import * as Image from '../src/image.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import { StreamDeck } from '../src/stream-deck.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 

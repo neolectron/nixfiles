@@ -1,6 +1,6 @@
 import { Clock, Effect, Stream } from 'effect';
 import type { make } from './plugin-host.ts';
-import * as Sources from './sources.ts';
+import * as Sources from '@nixfiles/system-control/sources.ts';
 import * as EventDisplay from './plugins/event-display.tsx';
 import * as Obs from './plugins/obs.ts';
 import * as Discord from './plugins/discord.ts';

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schedule, Schema, Semaphore, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
-import { IntegrationError } from './json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 const Windows = Schema.Array(
   Schema.Struct({
     id: Schema.Int,

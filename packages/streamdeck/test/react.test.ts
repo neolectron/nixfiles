@@ -1,7 +1,7 @@
 import { assert, it } from '@effect/vitest';
 import { Effect, Fiber, Layer, Schedule } from 'effect';
 import * as ReactDisplay from '../src/react-mixer.tsx';
-import { Audio, demoLayer } from '../src/audio.ts';
+import { Audio, demoLayer } from '@nixfiles/system-control/audio.ts';
 import * as Mock from '../src/mock.ts';
 import { make as startMixer } from '../src/plugins/audio-mixer.ts';
 

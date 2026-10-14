@@ -1,17 +1,18 @@
+import { Spotify as SpotifyService } from '@nixfiles/system-control/spotify.ts';
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Schedule, Scope } from 'effect';
 import { TestClock } from 'effect/testing';
-import * as Mpris from '../src/mpris.ts';
-import * as Player from '../src/plugins/spotify-player.ts';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
+import * as Player from '@nixfiles/system-control/spotify.ts';
 import * as Spotify from '../src/plugins/spotify.ts';
 import * as SpotifyLcd from '../src/plugins/spotify-lcd.tsx';
 import * as Plugin from '../src/plugin.ts';
 import * as Cards from '../src/mixer-cards.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Mock from '../src/mock.ts';
 import * as Takumi from '../src/takumi.ts';
-import { IntegrationError } from '../src/json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 import { timestamp } from '../src/ui/now-playing-card.tsx';
 
@@ -91,7 +92,7 @@ it.live(
   () =>
     Effect.gen(function* () {
       const source = yield* fixture;
-      const api = yield* Player.make().pipe(Effect.provide(source.layer));
+      const api = yield* Player.managed().pipe(Effect.provide(source.layer));
       assert.strictEqual((yield* api.state).title, 'Life Will Change');
       assert.deepStrictEqual(yield* api.applications, [{ key: 'spotifast', name: 'Spotifast' }]);
       assert.strictEqual((yield* Effect.result(api.forApplication('spotify')))._tag, 'Failure');
@@ -106,7 +107,7 @@ it.live(
     Effect.scoped(
       Effect.gen(function* () {
         const source = yield* fixture;
-        const api = yield* Player.make().pipe(Effect.provide(source.layer));
+        const api = yield* Player.managed().pipe(Effect.provide(source.layer));
         const cards = yield* Cards.make;
         const renderer = yield* Takumi.make;
         const owner = yield* Scope.make();
@@ -145,7 +146,7 @@ it.effect(
     Effect.scoped(
       Effect.gen(function* () {
         const source = yield* fixture;
-        const api = yield* Player.make().pipe(Effect.provide(source.layer));
+        const api = yield* Player.managed().pipe(Effect.provide(source.layer));
         const cards = yield* Cards.make;
         const renderer = yield* Takumi.make;
         const shown = yield* Ref.make(false);
@@ -215,7 +216,7 @@ it.live(
         const source = yield* fixture;
         const apps = yield* Ref.make<ReadonlyArray<Audio.Application>>([spotifyApp]);
         const changes: Array<[string, Audio.Change]> = [];
-        const audio = Layer.succeed(Audio.Audio, {
+        const audio = Audio.makeLayer({
           list: Ref.get(apps),
           change: (key, change) =>
             Effect.sync(() => {
@@ -225,13 +226,13 @@ it.live(
           changeMaster: () => Effect.void,
         });
         const player = Layer.effect(
-          Spotify.Spotify,
-          Player.make().pipe(Effect.provide(source.layer)),
+          SpotifyService,
+          Player.managed().pipe(Effect.provide(source.layer)),
         );
         // Reuse the real plugin run (including scoped card registration), with only its transport replaced.
         const plugin = Plugin.fromLayer({
           ...Spotify.plugin,
-          service: Spotify.Spotify,
+          service: SpotifyService,
           layer: player,
           run: Spotify.run,
         });

@@ -200,6 +200,9 @@ importers:
       '@elgato-stream-deck/node':
         specifier: 7.8.0
         version: 7.8.0(@julusian/jpeg-turbo@3.1.0)
+      '@nixfiles/system-control':
+        specifier: workspace:*
+        version: link:../system-control
       '@resvg/resvg-js':
         specifier: 2.6.2
         version: 2.6.2
@@ -243,6 +246,28 @@ importers:
       tsx:
         specifier: 4.21.0
         version: 4.21.0
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(tsx@4.21.0))
+
+  packages/system-control:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.4
+        version: 4.0.4(effect@4.0.4)(redis@6.3.0)
+      effect:
+        specifier: 4.0.4
+        version: 4.0.4
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.4
+        version: 4.0.4(effect@4.0.4)(vitest@5.0.4(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(tsx@4.21.0)))
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2

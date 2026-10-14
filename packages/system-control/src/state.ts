@@ -1,0 +1,69 @@
+import { Effect, Fiber, PubSub, Ref, Result, Stream, type Duration } from 'effect';
+
+/** A scoped snapshot plus a broadcast stream. Subscribe before reading the initial value. */
+export const make = <A, E>(initial: E) =>
+  Effect.gen(function* () {
+    const owner = yield* Effect.scope;
+    const current = yield* Ref.make<Result.Result<A, E>>(Result.fail(initial));
+    const events = yield* Effect.acquireRelease(
+      PubSub.sliding<Result.Result<A, E>>(64),
+      PubSub.shutdown,
+    );
+    let closed = false;
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        closed = true;
+      }).pipe(Effect.andThen(Ref.set(current, Result.fail(initial)))),
+    );
+    // An operation belongs both to its caller and to the service's lifetime.
+    const guard = <B>(operation: Effect.Effect<B, E>) =>
+      Effect.suspend(() =>
+        closed
+          ? Effect.fail(initial)
+          : Effect.acquireUseRelease(Effect.forkIn(operation, owner), Fiber.join, Fiber.interrupt),
+      );
+    const publish = (value: Result.Result<A, E>) =>
+      Effect.suspend(() =>
+        closed
+          ? Effect.void
+          : Ref.set(current, value).pipe(
+              Effect.andThen(PubSub.publish(events, value)),
+              Effect.asVoid,
+            ),
+      );
+    const observe = Stream.unwrap(
+      Effect.gen(function* () {
+        const subscription = yield* PubSub.subscribe(events);
+        const first = yield* Ref.get(current);
+        return Stream.concat(
+          Stream.succeed(first),
+          Stream.fromEffectRepeat(PubSub.take(subscription)),
+        );
+      }),
+    );
+    return {
+      snapshot: Ref.get(current),
+      state: guard(Effect.flatMap(Ref.get(current), Effect.fromResult)),
+      observe,
+      publish,
+      guard,
+    };
+  });
+
+/** The Layer's scope owns the sole polling fiber, including its final interruption. */
+export const polling = <A, E>(read: Effect.Effect<A, E>, interval: Duration.Input, initial: E) =>
+  Effect.gen(function* () {
+    const store = yield* make<A, E>(initial);
+    const refresh = store.guard(
+      Effect.gen(function* () {
+        const result = yield* Effect.result(read);
+        yield* store.publish(result);
+        return yield* Effect.fromResult(result);
+      }),
+    );
+    yield* refresh.pipe(Effect.ignore);
+    yield* Effect.forkScoped(
+      Effect.forever(Effect.sleep(interval).pipe(Effect.andThen(refresh), Effect.ignore)),
+    );
+    return { ...store, refresh };
+  });

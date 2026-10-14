@@ -8,7 +8,7 @@ import {
   type Navigate,
   type Organize,
 } from '../src/studio-contract.ts';
-import type { AppInput } from '../src/discord-contract.ts';
+import type { AppInput } from '@nixfiles/system-control/discord-contract.ts';
 class RequestError extends Data.TaggedError('RequestError')<{
   readonly message: string;
 }> {}

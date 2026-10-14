@@ -1,5 +1,5 @@
 import type { Color } from './model.ts';
-import { MAX_VOLUME_PERCENT } from './audio.ts';
+import { MAX_VOLUME_PERCENT } from '@nixfiles/system-control/audio.ts';
 
 /** Nominal stays white; the boost half progresses yellow → orange → red at its ceiling. */
 export const volumeColor = (percent: number, maximum = MAX_VOLUME_PERCENT): Color => {

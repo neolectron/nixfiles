@@ -1,7 +1,7 @@
 import { invariant } from '../errors.ts';
 import type { Size } from '../model.ts';
-import type { Application } from '../audio.ts';
-import type { State } from '../mpris.ts';
+import type { Application } from '@nixfiles/system-control/audio.ts';
+import type { State } from '@nixfiles/system-control/mpris.ts';
 import { VolumeOverlay } from './volume-overlay.tsx';
 export const timestamp = (micros: number | null) =>
   micros === null

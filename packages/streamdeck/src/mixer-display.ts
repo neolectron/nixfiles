@@ -3,7 +3,7 @@ import { Effect, FileSystem, Layer, Path } from 'effect';
 import { StreamDeckError, invalid } from './errors.ts';
 import type { Size } from './model.ts';
 import * as Svg from './svg.ts';
-import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from './audio.ts';
+import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from '@nixfiles/system-control/audio.ts';
 import { volumeColor, point, arc, css } from './volume-gauge.ts';
 
 export interface Feedback {

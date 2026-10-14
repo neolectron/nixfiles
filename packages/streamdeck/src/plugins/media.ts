@@ -1,16 +1,10 @@
+import { MediaPlayers } from '@nixfiles/system-control/media.ts';
 import { Context, Effect, Layer } from 'effect';
-import * as Media from '../media.ts';
-import * as Mpris from '../mpris.ts';
+import * as Media from '@nixfiles/system-control/media.ts';
+import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Plugin from '../plugin.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 
-export class MediaKeys extends Context.Service<MediaKeys, Media.Controller>()(
-  '@nixfiles/streamdeck/MediaKeys',
-) {
-  static readonly layer = Layer.effect(MediaKeys, Media.make).pipe(
-    Layer.provide(Mpris.MprisTransport.layer),
-  );
-}
 const action = (id: string, name: string, method: Mpris.Command, icon: KeyFeedback['icon']) =>
   Plugin.action({
     id,
@@ -40,9 +34,16 @@ export const plugin = Plugin.fromLayer({
   name: 'Touches média',
   description: 'Précédent, lecture/pause, suivant et arrêt du lecteur actif (MPRIS).',
   controls: {},
-  service: MediaKeys,
-  layer: MediaKeys.layer,
-  run: (api) => api.monitor,
+  service: MediaPlayers,
+  layer: Layer.effect(
+    MediaPlayers,
+    Effect.gen(function* () {
+      const shared = yield* Effect.serviceOption(MediaPlayers);
+      if (shared._tag === 'Some') return shared.value;
+      return Context.get(yield* Layer.build(MediaPlayers.layer), MediaPlayers);
+    }),
+  ),
+
   actions: [
     action('previous', 'Média précédent', 'Previous', 'previous'),
     action('play-pause', 'Média lecture / pause', 'PlayPause', 'play'),

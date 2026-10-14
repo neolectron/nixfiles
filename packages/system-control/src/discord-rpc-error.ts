@@ -1,4 +1,4 @@
-import { IntegrationError } from './json-socket.ts';
+import { IntegrationError } from './errors.ts';
 
 /** Preserve the diagnostic code; never echo arbitrary remote payloads or credentials. */
 export const rpcError = (command: string, data: unknown): IntegrationError => {

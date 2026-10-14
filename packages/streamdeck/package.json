@@ -25,6 +25,7 @@
   "dependencies": {
     "@effect/platform-node": "4.0.4",
     "@elgato-stream-deck/node": "7.8.0",
+    "@nixfiles/system-control": "workspace:*",
     "@resvg/resvg-js": "2.6.2",
     "@takumi-rs/core": "2.15.2",
     "@takumi-rs/helpers": "2.15.2",

@@ -1,7 +1,7 @@
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
 import { Console, Deferred, Effect, Fiber, Layer, Option, Path, Ref, Schema, Stream } from 'effect';
 import { CliError, Command, Flag } from 'effect/cli';
-import * as Audio from './audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Hid from './hid.ts';
 import * as Mock from './mock.ts';
 import * as StudioDevice from './studio-device.ts';

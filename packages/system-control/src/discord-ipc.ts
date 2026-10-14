@@ -11,7 +11,8 @@ import {
   Path,
   Scope,
 } from 'effect';
-import { IntegrationError, type Connection, type Message } from './json-socket.ts';
+import { IntegrationError } from './errors.ts';
+import type { Connection, Message } from './json-socket.ts';
 
 const limit = 1024 * 1024;
 const invalid = () => new IntegrationError({ message: 'Trame IPC Discord invalide.' });
@@ -61,7 +62,7 @@ export class DiscordTransport extends Context.Service<
       receive: (message: Message) => Effect.Effect<void, IntegrationError>,
     ) => Effect.Effect<Connection, IntegrationError, Scope.Scope>;
   }
->()('@nixfiles/streamdeck/DiscordTransport') {
+>()('@nixfiles/system-control/DiscordTransport') {
   static readonly layer = Layer.effect(
     DiscordTransport,
     Effect.gen(function* () {

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Size } from '../model.ts';
 import type { Feedback } from '../mixer-display.ts';
-import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from '../audio.ts';
+import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from '@nixfiles/system-control/audio.ts';
 import { arc, css, point, volumeColor } from '../volume-gauge.ts';
 interface CardProps extends Size {
   readonly app: Feedback | undefined;

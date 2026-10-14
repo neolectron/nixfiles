@@ -1,7 +1,7 @@
 import { Clock, Effect, Stream } from 'effect';
 import { PluginHost } from '../plugin-host.ts';
 import * as EventDisplay from '../plugins/event-display.tsx';
-import * as Sources from '../sources.ts';
+import * as Sources from '@nixfiles/system-control/sources.ts';
 import { StreamDeck } from '../stream-deck.ts';
 
 /** Edit the source or plugin implementation; USB, rendering and cleanup stay in the library. */

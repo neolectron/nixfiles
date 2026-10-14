@@ -1,10 +1,8 @@
 import { NodeSocket } from '@effect/platform-node';
-import { Context, Data, Deferred, Effect, Layer, Scope, Schema, type Duration } from 'effect';
+import { Context, Deferred, Effect, Layer, Scope, Schema, type Duration } from 'effect';
 import { Socket } from 'effect/socket';
 
-export class IntegrationError extends Data.TaggedError('IntegrationError')<{
-  readonly message: string;
-}> {}
+import { IntegrationError } from './errors.ts';
 export type Message = Readonly<Record<string, unknown>>;
 const decode = Schema.decodeUnknownEffect(Schema.Record(Schema.String, Schema.Unknown));
 export interface Connection {
@@ -20,7 +18,7 @@ export class JsonSocket extends Context.Service<
       receive: (message: Message) => Effect.Effect<void, IntegrationError>,
     ) => Effect.Effect<Connection, IntegrationError, Scope.Scope>;
   }
->()('@nixfiles/streamdeck/JsonSocket') {
+>()('@nixfiles/system-control/JsonSocket') {
   static readonly layer = Layer.succeed(JsonSocket, {
     connect: (url, receive) =>
       Effect.gen(function* () {

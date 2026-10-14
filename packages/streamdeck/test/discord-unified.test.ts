@@ -1,13 +1,13 @@
 import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
-import { ConfigProvider, Effect, FileSystem, Layer } from 'effect';
+import { ConfigProvider, Effect, FileSystem, Layer, Schedule } from 'effect';
 import * as Discord from '../src/plugins/discord.ts';
-import { DiscordTransport } from '../src/discord-ipc.ts';
-import { DiscordOAuth } from '../src/discord-connection.ts';
+import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
+import { DiscordOAuth } from '@nixfiles/system-control/discord-connection.ts';
 import { DesktopKeys } from '../src/desktop-keys.ts';
-import type { Message } from '../src/json-socket.ts';
+import type { Message } from '@nixfiles/system-control/json-socket.ts';
 import * as Mock from '../src/mock.ts';
-import * as Audio from '../src/audio.ts';
+import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Actions from '../src/studio-actions.tsx';
 import * as Settings from '../src/plugin-settings.ts';
 import * as Layout from '../src/studio-layout.ts';
@@ -48,7 +48,11 @@ it.live(
         const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'discord-unified-' });
         const marker = `${directory}/share-ran`;
         const absent = yield* configured({});
-        assert.deepStrictEqual(yield* absent.current, { mute: true, deaf: false });
+        const current: Discord.Controller['current'] = absent.current;
+        assert.deepStrictEqual(
+          yield* current.pipe(Effect.retry(Schedule.spaced(5)), Effect.timeout('2 seconds')),
+          { mute: true, deaf: false },
+        );
         assert.strictEqual((yield* Effect.result(absent.shareScreen))._tag, 'Failure');
         const api = yield* configured({
           STREAMDECK_DISCORD_SCREEN_SHARE: JSON.stringify(['touch', marker]),

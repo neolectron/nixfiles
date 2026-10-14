@@ -1,6 +1,7 @@
 import { Config, Context, Crypto, Deferred, Effect, Layer, Redacted, Schema } from 'effect';
 import { Base64 } from 'effect/encoding';
-import { IntegrationError, JsonSocket, requests, type Message } from '../json-socket.ts';
+import { IntegrationError } from '@nixfiles/system-control/errors.ts';
+import { JsonSocket, requests, type Message } from '@nixfiles/system-control/json-socket.ts';
 import * as Plugin from '../plugin.ts';
 
 const Frame = Schema.Struct({ op: Schema.Number, d: Schema.Record(Schema.String, Schema.Unknown) });

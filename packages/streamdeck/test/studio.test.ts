@@ -8,7 +8,7 @@ import * as Image from '../src/image.ts';
 import * as Preview from '../src/deck-preview.ts';
 import * as Actions from '../src/studio-actions.tsx';
 import { StreamDeck } from '../src/stream-deck.ts';
-import { demoLayer } from '../src/audio.ts';
+import { demoLayer } from '@nixfiles/system-control/audio.ts';
 import { startStudio, httpApp } from '../src/scripts/studio.ts';
 
 it.live('preview captures exact successful key writes and composes partial LCD frames', () =>
