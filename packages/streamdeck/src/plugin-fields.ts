@@ -15,6 +15,7 @@ export const fields = (document: unknown): ReadonlyArray<Field> => {
   };
   const root = resolve(doc.schema ?? doc);
   const properties = object(root.properties) ? root.properties : undefined;
+  if (!properties && root.type === 'object' && root.additionalProperties === false) return [];
   if (!properties) return [{ key: '$root', label: typeof root.title === 'string' ? root.title : 'Paramètres JSON', hint: 'Valeur structurée, validée par le plugin.', required: true, kind: 'json', options: [] }];
   return Object.entries(properties).map(([key, value]) => {
     const schema = resolve(value);

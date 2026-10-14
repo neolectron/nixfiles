@@ -40,8 +40,15 @@ export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(options: Omit<De
 export interface ActionInfo {
   readonly id: string; readonly name: string; readonly description: string;
   readonly schema: unknown; readonly defaults: unknown;
+  readonly interaction: 'press' | 'hold';
 }
-export interface Invocation { readonly output: (text: string) => Effect.Effect<void> }
+export interface Invocation {
+  readonly output: (text: string) => Effect.Effect<void>;
+  /** Completes on the original physical key's release, even after navigation. */
+  readonly released?: Effect.Effect<void>;
+}
+/** Strict parameter-free action schema, also represented as an empty browser form. */
+export const NoInput = Schema.Record(Schema.String, Schema.Never);
 export interface Action<Api> {
   readonly info: ActionInfo;
   readonly validate: (input: unknown) => Effect.Effect<void, unknown>;
@@ -51,9 +58,10 @@ export interface Action<Api> {
 export const action = <Api, Input, Encoded, E>(options: {
   readonly id: string; readonly name: string; readonly description: string;
   readonly input: Schema.Codec<Input, Encoded>; readonly defaults: Encoded;
+  readonly interaction?: 'press' | 'hold';
   readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, StreamDeck | Scope.Scope>;
 }): Action<Api> => ({
-  info: { id: options.id, name: options.name, description: options.description, schema: Schema.toJsonSchemaDocument(options.input), defaults: options.defaults },
+  info: { id: options.id, name: options.name, description: options.description, schema: Schema.toJsonSchemaDocument(options.input), defaults: options.defaults, interaction: options.interaction ?? 'press' },
   validate: (input) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.asVoid),
   execute: (api, input, context) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.flatMap((value) => options.run(api, value, context))),
 });

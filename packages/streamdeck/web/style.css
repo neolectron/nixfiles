@@ -378,6 +378,7 @@ small{
   width:100%;
   background:transparent
 }
+.test-button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .test-action p{
   font-size:12px;
   line-height:1.6;

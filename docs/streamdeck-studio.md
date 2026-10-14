@@ -38,7 +38,7 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-77 passing tests, including exact preview pixels, partial LCD composition,
+84 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.
@@ -168,4 +168,6 @@ executed `printf` and displayed **Hello depuis Effect** in the inspector. Deskto
 and 390-pixel views were inspected; the mobile page has no horizontal overflow.
 The temporary mock editor was stopped, while the real editor remains on port 3900
 with its original profile and real audio applications. All 77 Stream Deck tests,
-22 keep-awake tests and both package type checks pass.
+22 keep-awake tests and both package type checks pass. The subsequent application
+plugin increment adds seven tests (84 total) and optional OBS/Discord/voice plugins;
+see [connection requirements and verification](streamdeck-integrations.md).

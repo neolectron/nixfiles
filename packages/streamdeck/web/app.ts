@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import { HeldAction } from './held-action.ts';
 import { Effect, Fiber, Schedule } from 'effect';
 import type { ActionId, ButtonBinding, Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.ts';
@@ -38,6 +39,8 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const dirty = JSON.stringify(draft) !== saved;
   const definition = catalogue.actions.find((action) => action.id === draft.action);
+  const heldAction = selected.binding?.action === 'plugin' && catalogue.pluginActions.find((action) => selected.binding?.action === 'plugin' && action.plugin === selected.binding.parameters.plugin && action.id === selected.binding.parameters.command)?.interaction === 'hold';
+  const unavailable = !selected.binding || dirty || busy || !online || (selected.binding.action === 'plugin' && !snapshot.plugins.items.find((plugin) => selected.binding?.action === 'plugin' && plugin.id === selected.binding.parameters.plugin)?.enabled);
   useEffect(() => { onDirty(dirty || busy); }, [dirty, busy]);
   useEffect(() => {
     if (!dirty && !busy) { const next = draftOf(selected.binding, catalogue); setDraft(next); setSaved(JSON.stringify(next)); setBaseline(selected.binding); setBaselineAddress(selected.address); }
@@ -88,8 +91,8 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
       dirty && baselineAddress !== selected.address ? h('p', { className: 'error', role: 'alert' }, 'La touche a changé de page. Annule pour charger son contenu actuel.') : null,
       error ? h('p', { className: 'error', role: 'alert' }, error) : null,
     ),
-    h('div', { className: 'test-action' }, h('button', { className: 'test-button', disabled: !selected.binding || dirty || busy || !online || (selected.binding.action === 'plugin' && !snapshot.plugins.items.find((plugin) => selected.binding?.action === 'plugin' && plugin.id === selected.binding.parameters.plugin)?.enabled), onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : selected.binding?.action === 'open-folder' ? 'Ouvrir le dossier' : 'Tester l’action'),
-      h('p', {}, 'Exécute l’action enregistrée, comme un appui sur la touche.')),
+    h('div', { className: 'test-action' }, heldAction ? h(HeldAction, { key: selected.id, keyIndex: selected.index, address: selected.address, disabled: unavailable, onSnapshot, onError: (error) => setError(messageOf(error)) }) : h('button', { className: 'test-button', disabled: unavailable, onClick: test }, h(Icon, { name: 'play', size: 17 }), selected.status === 'running' ? 'Arrêter la commande' : selected.binding?.action === 'open-folder' ? 'Ouvrir le dossier' : 'Tester l’action'),
+      h('p', {}, heldAction ? 'Maintiens le bouton ou la touche Espace. Le relâchement arrête l’action.' : 'Exécute l’action enregistrée, comme un appui sur la touche.')),
     h(ShortcutOrganization, { key: selected.id, snapshot, selected, online, dirty: dirty || busy, onSnapshot }),
     selected.detail ? h('div', { className: 'command-result' }, h('h3', {}, selected.status === 'error' ? 'Échec de l’action' : selected.status === 'running' ? 'Sortie en cours' : 'Dernière sortie'), h('pre', { className: selected.status === 'error' ? 'error-output' : '' }, selected.detail)) : null,
   );
