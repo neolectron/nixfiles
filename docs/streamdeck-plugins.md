@@ -606,3 +606,19 @@ Other interfaces can consume the same services, including another model backend.
 
 Official references: [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode)
 and [available models](https://learn.chatgpt.com/docs/models).
+
+## System dark/light theme
+
+Enable **Thème système** in **Plugins**. Its **Tiles** tab exports **Sombre / clair**,
+**Mode sombre** and **Mode clair**. Drag a tile onto a key and click **Enregistrer**.
+The sun/moon icon and **CLAIR** / **SOMBRE** feedback reflect the actual system
+preference, including changes made outside Studio. Creating, editing or saving a
+tile never changes the theme; only invoking its action does.
+
+The plugin maps actions to the independent Effect `SystemAppearance` service.
+On this Niri/Noctalia desktop it changes Noctalia through its supported IPC and
+publishes the standard GNOME/desktop-portal color preference. Applications set to
+follow the system receive the change; applications with an explicit dark/light
+override keep their choice. There are no credentials or plugin-specific settings.
+Disable releases its own polling scope; shared service instances remain owned by
+their caller. No USB device is required to use its actions from Chrome.
