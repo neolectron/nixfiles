@@ -19,7 +19,7 @@ export const make = (options: Options) => Effect.gen(function*() {
     onPress: actions.press(key.index).pipe(Effect.catch((error) => Effect.logWarning(error.message))),
     onRelease: actions.release(key.index),
   }])) });
-  return { ...actions, run: binding.run };
+  return { ...actions, run: Effect.all([binding.run, Effect.forever(actions.refreshFeedback.pipe(Effect.andThen(Effect.sleep(250))))], { concurrency: 'unbounded' }) };
 });
 export type Controller = Effect.Success<ReturnType<typeof make>>;
 export class Shortcuts extends Context.Service<Shortcuts, Effect.Success<ReturnType<typeof make>>>()('@nixfiles/streamdeck/Shortcuts') {

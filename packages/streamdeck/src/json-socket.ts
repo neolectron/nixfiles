@@ -1,5 +1,5 @@
 import { NodeSocket } from '@effect/platform-node';
-import { Context, Data, Deferred, Effect, Layer, Scope, Schema } from 'effect';
+import { Context, Data, Deferred, Effect, Layer, Scope, Schema, type Duration } from 'effect';
 import { Socket } from 'effect/socket';
 
 export class IntegrationError extends Data.TaggedError('IntegrationError')<{ readonly message: string }> {}
@@ -38,11 +38,11 @@ export const requests = Effect.gen(function*() {
       const waiter = pending.get(id);
       return !waiter ? Effect.void : value instanceof IntegrationError ? Deferred.fail(waiter, value).pipe(Effect.asVoid) : Deferred.succeed(waiter, value).pipe(Effect.asVoid);
     }),
-    call: (id: string, send: Effect.Effect<void, IntegrationError>, failure: Effect.Effect<never, IntegrationError>) => Effect.gen(function*() {
+    call: (id: string, send: Effect.Effect<void, IntegrationError>, failure: Effect.Effect<never, IntegrationError>, timeout: Duration.Input = '5 seconds') => Effect.gen(function*() {
       if (pending.size >= 64) return yield* Effect.fail(new IntegrationError({ message: 'Trop de requêtes en attente.' }));
       const waiter = yield* Deferred.make<Message, IntegrationError>();
       pending.set(id, waiter);
-      return yield* send.pipe(Effect.andThen(Effect.raceFirst(Deferred.await(waiter), failure)), Effect.timeout('5 seconds'), Effect.mapError((error) => error instanceof IntegrationError ? error : new IntegrationError({ message: 'Requête refusée, connexion perdue ou délai dépassé.' })), Effect.ensuring(Effect.sync(() => { pending.delete(id); })));
+      return yield* send.pipe(Effect.andThen(Effect.raceFirst(Deferred.await(waiter), failure)), Effect.timeout(timeout), Effect.mapError((error) => error instanceof IntegrationError ? error : new IntegrationError({ message: 'Requête refusée, connexion perdue ou délai dépassé.' })), Effect.ensuring(Effect.sync(() => { pending.delete(id); })));
     }),
   };
 });

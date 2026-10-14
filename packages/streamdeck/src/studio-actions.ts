@@ -7,6 +7,7 @@ import * as Layout from './studio-layout.ts';
 import type { Device } from './stream-deck.ts';
 import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.ts';
+import type { KeyFeedback } from './key-feedback.ts';
 
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A>(run: () => A) => Effect.try({ try: run, catch: (error) => invalid(error instanceof Error ? error.message : 'Organisation invalide.') });
@@ -23,11 +24,11 @@ export const catalogue: ReadonlyArray<ActionDefinition> = [
   { id: 'go-back', name: 'Retour', description: 'Revient au dossier ou à la page précédente de cette zone.', defaults: {}, schema: Schema.toJsonSchemaDocument(actionParameters['go-back']), fields: [] },
   ...(['page-previous', 'page-next'] as const).map((id) => ({ id, name: id === 'page-next' ? 'Page suivante' : 'Page précédente', description: 'Change uniquement la page de la zone ciblée.', defaults: { target: 'current' }, schema: Schema.toJsonSchemaDocument(actionParameters[id]), fields: [{ key: 'target', label: 'Zone à paginer', kind: 'zone' as const, hint: 'Fixe cette touche pour la garder sur toutes les pages.' }] })),
 ];
-export interface KeyState { readonly count: number; readonly status: BindingStatus; readonly detail: string }
+export interface KeyState { readonly count: number; readonly status: BindingStatus; readonly detail: string; readonly feedback?: KeyFeedback | null }
 const emptyState: KeyState = { count: 0, status: 'idle', detail: '' };
 
 /** One scoped owner for stable shortcuts, navigation, persistence and execution. */
-export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>, pluginActions?: { validate: (plugin: string, command: string, input: unknown) => Effect.Effect<void, StudioError>; invoke: (plugin: string, command: string, input: unknown, context?: import('./plugin.ts').Invocation) => Effect.Effect<unknown, StudioError> }) => Effect.gen(function*() {
+export const make = (deck: Device, profileFile: string, applications: ReadonlyArray<ApplicationEntry>, audioPage?: (direction: number) => Effect.Effect<void, StudioError>, pluginActions?: { validate: (plugin: string, command: string, input: unknown) => Effect.Effect<void, StudioError>; invoke: (plugin: string, command: string, input: unknown, context?: import('./plugin.ts').Invocation) => Effect.Effect<unknown, StudioError>; feedback?: (plugin: string, command: string, input: unknown) => Effect.Effect<KeyFeedback | null> }) => Effect.gen(function*() {
   const scope = yield* Effect.scope;
   const fs = yield* FileSystem.FileSystem; const path = yield* Path.Path;
   const commands = pluginActions ? undefined : yield* Commands.make(applications); const crypto = yield* Crypto.Crypto;
@@ -43,13 +44,15 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   yield* checked(() => Layout.validate(loaded, deviceKeys));
   const model = yield* Ref.make({ profile: loaded, navigation: {} as Layout.Navigation, revision: 0 });
   const states = yield* Ref.make<ReadonlyMap<string, KeyState>>(new Map());
+  const feedbacks = yield* Ref.make<ReadonlyMap<string, KeyFeedback | null>>(new Map());
+  let feedbackReady = false;
   const jobs = new Map<string, Fiber.Fiber<void, never>>(); const painted = new Map<number, string>();
   const releases = new Map<number, { readonly waiter: Deferred.Deferred<void>; readonly address: string }>();
   const stateFor = (entry: Entry | null, all: ReadonlyMap<string, KeyState>) => entry ? all.get(entry.id) ?? { ...emptyState, count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0 } : emptyState;
   const view = Effect.gen(function*() {
-    const current = yield* Ref.get(model); const all = yield* Ref.get(states);
+    const current = yield* Ref.get(model); const all = yield* Ref.get(states); const feedback = yield* Ref.get(feedbacks);
     const projection = Layout.project(current.profile, current.navigation, current.revision);
-    return { layout: projection.layout, keys: new Map([...projection.keys].map(([key, slot]) => [key, { ...slot, state: stateFor(slot.entry, all) }])) };
+    return { layout: projection.layout, keys: new Map([...projection.keys].map(([key, slot]) => [key, { ...slot, state: { ...stateFor(slot.entry, all), feedback: slot.entry ? feedback.get(slot.entry.id) ?? null : null } }])) };
   });
   const validateKey = (key: number) => deviceKeys.includes(key) ? Effect.void : Effect.fail(invalid('Cette touche n’existe pas sur le deck.'));
   const currentKey = (key: number, address?: string) => Effect.gen(function*() {
@@ -58,13 +61,16 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     return slot;
   });
   const paint = (key: number, entry: Entry | null, state: KeyState) => Effect.gen(function*() {
-    const stamp = JSON.stringify([entry, state.count, state.status]); if (painted.get(key) === stamp) return;
+    const binding = entry?.binding;
+    const feedback = feedbackReady && binding?.action === 'plugin' && pluginActions?.feedback ? yield* pluginActions.feedback(binding.parameters.plugin, binding.parameters.command, binding.parameters.input) : null;
+    const stamp = JSON.stringify([entry, state.count, state.status, feedback]); if (painted.get(key) === stamp) return;
     if (!entry) yield* deck.key(key).clear;
     else {
       const size = deck.buttons.find((button) => button.index === key)!.pixelSize!;
-      yield* deck.key(key).setImage(yield* renderer.rgb(createElement(KeyCard, { ...size, label: entry.binding.label, action: entry.binding.action, count: state.count, status: state.status }), size));
+      yield* deck.key(key).setImage(yield* renderer.rgb(createElement(KeyCard, { ...size, label: entry.binding.label, action: entry.binding.action, count: state.count, status: state.status, feedback }), size));
     }
     painted.set(key, stamp);
+    if (entry) yield* Ref.update(feedbacks, (before) => new Map([...before, [entry.id, feedback]]));
   });
   const repaint = (zone?: string, initial = false) => Effect.gen(function*() {
     for (const [key, slot] of (yield* view).keys) if ((!zone || slot.zone === zone) && (!initial || slot.entry)) yield* paint(key, slot.entry, slot.state);
@@ -189,10 +195,11 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     }));
   });
   yield* repaint(undefined, stored?.version !== 2);
+  feedbackReady = true;
   const release = (key: number, address?: string) => Effect.suspend(() => {
     const pending = releases.get(key); if (!pending || (address !== undefined && address !== pending.address)) return Effect.void;
     releases.delete(key); return Deferred.succeed(pending.waiter, undefined).pipe(Effect.asVoid);
   });
   return { profile: Effect.map(Ref.get(model), (model) => model.profile), states: Effect.map(view, (view) => new Map([...view.keys].map(([key, slot]) => [key, slot.state]))),
-    entryStates: Ref.get(states), view, save, press, release, cancel, organize, navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
+    entryStates: Ref.get(states), view, save, press, release, cancel, organize, refreshFeedback: Semaphore.withPermits(lock, 1)(Effect.gen(function*() { for (const [key, slot] of (yield* view).keys) if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state); })), navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
 });

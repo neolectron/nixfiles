@@ -2,6 +2,7 @@ import { Data, Effect, Result, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
 import { Catalogue, Snapshot, type ButtonBinding, type Navigate, type Organize } from '../src/studio-contract.ts';
+import type { AppInput } from '../src/discord-contract.ts';
 
 class RequestError extends Data.TaggedError('RequestError')<{ readonly message: string }> {}
 /** Preserve domain errors at the React boundary instead of displaying FiberFailure stack traces. */
@@ -27,6 +28,8 @@ export const organize = (command: Organize) => json('/api/organize', 'POST', com
 export const navigate = (command: Navigate) => json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const setPlugin = (id: string, enabled: boolean, expected: boolean) => json('/api/plugin', 'POST', { id, enabled, expected }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const page = (direction: number) => json('/api/page', 'POST', { direction }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const configureDiscord = (input: typeof AppInput.Type) => json('/api/discord/connection', 'PUT', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const authorizeDiscord = json('/api/discord/authorize', 'POST').pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 
 /** Browser fetch/SSE, schema validation, reconnection and cancellation all use Effect. */
 export const observe = (onSnapshot: (snapshot: Snapshot) => void, onOffline: () => void) => Effect.scoped(

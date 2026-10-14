@@ -198,3 +198,29 @@ renderer, immutable cache copies and `stats` for local diagnosis. The studio’s
 `rendererStats` exposes renders/hits/cache usage. Schema/action catalogues refresh
 on a new server session. Shared backend HMR reloads wait for Vite’s readiness
 reconnection, while browser-only modules keep normal updates.
+
+## Live action feedback
+
+An action can expose cached service state independently of its execution:
+
+```ts
+Plugin.action({
+  id: 'mute', name: 'Mute', description: 'Toggle application mute.',
+  input: Plugin.NoInput, defaults: {},
+  run: (api: AudioController) => api.toggleMute,
+  feedback: (api) => Effect.map(api.state, (state) => ({
+    text: state.muted ? 'COUPÉ' : 'ACTIF',
+    tone: state.muted ? 'danger' : 'positive',
+    icon: 'microphone',
+  })),
+  unavailable: { text: 'HORS LIGNE', tone: 'neutral', icon: 'microphone' },
+});
+```
+
+`feedback` uses the same decoded Schema input as `run`, executes in the current
+plugin activation scope, and returns `KeyFeedback` (`text`, `tone`, `icon`).
+Keep it a cheap read of cached state; connect external events or polling in the
+service Layer/run fiber. The shortcut host refreshes visible plugin bindings every
+250 ms, validates feedback and coalesces unchanged rendered frames. Disabled,
+failed or unavailable services show the declared fallback. The same `KeyCard`
+React component drives physical pixels and web preview.

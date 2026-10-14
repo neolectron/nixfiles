@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Schema, Stream, type Scope } from 'effect';
 import type { Device, StreamDeck } from './stream-deck.ts';
+import type { KeyFeedback } from './key-feedback.ts';
 
 export interface Controls {
   readonly keys?: ReadonlyArray<number>;
@@ -53,15 +54,21 @@ export interface Action<Api> {
   readonly info: ActionInfo;
   readonly validate: (input: unknown) => Effect.Effect<void, unknown>;
   readonly execute: (api: Api, input: unknown, context: Invocation) => Effect.Effect<unknown, unknown, StreamDeck | Scope.Scope>;
+  readonly feedback?: (api: Api, input: unknown) => Effect.Effect<KeyFeedback, unknown, StreamDeck | Scope.Scope>;
+  readonly unavailable?: KeyFeedback;
 }
 /** Schema is the single source for decoded input, browser fields and runtime validation. */
 export const action = <Api, Input, Encoded, E>(options: {
   readonly id: string; readonly name: string; readonly description: string;
   readonly input: Schema.Codec<Input, Encoded>; readonly defaults: Encoded;
   readonly interaction?: 'press' | 'hold';
+  readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, StreamDeck | Scope.Scope>;
+  readonly unavailable?: KeyFeedback;
   readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, StreamDeck | Scope.Scope>;
 }): Action<Api> => ({
   info: { id: options.id, name: options.name, description: options.description, schema: Schema.toJsonSchemaDocument(options.input), defaults: options.defaults, interaction: options.interaction ?? 'press' },
   validate: (input) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.asVoid),
   execute: (api, input, context) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.flatMap((value) => options.run(api, value, context))),
+  ...(options.feedback ? { feedback: (api: Api, input: unknown) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.flatMap((value) => options.feedback!(api, value))) } : {}),
+  ...(options.unavailable ? { unavailable: options.unavailable } : {}),
 });

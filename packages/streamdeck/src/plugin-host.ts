@@ -1,9 +1,10 @@
-import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Scope, Semaphore, Stream } from 'effect';
+import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Scope, Schema, Semaphore, Stream } from 'effect';
 import { invalid } from './errors.ts';
 import { StreamDeck, type Device } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
 import type { ActionInfo, Invocation, Controls, Definition } from './plugin.ts';
 import { failureMessage } from './failure-message.ts';
+import { KeyFeedback } from './key-feedback.ts';
 
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string; readonly message: string; readonly status: number;
@@ -45,7 +46,7 @@ const ownedDevice = (deck: Device, controls: Controls, active: () => boolean): D
 
 export const make = Effect.gen(function*() {
   const deck = yield* StreamDeck; const owner = yield* Effect.scope; const lock = yield* Semaphore.make(1);
-  type Record = { status: Status; set: (enabled: boolean) => Effect.Effect<void, PluginError>; stop: Effect.Effect<void>; actions: ReadonlyArray<ActionInfo>; validate: (action: string, input: unknown) => Effect.Effect<void, PluginError>; invoke: (action: string, input: unknown, context: Invocation) => Effect.Effect<unknown, PluginError> };
+  type Record = { status: Status; set: (enabled: boolean) => Effect.Effect<void, PluginError>; stop: Effect.Effect<void>; actions: ReadonlyArray<ActionInfo>; validate: (action: string, input: unknown) => Effect.Effect<void, PluginError>; invoke: (action: string, input: unknown, context: Invocation) => Effect.Effect<unknown, PluginError>; feedback?: (action: string, input: unknown) => Effect.Effect<KeyFeedback | null> };
   const records = new Map<string, Record>(); let revision = 0;
   const locked = <A, E, R>(effect: Effect.Effect<A, E, R>) => Semaphore.withPermits(lock, 1)(effect);
   const clear = (controls: Controls) => Effect.forEach([
@@ -123,12 +124,18 @@ export const make = Effect.gen(function*() {
         if (Exit.isFailure(result)) return yield* Effect.fail(error(definition.id, 'Failed', failureMessage(result.cause)));
         return result.value;
       });
+      record.feedback = (id, input) => Effect.suspend(() => {
+        const action = declared.find((action) => action.info.id === id);
+        if (!action?.feedback) return Effect.succeed(null);
+        return handle.use((api) => action.feedback!(api, input)).pipe(Effect.flatMap(Schema.decodeUnknownEffect(KeyFeedback)), Effect.catchCause(() => Effect.succeed(action.unavailable ?? { text: 'HORS LIGNE', tone: 'neutral' as const, icon: 'plugin' as const })));
+      });
       return handle;
     }));
   });
   return { install, catalogue: Effect.sync(() => [...records.values()].flatMap((record) => record.actions.map((action) => ({ ...action, plugin: record.status.id, pluginName: record.status.name })))),
     validateAction: (plugin: string, action: string, input: unknown) => Effect.suspend(() => records.get(plugin)?.validate(action, input) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
     invoke: (plugin: string, action: string, input: unknown, context: Invocation = { output: () => Effect.void }) => Effect.suspend(() => records.get(plugin)?.invoke(action, input, context) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
+    feedback: (plugin: string, action: string, input: unknown) => Effect.suspend(() => records.get(plugin)?.feedback?.(action, input) ?? Effect.succeed(null)),
     snapshot: Effect.sync(() => ({ revision, items: [...records.values()].map((record) => record.status) })),
     // Run lifecycle changes outside the plugin being stopped, including self-disable.
     setEnabled: (id: string, enabled: boolean) => Effect.flatMap(Effect.forkIn(locked(Effect.suspend(() => records.get(id)?.set(enabled) ?? Effect.fail(error(id, 'Unknown', 'Plugin introuvable.')))), owner), Fiber.join) };
