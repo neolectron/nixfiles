@@ -163,6 +163,13 @@ use that same service while keeping their saved bindings and familiar fields.
 It owns no physical controls, so it can run alongside the key and LCD plugins.
 Disabling it cancels its command processes; other key actions remain usable.
 
+OBS and Discord integrations, screen-share bridges and held voice actions are
+described in [Application plugins](streamdeck-integrations.md). These optional
+features are registered disabled; each owns its application's services, while
+Raccourcis owns the keys. No-input actions can use `Plugin.NoInput`. A held action
+declares `interaction: 'hold'` and receives `context.released`; application cleanup
+belongs in its scoped finalizer, so disable/cancel/shutdown also stop it.
+
 ## A source-to-view plugin in a few lines
 
 ```ts

@@ -17,6 +17,7 @@ export const make = (options: Options) => Effect.gen(function*() {
   const actions = yield* Actions.make(deck, options.profile, options.applications, options.audioPage, options.pluginActions);
   const binding = yield* Bindings.start({ buttons: Object.fromEntries(deck.buttons.map((key) => [key.index, {
     onPress: actions.press(key.index).pipe(Effect.catch((error) => Effect.logWarning(error.message))),
+    onRelease: actions.release(key.index),
   }])) });
   return { ...actions, run: binding.run };
 });

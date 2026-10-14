@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { Crypto, Effect, Fiber, FileSystem, Path, Ref, Schema, Semaphore } from 'effect';
+import { Crypto, Deferred, Effect, Fiber, FileSystem, Path, Ref, Schema, Semaphore } from 'effect';
 import * as Commands from './plugins/commands.ts';
 import { StudioError } from './studio-errors.ts';
 import { ButtonBinding, Profile, StoredProfile, actionParameters, type ActionDefinition, type ApplicationEntry, type BindingStatus, type Entry, type Navigate, type Organize } from './studio-contract.ts';
@@ -44,6 +44,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   const model = yield* Ref.make({ profile: loaded, navigation: {} as Layout.Navigation, revision: 0 });
   const states = yield* Ref.make<ReadonlyMap<string, KeyState>>(new Map());
   const jobs = new Map<string, Fiber.Fiber<void, never>>(); const painted = new Map<number, string>();
+  const releases = new Map<number, { readonly waiter: Deferred.Deferred<void>; readonly address: string }>();
   const stateFor = (entry: Entry | null, all: ReadonlyMap<string, KeyState>) => entry ? all.get(entry.id) ?? { ...emptyState, count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0 } : emptyState;
   const view = Effect.gen(function*() {
     const current = yield* Ref.get(model); const all = yield* Ref.get(states);
@@ -149,6 +150,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
   }));
   const press = (key: number, address?: string) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     const slot = yield* currentKey(key, address); const entry = slot.entry; if (!entry) return;
+    if (releases.has(key)) return yield* Effect.fail(invalid('Relâche d’abord l’action en cours sur cette touche.', 409));
     const binding = entry.binding; const state = slot.state;
     if (binding.action === 'open-folder') return yield* navigateUnlocked({ zone: !binding.parameters.target || binding.parameters.target === 'current' ? slot.zone : binding.parameters.target, operation: 'open', folder: binding.parameters.folder });
     if (binding.action === 'go-back') return yield* navigateUnlocked({ zone: slot.zone, operation: 'back' });
@@ -160,11 +162,12 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     if (state.status === 'running') return yield* Effect.fail(invalid('Cette commande est déjà en cours.', 409));
     if (binding.action === 'counter') { yield* setState(entry.id, { ...state, count: state.count + 1, status: 'success' }); yield* paintEntry(entry.id); return; }
     yield* setState(entry.id, { ...state, status: 'running', detail: '' }); yield* paintEntry(entry.id);
+    const released = yield* Deferred.make<void>(); releases.set(key, { waiter: released, address: slot.address });
     const job = Effect.scoped(Effect.gen(function*() {
       const output = (text: string) => Ref.update(states, (all) => {
         const current = all.get(entry.id) ?? state; return new Map([...all, [entry.id, { ...current, detail: (current.detail + text).slice(-4096) }]]);
       });
-      const context = { output };
+      const context = { output, released: Deferred.await(released) };
       const result = binding.action === 'plugin'
         ? yield* pluginActions?.invoke(binding.parameters.plugin, binding.parameters.command, binding.parameters.input, context) ?? Effect.fail(invalid('Les actions de plugins ne sont pas disponibles.'))
         : pluginActions ? yield* pluginActions.invoke('commands', binding.action, binding.parameters, context) : yield* commands!.run(binding.action, binding.parameters, output);
@@ -173,7 +176,7 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     })).pipe(Effect.matchEffect({
       onSuccess: () => Semaphore.withPermits(lock, 1)(Effect.gen(function*() { const current = (yield* Ref.get(states)).get(entry.id) ?? state; yield* setState(entry.id, { ...current, status: 'success' }); yield* paintEntry(entry.id); })),
       onFailure: (error) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() { const current = (yield* Ref.get(states)).get(entry.id) ?? state; yield* setState(entry.id, { ...current, status: 'error', detail: `${current.detail}\n${error.message}`.trim().slice(-4096) }); yield* paintEntry(entry.id); })),
-    }), Effect.catch((error) => Effect.logError('Action feedback failed', error)));
+    }), Effect.catch((error) => Effect.logError('Action feedback failed', error)), Effect.ensuring(Effect.sync(() => { if (releases.get(key)?.waiter === released) releases.delete(key); })));
     jobs.set(entry.id, yield* Effect.forkIn(job, scope));
   }));
   const cancel = (key: number, address?: string) => Effect.gen(function*() {
@@ -186,6 +189,10 @@ export const make = (deck: Device, profileFile: string, applications: ReadonlyAr
     }));
   });
   yield* repaint(undefined, stored?.version !== 2);
+  const release = (key: number, address?: string) => Effect.suspend(() => {
+    const pending = releases.get(key); if (!pending || (address !== undefined && address !== pending.address)) return Effect.void;
+    releases.delete(key); return Deferred.succeed(pending.waiter, undefined).pipe(Effect.asVoid);
+  });
   return { profile: Effect.map(Ref.get(model), (model) => model.profile), states: Effect.map(view, (view) => new Map([...view.keys].map(([key, slot]) => [key, slot.state]))),
-    entryStates: Ref.get(states), view, save, press, cancel, organize, navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
+    entryStates: Ref.get(states), view, save, press, release, cancel, organize, navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)) };
 });

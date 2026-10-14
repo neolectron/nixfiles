@@ -38,11 +38,13 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
   yield* host.install(Commands.plugin(applications));
   const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))) } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
-  yield* (options.configurePlugins ?? PersonalPlugins.configure)(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  if (options.configurePlugins) yield* options.configurePlugins(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
   const actions = {
     save: (...args: Parameters<Shortcuts.Controller['save']>) => shortcuts.use((api) => api.save(...args)),
     press: (...args: Parameters<Shortcuts.Controller['press']>) => shortcuts.use((api) => api.press(...args)),
+    release: (...args: Parameters<Shortcuts.Controller['release']>) => shortcuts.use((api) => api.release(...args)),
     cancel: (...args: Parameters<Shortcuts.Controller['cancel']>) => shortcuts.use((api) => api.cancel(...args)),
     organize: (...args: Parameters<Shortcuts.Controller['organize']>) => shortcuts.use((api) => api.organize(...args)),
     navigate: (...args: Parameters<Shortcuts.Controller['navigate']>) => shortcuts.use((api) => api.navigate(...args)),
@@ -144,6 +146,11 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
     const request = yield* HttpServerRequest.HttpServerRequest;
     const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Trigger, { onExcessProperty: 'error' })));
     yield* controller.actions.press(body.key, body.address); return json(yield* controller.snapshot);
+  })));
+  yield* router.add('POST', '/api/release', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Trigger, { onExcessProperty: 'error' })));
+    yield* controller.actions.release(body.key, body.address); return json(yield* controller.snapshot);
   })));
   yield* router.add('POST', '/api/page', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;

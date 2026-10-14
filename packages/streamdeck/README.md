@@ -409,3 +409,8 @@ fields from that same schema and the backend validates before saving/executing.
 React feedback with latest-frame coalescing. The studio shares one cached renderer
 across plugins; standalone scripts retain their own fallback. See the plugin
 guide for streaming action output and cancellation semantics.
+
+Optional OBS, Discord and push-to-talk plugins are now registered in the studio.
+They start disabled and require their corresponding service/bridge configuration.
+See [Application plugins](../../docs/streamdeck-integrations.md) for real connection
+requirements, held actions and replacing `VoiceTarget` with your own Effect Layer.

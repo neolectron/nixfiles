@@ -69,7 +69,7 @@ export const Catalogue = Schema.Struct({
     fields: Schema.Array(Schema.Struct({ key: Schema.String, label: Schema.String, kind: Schema.Literals(['text', 'number', 'arguments', 'app', 'folder', 'zone']), hint: Schema.String })),
     defaults: Schema.Record(Schema.String, Schema.Unknown), schema: Schema.Unknown,
   })),
-  pluginActions: Schema.Array(Schema.Struct({ plugin: Schema.String, pluginName: Schema.String, id: Schema.String, name: Schema.String, description: Schema.String, schema: Schema.Unknown, defaults: Schema.Unknown })),
+  pluginActions: Schema.Array(Schema.Struct({ plugin: Schema.String, pluginName: Schema.String, id: Schema.String, name: Schema.String, description: Schema.String, schema: Schema.Unknown, defaults: Schema.Unknown, interaction: Schema.Literals(['press', 'hold']) })),
   applications: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
 });
 export type Catalogue = typeof Catalogue.Type;
