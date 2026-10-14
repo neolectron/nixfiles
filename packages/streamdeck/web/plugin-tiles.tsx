@@ -47,8 +47,11 @@ function PaletteTile({
         type="button"
         title={action.description}
         aria-label={action.name}
-        disabled={busy || !canChoose}
-        onClick={() => onChoose(action)}
+        disabled={busy}
+        {...handlers}
+        onClick={() => {
+          if (canChoose) onChoose(action);
+        }}
       >
         <TileFace action={action} />
       </button>

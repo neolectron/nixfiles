@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 
 const underPointer = (event: PointerEvent<HTMLButtonElement>) => {
   const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-deck-slot]');
@@ -21,6 +21,8 @@ export function useTileDrag({
   readonly onTarget: (index: number | null) => void;
 }) {
   const pointer = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
+  // Keep this through pointer-up/cancellation: browsers can emit a click after a drag.
+  const suppressClick = useRef(false);
   const callbacks = useRef({ onDrop, onTarget });
   callbacks.current = { onDrop, onTarget };
   const target = useRef<number | null>(null);
@@ -56,6 +58,7 @@ export function useTileDrag({
     handlers: {
       onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
         if (disabled || event.button !== 0 || !event.isPrimary) return;
+        suppressClick.current = false;
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
         pointer.current = {
@@ -71,6 +74,7 @@ export function useTileDrag({
         if (!current.moving && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6)
           return;
         current.moving = true;
+        suppressClick.current = true;
         setPreview({ x: event.clientX, y: event.clientY });
         hover(underPointer(event));
       },
@@ -83,6 +87,12 @@ export function useTileDrag({
       },
       onPointerCancel: clear,
       onLostPointerCapture: clear,
+      onClickCapture: (event: MouseEvent<HTMLButtonElement>) => {
+        if (!suppressClick.current || event.detail === 0) return;
+        suppressClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      },
     },
   };
 }
