@@ -283,6 +283,13 @@ export const LcdTap = Schema.Struct({
   application: Schema.NonEmptyString,
   page: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
+export const DialInput = Schema.Struct({
+  dial: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  delta: Schema.Int.check(Schema.isGreaterThanOrEqualTo(-20), Schema.isLessThanOrEqualTo(20)),
+  application: Schema.NullOr(Schema.String),
+  page: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  sessionId: Schema.NonEmptyString,
+});
 const PluginStatus = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -342,6 +349,7 @@ export const Snapshot = Schema.Struct({
       volume: Schema.NullOr(Schema.Number),
       muted: Schema.Boolean,
       pressed: Schema.Boolean,
+      rotationSteps: Schema.Int,
       master: Schema.Boolean,
       x: Schema.Number,
       width: Schema.Number,

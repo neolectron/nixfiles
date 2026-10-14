@@ -34,6 +34,7 @@ import * as Actions from '../studio-actions.tsx';
 import { StudioError } from '../studio-errors.ts';
 import {
   KeyInput,
+  DialInput,
   LcdTap,
   Navigate,
   Organize,
@@ -101,8 +102,9 @@ export const startStudio = (options: {
     const input = yield* Ref.make<{
       readonly pressed: ReadonlySet<number>;
       readonly pressedDials: ReadonlySet<number>;
+      readonly dialRotations: ReadonlyMap<number, number>;
       readonly sequence: number;
-    }>({ pressed: new Set(), pressedDials: new Set(), sequence: 0 });
+    }>({ pressed: new Set(), pressedDials: new Set(), dialRotations: new Map(), sequence: 0 });
     const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
     const heldKeys = new Map<string, number>();
     const heldDials = new Map<string, number>();
@@ -254,8 +256,20 @@ export const startStudio = (options: {
             if (event._tag === 'KeyDown' || event._tag === 'DialDown') held.set(channel, index);
             else held.delete(channel);
             yield* Ref.update(input, (before) => ({
+              ...before,
               pressed: new Set(heldKeys.values()),
               pressedDials: new Set(heldDials.values()),
+              sequence: before.sequence + 1,
+            }));
+            yield* PubSub.publish(inputViews, yield* readSnapshot);
+          }
+          if (event._tag === 'DialRotate') {
+            yield* Ref.update(input, (before) => ({
+              ...before,
+              dialRotations: new Map(before.dialRotations).set(
+                event.dial,
+                (before.dialRotations.get(event.dial) ?? 0) + event.delta,
+              ),
               sequence: before.sequence + 1,
             }));
             yield* PubSub.publish(inputViews, yield* readSnapshot);
@@ -314,6 +328,7 @@ export const startStudio = (options: {
             volume: app?.volume ?? null,
             muted: app?.muted ?? false,
             pressed: inputView.pressedDials.has(slot.dial),
+            rotationSteps: inputView.dialRotations.get(slot.dial) ?? 0,
             master,
             x: slot.x,
             width: slot.width,
@@ -457,6 +472,27 @@ export const startStudio = (options: {
     return {
       snapshot: readSnapshot,
       keyInput,
+      dialInput: (body: typeof DialInput.Type) =>
+        Effect.gen(function* () {
+          const view = yield* readSnapshot;
+          const dial = view.dials.find((candidate) => candidate.index === body.dial);
+          if (!dial) return yield* new StudioError({ status: 400, message: 'Potard inconnu.' });
+          if (
+            body.sessionId !== sessionId ||
+            body.application !== dial.key ||
+            (!dial.master && body.page !== view.page)
+          )
+            return yield* new StudioError({
+              status: 409,
+              message: 'L’affectation du potard a changé. Recommence le geste.',
+            });
+          yield* events.emit({
+            _tag: 'DialRotate',
+            dial: body.dial,
+            delta: body.delta,
+            origin: { source: 'web', address: body.application ?? '', revision: body.page },
+          });
+        }),
       applications,
       actions,
       preview,
@@ -510,6 +546,20 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
         }),
       );
     yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+    yield* router.add(
+      'POST',
+      '/api/dial-input',
+      mutate(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const input = yield* request.json.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(DialInput, { onExcessProperty: 'error' })),
+          );
+          yield* controller.dialInput(input);
+          return json(yield* controller.snapshot);
+        }),
+      ),
+    );
     yield* router.add(
       'POST',
       '/api/lcd-tap',

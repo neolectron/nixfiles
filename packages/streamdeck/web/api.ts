@@ -7,6 +7,7 @@ import {
   type ButtonBinding,
   type Navigate,
   type Organize,
+  type DialInput,
 } from '../src/studio-contract.ts';
 import type { AppInput } from '@nixfiles/system-control/discord-contract.ts';
 class RequestError extends Data.TaggedError('RequestError')<{
@@ -44,6 +45,8 @@ const json = (path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unkno
       return result;
     }),
   ).pipe(Effect.provide(FetchHttpClient.layer));
+export const dialInput = (input: typeof DialInput.Type) =>
+  json('/api/dial-input', 'POST', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const catalogue = json('/api/catalogue').pipe(
   Effect.flatMap(Schema.decodeUnknownEffect(Catalogue)),
 );

@@ -39,7 +39,7 @@ function DeckCell({
   onSnapshot: (snapshot: Snapshot) => void;
   onError: (error: unknown) => void;
   cellProps: HTMLAttributes<HTMLDivElement> & { 'data-deck-slot': number };
-  dragHandlers: HTMLAttributes<HTMLSpanElement>;
+  dragHandlers: HTMLAttributes<HTMLButtonElement>;
   dragHandle: boolean;
   children: ReactNode;
 }) {
@@ -75,17 +75,31 @@ function DeckCell({
       >
         {children}
       </button>
-      <span
-        className={`key-number${dragHandle ? ' movable' : ''}`}
-        {...dragHandlers}
-        title="Glisser pour déplacer"
-        onPointerDown={(event) => {
-          cancel();
-          dragHandlers.onPointerDown?.(event);
-        }}
-      >
-        {deckKey.index + 1}
-      </span>
+      {dragHandle ? (
+        <button
+          type="button"
+          className="key-number key-drag-handle"
+          {...dragHandlers}
+          aria-label={`Déplacer la touche ${deckKey.index + 1} · ${deckKey.binding?.label ?? ''}`}
+          aria-describedby="rearrange-help"
+          title="Glisser pour déplacer · Alt + flèches au clavier"
+          onPointerDown={(event) => {
+            cancel();
+            dragHandlers.onPointerDown?.(event);
+          }}
+        >
+          <span>{deckKey.index + 1}</span>
+          <svg width={12} height={16} viewBox="0 0 12 16" aria-hidden={true}>
+            {[3, 8, 13].flatMap((y) =>
+              [3, 9].map((x) => (
+                <circle key={`${x}/${y}`} cx={x} cy={y} r={1.25} fill="currentColor" />
+              )),
+            )}
+          </svg>
+        </button>
+      ) : (
+        <span className="key-number">{deckKey.index + 1}</span>
+      )}
       <button
         type="button"
         className="key-edit"
@@ -169,7 +183,7 @@ export function KeyGrid({
     revision: snapshot.layout.revision,
     session: snapshot.sessionId,
   });
-  const underPointer = (event: PointerEvent<HTMLSpanElement>) => {
+  const underPointer = (event: PointerEvent<HTMLButtonElement>) => {
     const slot = document
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest('[data-deck-slot]')
@@ -215,114 +229,116 @@ export function KeyGrid({
   };
   return (
     <div className="key-arrangement">
-      <div className="key-grid" aria-label="Touches" aria-busy={busy}>
-        {snapshot.keys.map((key) => (
-          <DeckCell
-            key={`${snapshot.sessionId}/${key.index}`}
-            snapshot={snapshot}
-            deckKey={key}
-            selected={selected === key.index}
-            disabled={!interactive || busy}
-            onSelect={onSelect}
-            onSnapshot={onSnapshot}
-            onError={(cause) =>
-              setError(cause instanceof Error ? cause.message : 'L’action a échoué.')
-            }
-            dragHandle={allowed && movable(key) && !!key.binding}
-            dragHandlers={{
-              onPointerDown: (event) => {
-                if (
-                  !allowed ||
-                  !movable(key) ||
-                  !key.binding ||
-                  event.button !== 0 ||
-                  !event.isPrimary
-                )
-                  return;
-                event.preventDefault();
-                event.currentTarget.setPointerCapture(event.pointerId);
-                drag.current = gesture(key);
-                pointerDrag.current = {
-                  id: event.pointerId,
-                  x: event.clientX,
-                  y: event.clientY,
-                  moving: false,
-                };
-                setError('');
-                setNotice('');
-              },
-              onPointerMove: (event) => {
-                const current = pointerDrag.current;
-                if (!current || current.id !== event.pointerId || !drag.current) return;
-                if (
-                  !current.moving &&
-                  Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6
-                )
-                  return;
-                current.moving = true;
-                setSource(drag.current.key.index);
-                const to = underPointer(event);
-                setTarget(
-                  to && movable(to) && to.index !== drag.current.key.index ? to.index : null,
-                );
-              },
-              onPointerUp: (event) => {
-                const current = pointerDrag.current;
-                const from = drag.current;
-                const to = underPointer(event);
-                if (current?.id === event.pointerId && current.moving && from && to)
-                  void exchange(from, to);
-                else clear();
-              },
-              onPointerCancel: clear,
-              onLostPointerCapture: clear,
-            }}
-            cellProps={{
-              'data-deck-slot': key.index,
-              className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index ? ' drop-target' : ''}`,
-              onKeyDown: (event) => {
-                if (
-                  !allowed ||
-                  !movable(key) ||
-                  !key.binding ||
-                  !event.altKey ||
-                  event.ctrlKey ||
-                  event.metaKey ||
-                  event.shiftKey
-                )
-                  return;
-                const offset = {
-                  ArrowLeft: [0, -1],
-                  ArrowRight: [0, 1],
-                  ArrowUp: [-1, 0],
-                  ArrowDown: [1, 0],
-                }[event.key];
-                if (!offset) return;
-                event.preventDefault();
-                const to = snapshot.keys.find(
-                  (item) =>
-                    item.row === key.row + invariant(offset[0], 'key-grid') &&
-                    item.column === key.column + invariant(offset[1], 'key-grid'),
-                );
-                if (to) void exchange(gesture(key), to);
-              },
-            }}
-          >
-            {key.revision ? (
-              <img
-                src={`/api/image/key/${key.index}?session=${snapshot.sessionId}&revision=${key.revision}`}
-                alt=""
-                draggable={false}
-              />
-            ) : (
-              empty
-            )}
-          </DeckCell>
-        ))}
+      <div className="key-grid-scroll">
+        <div className="key-grid" aria-label="Touches" aria-busy={busy}>
+          {snapshot.keys.map((key) => (
+            <DeckCell
+              key={`${snapshot.sessionId}/${key.index}`}
+              snapshot={snapshot}
+              deckKey={key}
+              selected={selected === key.index}
+              disabled={!interactive || busy}
+              onSelect={onSelect}
+              onSnapshot={onSnapshot}
+              onError={(cause) =>
+                setError(cause instanceof Error ? cause.message : 'L’action a échoué.')
+              }
+              dragHandle={allowed && movable(key) && !!key.binding}
+              dragHandlers={{
+                onPointerDown: (event) => {
+                  if (
+                    !allowed ||
+                    !movable(key) ||
+                    !key.binding ||
+                    event.button !== 0 ||
+                    !event.isPrimary
+                  )
+                    return;
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  drag.current = gesture(key);
+                  pointerDrag.current = {
+                    id: event.pointerId,
+                    x: event.clientX,
+                    y: event.clientY,
+                    moving: false,
+                  };
+                  setError('');
+                  setNotice('');
+                },
+                onPointerMove: (event) => {
+                  const current = pointerDrag.current;
+                  if (!current || current.id !== event.pointerId || !drag.current) return;
+                  if (
+                    !current.moving &&
+                    Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6
+                  )
+                    return;
+                  current.moving = true;
+                  setSource(drag.current.key.index);
+                  const to = underPointer(event);
+                  setTarget(
+                    to && movable(to) && to.index !== drag.current.key.index ? to.index : null,
+                  );
+                },
+                onPointerUp: (event) => {
+                  const current = pointerDrag.current;
+                  const from = drag.current;
+                  const to = underPointer(event);
+                  if (current?.id === event.pointerId && current.moving && from && to)
+                    void exchange(from, to);
+                  else clear();
+                },
+                onPointerCancel: clear,
+                onLostPointerCapture: clear,
+              }}
+              cellProps={{
+                'data-deck-slot': key.index,
+                className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index ? ' drop-target' : ''}`,
+                onKeyDown: (event) => {
+                  if (
+                    !allowed ||
+                    !movable(key) ||
+                    !key.binding ||
+                    !event.altKey ||
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.shiftKey
+                  )
+                    return;
+                  const offset = {
+                    ArrowLeft: [0, -1],
+                    ArrowRight: [0, 1],
+                    ArrowUp: [-1, 0],
+                    ArrowDown: [1, 0],
+                  }[event.key];
+                  if (!offset) return;
+                  event.preventDefault();
+                  const to = snapshot.keys.find(
+                    (item) =>
+                      item.row === key.row + invariant(offset[0], 'key-grid') &&
+                      item.column === key.column + invariant(offset[1], 'key-grid'),
+                  );
+                  if (to) void exchange(gesture(key), to);
+                },
+              }}
+            >
+              {key.revision ? (
+                <img
+                  src={`/api/image/key/${key.index}?session=${snapshot.sessionId}&revision=${key.revision}`}
+                  alt=""
+                  draggable={false}
+                />
+              ) : (
+                empty
+              )}
+            </DeckCell>
+          ))}
+        </div>
       </div>
       <p id="rearrange-help" className="rearrange-help">
         {disabledReason ??
-          'Glisse le numéro d’une touche pour la déplacer. Une case occupée échange les raccourcis. Au clavier : Alt + flèches.'}
+          'Glisse la poignée à six points pour déplacer une touche. Une case occupée échange les raccourcis. Au clavier : Alt + flèches.'}
       </p>
       {busy || notice ? (
         <p className="rearrange-status" role="status">

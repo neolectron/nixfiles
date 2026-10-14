@@ -8,7 +8,7 @@ import {
 import * as Bindings from '../bindings.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import { StreamDeckError, invariant } from '../errors.ts';
-import type { Control, DialRotate, Position, Size } from '../model.ts';
+import type { Control, DialRotate, InputOrigin, Position, Size } from '../model.ts';
 import * as Display from '../mixer-renderer.ts';
 import { volumeColor } from '../volume-gauge.ts';
 import * as Plugin from '../plugin.ts';
@@ -275,7 +275,7 @@ export const make = (options: MixerOptions = {}) =>
         });
       }),
     );
-    const enqueue = (dial: number, delta: number, toggles: number) =>
+    const enqueue = (dial: number, delta: number, toggles: number, origin?: InputOrigin) =>
       Semaphore.withPermits(
         screen,
         1,
@@ -301,6 +301,12 @@ export const make = (options: MixerOptions = {}) =>
           const slot = appSlots.findIndex((candidateSlot) => candidateSlot.dial === dial);
           const key = slot < 0 ? undefined : view.assignments[view.page * appSlots.length + slot];
           if (!key) return;
+          if (
+            origin &&
+            ((origin.revision !== undefined && origin.revision !== view.page) ||
+              (origin.address !== undefined && origin.address !== key))
+          )
+            return;
           yield* Ref.update(pending, (changes) => {
             const next = new Map(changes);
             const previous = next.get(key) ?? { delta: 0, toggles: 0 };
@@ -385,7 +391,8 @@ export const make = (options: MixerOptions = {}) =>
         slots.map((slot) => [
           slot.dial,
           {
-            onRotate: ({ delta }: DialRotate) => enqueue(slot.dial, delta * step, 0),
+            onRotate: ({ delta, origin }: DialRotate) =>
+              enqueue(slot.dial, delta * step, 0, origin),
             onPress: enqueue(slot.dial, 0, 1),
           },
         ]),
