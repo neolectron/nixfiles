@@ -1006,8 +1006,17 @@ button.zone-edit-link {
 
 .deck-title {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  min-width: 0;
+}
+.deck-title > .status-dot {
+  margin-top: 10px;
+}
+.deck-title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 .deck-title h1 {
@@ -1051,12 +1060,7 @@ button.zone-edit-link {
   .deck-title h1 {
     font-size: 18px;
   }
-  .connection-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .deck-title > .status-dot {
+    margin-top: 8px;
   }
 }

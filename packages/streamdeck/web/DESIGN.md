@@ -12,7 +12,8 @@ keys without modal interruption, and make saved/unsaved/error states explicit.
 
 Desktop: device preview at left, tabbed configuration at right, without a global
 navbar. The detected model name and connection indicator lead the preview; the
-status dot sits before the name. Before USB detection the title stays generic.
+status dot sits before the name, with the connection label below the name on all
+screen sizes. Before USB detection the title stays generic.
 Édition keeps the selected key/dial inspector. Plugins groups activation switches
 and per-plugin collapsible configuration; switches remain reachable when collapsed.
 Tab changes preserve unsaved drafts. Narrow screens: configuration below the preview;
