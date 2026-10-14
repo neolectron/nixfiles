@@ -2,7 +2,12 @@
 let
   skillNames = [
     "antislop"
+    # Matt Pocock skills and their dependencies, vendored from mattpocock/skills
+    # at 49dd158d1076134a641b33efb035946536778336 (MIT).
+    "domain-modeling"
     "grill-me"
+    "grill-with-docs"
+    "grilling"
     "jj"
     "papercuts"
     "reference-repository"
