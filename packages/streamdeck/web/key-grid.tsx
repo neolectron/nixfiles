@@ -87,7 +87,6 @@ function DeckCell({
             dragHandlers.onPointerDown?.(event);
           }}
         >
-          <span>{deckKey.index + 1}</span>
           <svg width={12} height={16} viewBox="0 0 12 16" aria-hidden={true}>
             {[3, 8, 13].flatMap((y) =>
               [3, 9].map((x) => (
@@ -95,6 +94,7 @@ function DeckCell({
               )),
             )}
           </svg>
+          <span>{deckKey.index + 1}</span>
         </button>
       ) : (
         <span className="key-number">{deckKey.index + 1}</span>
