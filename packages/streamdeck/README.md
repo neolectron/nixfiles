@@ -21,8 +21,8 @@ From the isolated repository clone opened in VS Code:
 
 Node 24 runs the `.ts` sources directly using its built-in type stripping. There
 is no build step, loader or generated JavaScript. Type checking uses `tsc` with
-`noEmit`, `allowImportingTsExtensions` and `erasableSyntaxOnly`; the inherited
-`verbatimModuleSyntax` keeps type-only imports explicit. See
+`noEmit`, `allowImportingTsExtensions` and `erasableSyntaxOnly`; the
+`verbatimModuleSyntax` option keeps type-only imports explicit. See
 [Node's TypeScript support](https://nodejs.org/docs/latest-v24.x/api/typescript.html).
 Local imports include `.ts` extensions. Import individual modules instead of a
 barrel, for example `@nixfiles/streamdeck/stream-deck` or
