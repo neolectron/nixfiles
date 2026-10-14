@@ -12,7 +12,8 @@ Les orientations ci-dessous sont retenues pour la migration. Les noms d'API et
 le découpage précis des fichiers sont des propositions à valider en implémentant
 les premiers cas. La première étape est implémentée dans `packages/system-control` ;
 voir [la livraison et ses preuves](system-control-implementation.md).
-Les étapes 2 à 6 restent à réaliser.
+Les étapes suivantes sont livrées par incréments, dont les surfaces LCD configurables ;
+la progression et les limites sont précisées dans ce même suivi.
 
 ## État de départ
 

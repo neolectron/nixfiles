@@ -10,6 +10,7 @@ import type {
 } from '../src/studio-contract.ts';
 import * as Layout from '../src/studio-layout.ts';
 import { bindingOf, draftOf, type Draft } from './key-draft.ts';
+import type * as LcdLayout from '../src/lcd-layout.ts';
 type Key = Snapshot['keys'][number];
 type Form = {
   readonly id: string;
@@ -23,6 +24,7 @@ export type ProfileDraft = {
   readonly profile: Profile;
   readonly navigation: Layout.Navigation;
   readonly forms: ReadonlyArray<Form>;
+  readonly lcdNavigation?: LcdLayout.Navigation;
 };
 export const begin = (snapshot: Snapshot): ProfileDraft => ({
   session: snapshot.sessionId,
@@ -146,6 +148,10 @@ export const project = (
   const projected = Layout.project(preview.profile, preview.navigation, live.layout.revision);
   return {
     ...live,
+    configuration: { ...live.configuration, profile: preview.profile },
+    ...(state.lcdNavigation && live.lcdLayout
+      ? { lcdLayout: { ...live.lcdLayout, navigation: state.lcdNavigation } }
+      : {}),
     layout: projected.layout,
     keys: live.keys.map((key) => {
       const slot = invariant(projected.keys.get(key.index), 'profile-draft');

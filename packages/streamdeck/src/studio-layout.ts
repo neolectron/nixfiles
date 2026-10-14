@@ -1,4 +1,5 @@
 import { invariant } from './errors.ts';
+import * as LcdLayout from './lcd-layout.ts';
 import type { Entry, LayoutView, Navigate, Organize, Profile } from './studio-contract.ts';
 const free = (list: ReadonlyArray<number>, pinned: Readonly<Record<string, Entry>>) =>
   list.filter((key) => !pinned[String(key)]);
@@ -18,6 +19,7 @@ const root = { folder: null, page: 0, history: [] };
 export const position = (navigation: Navigation, zone: string) => navigation[zone] ?? root;
 export type MutableProfile = {
   version: 2;
+  lcd?: import('./lcd-layout.ts').Configuration;
   zones: Array<{
     id: string;
     name: string;
@@ -182,6 +184,7 @@ export const navigate = (profile: Profile, before: Navigation, command: Navigate
   };
 };
 export const validate = (profile: Profile, deviceKeys: ReadonlyArray<number>) => {
+  LcdLayout.validate(profile.lcd ?? LcdLayout.empty);
   const assigned = new Set<number>();
   const ids = new Set<string>();
   if (!profile.zones.some((zone) => zone.id === 'deck'))

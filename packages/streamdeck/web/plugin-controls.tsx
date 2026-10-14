@@ -5,6 +5,7 @@ import * as Api from './api.ts';
 import { DiscordConnection } from './discord-connection.tsx';
 import { PluginTiles } from './plugin-tiles.tsx';
 import { Tabs } from './tabs.tsx';
+import type { DropTarget } from './use-tile-drag.ts';
 
 function PluginPanels({
   plugin,
@@ -15,15 +16,17 @@ function PluginPanels({
   onDropTile,
   onTileTarget,
   children,
+  surface,
 }: {
   readonly plugin: Snapshot['plugins']['items'][number];
   readonly catalogue: Catalogue | undefined;
   readonly tileTarget: number | null;
   readonly busy: boolean;
   readonly onChooseTile: (action: Catalogue['pluginActions'][number]) => void;
-  readonly onDropTile: (action: Catalogue['pluginActions'][number], index: number) => void;
-  readonly onTileTarget: (index: number | null) => void;
+  readonly onDropTile: (action: Catalogue['pluginActions'][number], target: DropTarget) => void;
+  readonly onTileTarget: (target: DropTarget | null) => void;
   readonly children: ReactNode;
+  readonly surface: 'key' | 'lcd';
 }) {
   const actions = catalogue?.pluginActions.filter((action) => action.plugin === plugin.id) ?? [];
   const [selected, setSelected] = useState<'tiles' | 'settings' | null>(null);
@@ -41,15 +44,18 @@ function PluginPanels({
           content: (
             <>
               <p className="plugin-tile-target" role="status">
-                {tileTarget === null
-                  ? 'Sélectionne une touche à configurer.'
-                  : `Affecter à la touche ${tileTarget + 1}`}
+                {surface === 'lcd'
+                  ? 'Ajouter à la zone LCD sélectionnée'
+                  : tileTarget === null
+                    ? 'Sélectionne une touche à configurer.'
+                    : `Affecter à la touche ${tileTarget + 1}`}
               </p>
               {catalogue ? (
                 <PluginTiles
                   actions={actions}
                   busy={busy}
-                  canChoose={tileTarget !== null}
+                  canChoose={surface === 'lcd' || tileTarget !== null}
+                  surface={surface}
                   onDrop={onDropTile}
                   onTarget={onTileTarget}
                   onChoose={onChooseTile}
@@ -76,6 +82,7 @@ export function PluginControls({
   onDropTile,
   onTileTarget,
   onSnapshot,
+  surface = 'key',
 }: {
   snapshot: Snapshot;
   online: boolean;
@@ -84,9 +91,10 @@ export function PluginControls({
   catalogue: Catalogue | undefined;
   tileTarget: number | null;
   onChooseTile: (action: Catalogue['pluginActions'][number]) => void;
-  onDropTile: (action: Catalogue['pluginActions'][number], index: number) => void;
-  onTileTarget: (index: number | null) => void;
+  onDropTile: (action: Catalogue['pluginActions'][number], target: DropTarget) => void;
+  onTileTarget: (target: DropTarget | null) => void;
   onSnapshot: (snapshot: Snapshot) => void;
+  surface?: 'key' | 'lcd';
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -146,6 +154,7 @@ export function PluginControls({
                 onChooseTile={onChooseTile}
                 onDropTile={onDropTile}
                 onTileTarget={onTileTarget}
+                surface={surface}
               >
                 <p className="plugin-controls-used">
                   {[

@@ -124,3 +124,28 @@ de configuration. Les exemples sont dans [la documentation des plugins](streamde
 Cet incrément couvre les touches. L’arbitrage des scènes LCD, des régions tactiles
 et des potards, ainsi que l’éditeur visuel de presets contextuels, restent à réaliser.
 Il ne constitue pas la livraison complète du futur SurfaceHost décrit dans le plan.
+
+## Surfaces LCD configurables et plugin Système
+
+Le contrat de tile est maintenant portable entre touches et LCD. Une action
+exporte ses surfaces possibles, sa largeur initiale et, pour un widget spécialisé,
+un callback Effect de présentation LCD. Les actions ordinaires conservent leur
+schéma, leur exécution et leur feedback ; aucun second binding système n’est créé.
+
+`LcdSurface` et sa Layer composent des zones au-dessus du producteur existant,
+sérialisent les écritures et routent les gestes sur la dernière scène effectivement
+peinte. Le layout pur gère pages, dossiers, Retour, clipping et bande horizontale
+débordante. Les filtres d’application utilisent le Desktop partagé. Le plugin
+Système adapte le titre de fenêtre et l’icône XDG, puis exporte les actions de
+navigation communes aux touches et au tactile.
+
+L’éditeur accepte le dépôt sur le LCD, les largeurs de zones et de tiles, les
+conditions de visibilité, la navigation de brouillon, le rangement en dossiers
+et l’ajout de contenu hors écran. Ces modifications rejoignent le profil et sa
+sauvegarde atomique avec contrôle de conflit. Les présentations web utilisent du
+React client et des données SSE ; seul le matériel reçoit les images.
+
+Cet incrément ne livre pas encore un SurfaceHost unique pour tous les types de
+contrôles : les potards restent au mixer et les overlays de touches conservent
+leur service. Le mixer n’a plus l’exclusivité physique du LCD ; les régions
+configurées recouvrent son image et interceptent leurs propres gestes.

@@ -1,7 +1,8 @@
 import type { Catalogue } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.tsx';
 import { DragGrip } from './drag-grip.tsx';
-import { useTileDrag } from './use-tile-drag.ts';
+import { useTileDrag, type DropTarget } from './use-tile-drag.ts';
+import { supports } from '../src/tile-capabilities.ts';
 
 type Action = Catalogue['pluginActions'][number];
 const noop = () => {};
@@ -27,18 +28,22 @@ function PaletteTile({
   onChoose,
   onDrop,
   onTarget,
+  surface,
 }: {
   readonly action: Action;
   readonly busy: boolean;
   readonly canChoose: boolean;
   readonly onChoose: (action: Action) => void;
-  readonly onDrop: (action: Action, index: number) => void;
-  readonly onTarget: (index: number | null) => void;
+  readonly onDrop: (action: Action, target: DropTarget) => void;
+  readonly onTarget: (target: DropTarget | null) => void;
+  readonly surface: 'key' | 'lcd';
 }) {
   const { preview, handlers } = useTileDrag({
     disabled: busy,
     onDrop: (index) => onDrop(action, index),
     onTarget,
+    key: supports(action, 'key'),
+    lcd: supports(action, 'lcd'),
   });
   return (
     <div className={`plugin-tile${preview ? ' dragging' : ''}`}>
@@ -50,16 +55,19 @@ function PaletteTile({
         disabled={busy}
         {...handlers}
         onClick={() => {
-          if (canChoose) onChoose(action);
+          if (canChoose && supports(action, surface)) onChoose(action);
         }}
       >
         <TileFace action={action} />
+        {action.tile?.surfaces?.length === 1 && action.tile.surfaces[0] === 'lcd' ? (
+          <span className="plugin-tile-surface">LCD</span>
+        ) : null}
       </button>
       <button
         type="button"
         className="key-number key-drag-handle plugin-tile-grip"
-        aria-label={`Glisser ${action.name} sur une touche`}
-        title="Glisser sur une touche"
+        aria-label={`Glisser ${action.name} ${action.tile?.surfaces?.length === 1 && action.tile.surfaces[0] === 'lcd' ? 'sur le LCD' : 'sur une touche ou le LCD'}`}
+        title="Glisser vers une surface du deck"
         disabled={busy}
         {...handlers}
       >
@@ -85,13 +93,15 @@ export function PluginTiles({
   onChoose,
   onDrop = noop,
   onTarget = noop,
+  surface = 'key',
 }: {
   readonly actions: Catalogue['pluginActions'];
   readonly busy: boolean;
   readonly canChoose?: boolean;
   readonly onChoose: (action: Action) => void;
-  readonly onDrop?: (action: Action, index: number) => void;
-  readonly onTarget?: (index: number | null) => void;
+  readonly onDrop?: (action: Action, target: DropTarget) => void;
+  readonly onTarget?: (target: DropTarget | null) => void;
+  readonly surface?: 'key' | 'lcd';
 }) {
   const tiles = actions.filter((action) => action.tile);
   if (!tiles.length) return <p className="field-hint">Aucune tile exportée.</p>;
@@ -106,6 +116,7 @@ export function PluginTiles({
           onChoose={onChoose}
           onDrop={onDrop}
           onTarget={onTarget}
+          surface={surface}
         />
       ))}
     </div>

@@ -273,8 +273,9 @@ aliases preserve their application identity and relative order during compaction
 
 The studio supplies one registry to the mixer and source plugins. Register inside
 the plugin activation scope: disabling unregisters the contribution and interrupts
-pending rendering. The mixer owns geometry, paging and all hardware LCD writes;
-the source plugin owns its metadata, React view and toggle state. Other plugins can
+pending rendering. The mixer owns its audio-card geometry and paging; the LCD
+surface compositor arbitrates final hardware writes. The source plugin owns its
+metadata, React view and toggle state. Other plugins can
 use this extension without claiming the LCD or adding application-specific branches
 to the mixer. `src/plugins/spotify-lcd.tsx` is the working example, with the pure
 React component in `src/ui/now-playing-card.tsx`. Toggle state resets on reactivation.
@@ -770,3 +771,51 @@ elsewhere. **Raccrocher** is the explicit end-call action. Existing **Dot ·
 push-to-talk** and its hold/release cleanup remain separate and unchanged.
 
 Reference: [OpenAI Dot calls](https://learn.chatgpt.com/docs/dots/channels#chatgpt-and-voice).
+
+## Tiles et surfaces LCD
+
+Une action exportée avec `tile` est portable : la palette peut l’affecter à une touche
+ou au LCD. `tile.surfaces: ['lcd']` réserve un widget au LCD ; `tile.width` définit sa
+largeur initiale en pixels logiques. Une action ordinaire réutilise `KeyCard`, son
+schéma, son exécution et son feedback réactif, sans nouvelle implémentation tactile.
+Les actions `hold` restent sur les touches : le protocole LCD fournit tap, hold et
+swipe, sans relâchement fiable pour arrêter une dictée ou un push-to-talk.
+
+Un widget spécialisé fournit `lcd(api, input, size)`. Ce callback Effect renvoie un
+`Frame` avec un descripteur JSON `view`, un `stamp` et un effet `draw`. Le plugin
+possède son composant React et ses données ; `draw` utilise le renderer natif pour
+le matériel. Le navigateur enregistre le module de présentation dans
+`web/lcd-view.tsx` et rend le même composant depuis les données SSE. Le plugin
+Système (`plugins/system.tsx`, `system-presentation.tsx`, `system-icons.ts`) est un
+exemple complet. Le host exécute le rendu et l’action dans le scope du plugin :
+une désactivation interrompt les travaux et révoque les services empruntés.
+
+`LcdSurface` compose les zones configurées au-dessus du producteur LCD existant.
+Les écritures du mixer et des zones passent par le même sémaphore. Les gestes
+sont routés uniquement vers la présentation effectivement peinte, avec une
+révision vérifiée pour les entrées web. Les zones couvrent leurs pixels et leurs
+gestes ; les potards restent affectés au mixer. Le reste de l’écran conserve son
+contenu et ses interactions. Aucun plugin spécialisé ne réclame l’écran physique
+entier pour afficher une tile.
+
+La configuration optionnelle `Profile.lcd` contient des zones sans chevauchement,
+leurs pages et des dossiers réutilisables. Une zone définit `lcd`, `x`, `width` et
+un filtre `application` ; chaque tile possède également sa largeur et ce filtre
+facultatif (`''` signifie toujours, sinon `app_id` exact, sans distinction de casse).
+Le contenu d’une page est une bande virtuelle : sa largeur peut dépasser la zone.
+Un swipe horizontal parcourt cette bande et rogne les tiles partielles. Les pages
+et dossiers naviguent indépendamment par zone ; Retour restaure la position du
+parent. La profondeur des dossiers est bornée à 32.
+
+Le plugin Système exporte Fenêtre active (titre + icône XDG), Page LCD
+précédente/suivante, Dossier LCD et Retour LCD. Les quatre actions de navigation
+s’utilisent sur les touches comme sur le LCD. `Invocation.surface.zone` permet à
+une action de cibler sa zone courante. Pour les paramètres de plugins, les
+annotations Schema `contentMediaType: 'application/x-streamdeck-lcd-zone'` et
+`'application/x-streamdeck-lcd-folder'` fournissent des sélecteurs dynamiques dans
+l’éditeur, indépendamment du nom du plugin.
+
+La découverte des fenêtres/titres et des icônes appartient aux services système
+`Desktop` et `DesktopIcons`. Ils ne dépendent pas du deck. Le plugin adapte ces
+services au rendu ; la conversion des SVG et son cache restent dans son scope.
+Les icônes passent par le cache d’assets HTTP, sans base64 ni captures LCD dans SSE.

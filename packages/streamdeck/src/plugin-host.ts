@@ -14,11 +14,14 @@ import {
 } from 'effect';
 import { invalid, invariant } from './errors.ts';
 import { StreamDeck, type Device } from './stream-deck.ts';
-import type { DeckEvent } from './model.ts';
+import type { DeckEvent, Size } from './model.ts';
 import type { ActionInfo, Invocation, Controls, Definition } from './plugin.ts';
 import { failureMessage } from './failure-message.ts';
 import { KeyFeedback } from './key-feedback.ts';
 import * as Overlays from './deck-overlays.ts';
+import type { RgbImage } from './image.ts';
+import { View } from './presentation.tsx';
+import { supports } from './tile-capabilities.ts';
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string;
   readonly message: string;
@@ -135,6 +138,11 @@ export const make = Effect.gen(function* () {
       context: Invocation,
     ) => Effect.Effect<unknown, PluginError>;
     feedback?: (action: string, input: unknown) => Effect.Effect<KeyFeedback | null>;
+    lcd?: (
+      action: string,
+      input: unknown,
+      size: Size,
+    ) => Effect.Effect<{ view: View; image: RgbImage } | undefined, PluginError>;
   };
   const records = new Map<string, Record>();
   let revision = 0;
@@ -209,6 +217,20 @@ export const make = Effect.gen(function* () {
                   ),
                 ),
               );
+          for (const action of declared) {
+            const tile = action.info.tile;
+            if (
+              tile &&
+              ((tile.width !== undefined &&
+                (!Number.isSafeInteger(tile.width) || tile.width < 40 || tile.width > 8192)) ||
+                (tile.surfaces &&
+                  (!tile.surfaces.length ||
+                    tile.surfaces.some((surface) => surface !== 'key' && surface !== 'lcd'))))
+            )
+              return yield* Effect.fail(
+                error(definition.id, 'Failed', `Invalid tile metadata for ${action.info.id}.`),
+              );
+          }
           let scope: Scope.Closeable | undefined;
           let api:
             | {
@@ -376,6 +398,7 @@ export const make = Effect.gen(function* () {
                         Effect.provideService(StreamDeck, current.device),
                         Effect.provideService(Overlays.DeckOverlays, current.presentations),
                         Scope.provide(scope),
+                        Effect.provideContext(context),
                       ),
                       scope,
                     );
@@ -438,6 +461,26 @@ export const make = Effect.gen(function* () {
                   ),
                 );
             });
+          record.lcd = (id, input, size) => {
+            const action = declared.find((entry) => entry.info.id === id);
+            if (!action?.lcd) return Effect.succeed(undefined);
+            return handle
+              .use((value) =>
+                Effect.gen(function* () {
+                  const frame = yield* invariant(action.lcd, 'plugin-host')(value, input, size);
+                  if (!frame.view) return undefined;
+                  return {
+                    view: yield* Schema.decodeUnknownEffect(View)(frame.view),
+                    image: yield* frame.draw,
+                  };
+                }),
+              )
+              .pipe(
+                Effect.catchCause((cause) =>
+                  Effect.fail(error(definition.id, 'Failed', failureMessage(cause))),
+                ),
+              );
+          };
           return handle;
         }),
       );
@@ -459,12 +502,19 @@ export const make = Effect.gen(function* () {
         () =>
           records.get(plugin)?.actions.find((entry) => entry.id === action)?.interaction ?? 'press',
       ),
-    validateAction: (plugin: string, action: string, input: unknown) =>
-      Effect.suspend(
-        () =>
-          records.get(plugin)?.validate(action, input) ??
-          Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.')),
-      ),
+    validateAction: (plugin: string, action: string, input: unknown, surface?: 'key' | 'lcd') =>
+      Effect.suspend(() => {
+        const record = records.get(plugin);
+        const info = record?.actions.find((entry) => entry.id === action);
+        if (surface && info && !supports(info, surface))
+          return Effect.fail(
+            error(plugin, 'Unsupported', 'Cette action ne prend pas en charge cette surface.'),
+          );
+        return (
+          record?.validate(action, input) ??
+          Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))
+        );
+      }),
     invoke: (
       plugin: string,
       action: string,
@@ -478,6 +528,10 @@ export const make = Effect.gen(function* () {
       ),
     feedback: (plugin: string, action: string, input: unknown) =>
       Effect.suspend(() => records.get(plugin)?.feedback?.(action, input) ?? Effect.succeed(null)),
+    lcdFrame: (plugin: string, action: string, input: unknown, size: Size) =>
+      Effect.suspend(
+        () => records.get(plugin)?.lcd?.(action, input, size) ?? Effect.succeed(undefined),
+      ),
     snapshot: Effect.sync(() => ({
       revision,
       items: [...records.values()].map((record) => record.status),
@@ -504,3 +558,4 @@ export class PluginHost extends Context.Service<PluginHost, Effect.Success<typeo
 ) {
   static readonly layer = Layer.effect(PluginHost, make);
 }
+export type Controller = Effect.Success<typeof make>;

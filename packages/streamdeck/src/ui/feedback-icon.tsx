@@ -39,7 +39,14 @@ export function FeedbackIcon({
       strokeWidth={1.5}
       aria-hidden="true"
     >
-      {feedback.icon === 'microphone' ? (
+      {feedback.icon === 'window' ? (
+        <>
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M3 9h18" />
+        </>
+      ) : feedback.icon === 'folder' ? (
+        <path d="M3 7V5h7l2 3h9v12H3Z" />
+      ) : feedback.icon === 'microphone' ? (
         [
           <rect key="mic" x={9} y={3} width={6} height={11} rx={3} />,
           <path key="stand" d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />,
