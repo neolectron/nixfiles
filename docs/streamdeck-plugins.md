@@ -129,7 +129,7 @@ fiber or application-specific logic in the mixer.
 Returning no frame uses the mixer's normal volume card. A frame supplies a change
 stamp and a lazy RGB render Effect; unchanged stamps avoid rendering and USB writes.
 Optional `retain` identities keep cards present while their audio streams disappear;
-aliases preserve their existing slot and application identity.
+aliases preserve their application identity and relative order during compaction.
 
 The studio supplies one registry to the mixer and source plugins. Register inside
 the plugin activation scope: disabling unregisters the contribution and interrupts
