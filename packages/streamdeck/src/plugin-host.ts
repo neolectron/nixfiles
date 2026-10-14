@@ -133,6 +133,7 @@ export const make = Effect.gen(function*() {
     }));
   });
   return { install, catalogue: Effect.sync(() => [...records.values()].flatMap((record) => record.actions.map((action) => ({ ...action, plugin: record.status.id, pluginName: record.status.name })))),
+    interaction: (plugin: string, action: string) => Effect.sync(() => records.get(plugin)?.actions.find((entry) => entry.id === action)?.interaction ?? 'press'),
     validateAction: (plugin: string, action: string, input: unknown) => Effect.suspend(() => records.get(plugin)?.validate(action, input) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
     invoke: (plugin: string, action: string, input: unknown, context: Invocation = { output: () => Effect.void }) => Effect.suspend(() => records.get(plugin)?.invoke(action, input, context) ?? Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.'))),
     feedback: (plugin: string, action: string, input: unknown) => Effect.suspend(() => records.get(plugin)?.feedback?.(action, input) ?? Effect.succeed(null)),

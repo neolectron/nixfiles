@@ -1,4 +1,5 @@
-import { Effect, Ref, Semaphore, Stream } from 'effect';
+import { Effect, Ref, Schema, Semaphore, Stream } from 'effect';
+import * as Gestures from './key-gestures.ts';
 import { invalid } from './errors.ts';
 import type { RgbImage } from './image.ts';
 import type { DeckEvent, DialDown, DialRotate, DialUp, KeyDown, KeyUp, Position, Size, TouchHold, TouchSwipe, TouchTap } from './model.ts';
@@ -6,6 +7,7 @@ import { StreamDeck, type Device } from './stream-deck.ts';
 
 export type Handler<Event, E, R> = Effect.Effect<unknown, E, R> | ((event: Event) => Effect.Effect<unknown, E, R>);
 export interface Button<E, R> {
+  readonly trigger?: Gestures.KeyTrigger;
   readonly label?: string;
   readonly image?: RgbImage;
   readonly onPress?: Handler<KeyDown, E, R>;
@@ -45,6 +47,7 @@ const validate = <E, R>(deck: Device, profile: Profile<E, R>) => Effect.gen(func
     }
   }
   for (const [index, button] of Object.entries(profile.buttons ?? {})) {
+    if (button.trigger) yield* Schema.decodeUnknownEffect(Gestures.KeyTrigger)(button.trigger).pipe(Effect.mapError(() => invalid('bindings', `Invalid trigger for button ${index}.`)));
     if (button.label !== undefined && button.image !== undefined) return yield* Effect.fail(invalid('bindings', `Button ${index} has both label and image.`));
   }
   for (const [index, value] of Object.entries(profile.touch ?? {})) {
@@ -72,19 +75,24 @@ const render = <E, R>(deck: Device, profile: Profile<E, R>, ownedKeys: ReadonlyA
 
 // One sequential router preserves press/release and rotation order. Long background
 // work can be explicitly forkScoped by a script, so its lifecycle stays visible.
-const router = <E, R>(current: Effect.Effect<Profile<E, R>>, events: Stream.Stream<DeckEvent, import('./errors.ts').StreamDeckError>) => {
+const router = <E, R>(current: Effect.Effect<Profile<E, R>>, events: Stream.Stream<DeckEvent, import('./errors.ts').StreamDeckError>) => Effect.gen(function*() {
+  const gestures = yield* Gestures.make<E, R>();
   const heldKeys = new Map<number, Profile<E, R>>();
   const heldDials = new Map<number, Profile<E, R>>();
-  return Stream.runForEach(events, (event) => Effect.gen(function*() {
+  const route = Stream.runForEach(events, (event) => Effect.gen(function*() {
     let profile = yield* current;
-    if (event._tag === 'KeyDown') heldKeys.set(event.key, profile);
+    if (event._tag === 'KeyDown') { if (heldKeys.has(event.key)) profile = heldKeys.get(event.key)!; else heldKeys.set(event.key, profile); }
     else if (event._tag === 'KeyUp') { profile = heldKeys.get(event.key) ?? profile; heldKeys.delete(event.key); }
     else if (event._tag === 'DialDown') heldDials.set(event.dial, profile);
     else if (event._tag === 'DialUp') { profile = heldDials.get(event.dial) ?? profile; heldDials.delete(event.dial); }
     if (profile.onEvent) yield* profile.onEvent(event);
     switch (event._tag) {
-      case 'KeyDown': yield* invoke(profile.buttons?.[event.key]?.onPress, event); break;
-      case 'KeyUp': yield* invoke(profile.buttons?.[event.key]?.onRelease, event); break;
+      case 'KeyDown': {
+        const button = profile.buttons?.[event.key];
+        const original = profile;
+        yield* gestures.down(String(event.key), { identity: profile, ...(button?.trigger ? { trigger: button.trigger } : {}), fire: Effect.flatMap(current, (now) => now === original ? invoke(button?.onPress, event) : Effect.void) }); break;
+      }
+      case 'KeyUp': yield* gestures.up(String(event.key)); yield* invoke(profile.buttons?.[event.key]?.onRelease, event); break;
       case 'DialDown': yield* invoke(profile.knobs?.[event.dial]?.onPress, event); break;
       case 'DialUp': yield* invoke(profile.knobs?.[event.dial]?.onRelease, event); break;
       case 'DialRotate': yield* invoke(profile.knobs?.[event.dial]?.onRotate, event); break;
@@ -99,7 +107,8 @@ const router = <E, R>(current: Effect.Effect<Profile<E, R>>, events: Stream.Stre
       }
     }
   }));
-};
+  yield* Effect.raceFirst(route, gestures.failure);
+}).pipe(Effect.scoped);
 
 /** Set up feedback and subscription deterministically; run in the same scope. */
 export const start = <E, R>(profile: Profile<E, R>) => Effect.gen(function*() {
@@ -117,17 +126,19 @@ export const pages = <Name extends string, E, R>(profiles: Readonly<Record<Name,
   if (!Object.hasOwn(profiles, initial)) return yield* Effect.fail(invalid('page', `Unknown page ${initial}.`));
   for (const profile of Object.values(profiles) as Profile<E, R>[]) yield* validate(deck, profile);
   const current = yield* Ref.make(initial);
+  const active = yield* Ref.make<Profile<E, R>>({ ...profiles[initial] });
   const lock = yield* Semaphore.make(1);
   const ownedKeys = [...new Set((Object.values(profiles) as Profile<E, R>[]).flatMap((profile) => Object.keys(profile.buttons ?? {}).map(Number)))];
   const select = (name: Name) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     if (!Object.hasOwn(profiles, name)) return yield* Effect.fail(invalid('page', `Unknown page ${name}.`));
     yield* render(deck, profiles[name], ownedKeys);
     yield* Ref.set(current, name);
+    yield* Ref.set(active, { ...profiles[name] });
   }));
   const events = yield* deck.subscribe;
   yield* select(initial);
   return {
     select, current: Ref.get(current),
-    run: Effect.raceFirst(router(Effect.map(Ref.get(current), (name) => profiles[name]), events), deck.awaitFailure),
+    run: Effect.raceFirst(router(Ref.get(active), events), deck.awaitFailure),
   };
 });

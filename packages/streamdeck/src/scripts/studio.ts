@@ -7,7 +7,7 @@ import * as Preview from '../deck-preview.ts';
 import * as DesktopApps from '../desktop-apps.ts';
 import * as Actions from '../studio-actions.ts';
 import { StudioError } from '../studio-errors.ts';
-import { Navigate, Organize, Trigger, UpdateBinding, UpdatePlugin, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
+import { KeyInput, Navigate, Organize, Trigger, UpdateBinding, UpdatePlugin, type ApplicationEntry, type Snapshot } from '../studio-contract.ts';
 import { StreamDeck } from '../stream-deck.ts';
 import type { DeckEvent } from '../model.ts';
 import { slotsFor } from '../plugins/audio-mixer.ts';
@@ -42,13 +42,14 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
   yield* host.install(Commands.plugin(applications));
-  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))), feedback: host.feedback } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))), feedback: host.feedback, interaction: host.interaction } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   if (options.configurePlugins) yield* options.configurePlugins(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(DiscordConnection, discordConnection));
   for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
   const actions = {
     save: (...args: Parameters<Shortcuts.Controller['save']>) => shortcuts.use((api) => api.save(...args)),
     press: (...args: Parameters<Shortcuts.Controller['press']>) => shortcuts.use((api) => api.press(...args)),
+    keyInput: (...args: Parameters<Shortcuts.Controller['keyInput']>) => shortcuts.use((api) => api.keyInput(...args)),
     release: (...args: Parameters<Shortcuts.Controller['release']>) => shortcuts.use((api) => api.release(...args)),
     cancel: (...args: Parameters<Shortcuts.Controller['cancel']>) => shortcuts.use((api) => api.cancel(...args)),
     organize: (...args: Parameters<Shortcuts.Controller['organize']>) => shortcuts.use((api) => api.organize(...args)),
@@ -165,6 +166,11 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
     const request = yield* HttpServerRequest.HttpServerRequest;
     const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Trigger, { onExcessProperty: 'error' })));
     yield* controller.actions.press(body.key, body.address); return json(yield* controller.snapshot);
+  })));
+  yield* router.add('POST', '/api/key-input', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const body = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(KeyInput, { onExcessProperty: 'error' })));
+    yield* controller.actions.keyInput(body.key, body.phase, body.address, 'web', body.revision); return json(yield* controller.snapshot);
   })));
   yield* router.add('POST', '/api/release', mutate(Effect.gen(function*() {
     const request = yield* HttpServerRequest.HttpServerRequest;
