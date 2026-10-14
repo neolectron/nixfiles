@@ -12,7 +12,8 @@ import * as Fields from '../src/plugin-fields.ts';
 import { PluginFields } from './plugin-fields.tsx';
 import { PluginControls } from './plugin-controls.tsx';
 import { EditorTabs, type EditorTab } from './editor-tabs.tsx';
-import { DeckHeading } from './deck-heading.tsx';
+import { DeviceShell } from './device-shell.tsx';
+import { deviceName } from './device-skin.ts';
 import { KeyGrid } from './key-grid.tsx';
 import { DialControl } from './dial-control.tsx';
 import type { KeyTrigger } from '../src/press-trigger.ts';
@@ -640,7 +641,10 @@ function App() {
     <div className="app-shell">
       <main className="workspace">
         <section className="preview-panel" aria-label="Aperçu du deck">
-          <DeckHeading snapshot={snapshot} online={online} />
+          <div className="preview-heading">
+            <span className="profile-name">Profil principal</span>
+            <span className="device-model">{deviceName(snapshot?.model)}</span>
+          </div>
           <div className="configuration-save">
             <span role="status">
               {!snapshot
@@ -675,7 +679,7 @@ function App() {
               {editor.error}
             </p>
           ) : null}
-          <div className="device" style={{ '--columns': columns } as import('react').CSSProperties}>
+          <DeviceShell snapshot={snapshot} online={online} columns={columns}>
             {snapshot ? (
               <KeyGrid
                 snapshot={invariant(snapshot, 'editor-snapshot')}
@@ -712,35 +716,36 @@ function App() {
             )}
             {(snapshot?.lcds ?? [{ index: 0, revision: 0, width: 1200, height: 100 }]).map(
               (lcd) => (
-                <div
-                  key={lcd.index}
-                  className="lcd-strip"
-                  style={{ aspectRatio: `${lcd.width}/${lcd.height}` }}
-                  aria-label="Écran LCD du mixer audio"
-                >
-                  {lcd.revision ? (
-                    <img
-                      src={`/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`}
-                      alt="Affichage actuel du mixer et des cartes des applications"
-                      draggable={false}
-                    />
-                  ) : null}
-                  {(lcd.index === 0 ? (snapshot?.dials ?? []) : [])
-                    .filter((dial) => dial.interaction)
-                    .map((dial) => (
-                      <button
-                        key={dial.index}
-                        className="lcd-card-hit"
-                        style={{
-                          left: `${(dial.x / lcd.width) * 100}%`,
-                          width: `${(dial.cardWidth / lcd.width) * 100}%`,
-                        }}
-                        title={`${dial.name} · ${dial.interaction}`}
-                        aria-label={`${dial.name} · ${dial.interaction}`}
-                        disabled={!online || !mixerActive}
-                        onClick={() => currentTapLcd(dial)}
+                <div className="lcd-bezel" key={lcd.index}>
+                  <div
+                    className="lcd-strip"
+                    style={{ aspectRatio: `${lcd.width}/${lcd.height}` }}
+                    aria-label="Écran LCD du mixer audio"
+                  >
+                    {lcd.revision ? (
+                      <img
+                        src={`/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`}
+                        alt="Affichage actuel du mixer et des cartes des applications"
+                        draggable={false}
                       />
-                    ))}
+                    ) : null}
+                    {(lcd.index === 0 ? (snapshot?.dials ?? []) : [])
+                      .filter((dial) => dial.interaction)
+                      .map((dial) => (
+                        <button
+                          key={dial.index}
+                          className="lcd-card-hit"
+                          style={{
+                            left: `${(dial.x / lcd.width) * 100}%`,
+                            width: `${(dial.cardWidth / lcd.width) * 100}%`,
+                          }}
+                          title={`${dial.name} · ${dial.interaction}`}
+                          aria-label={`${dial.name} · ${dial.interaction}`}
+                          disabled={!online || !mixerActive}
+                          onClick={() => currentTapLcd(dial)}
+                        />
+                      ))}
+                  </div>
                 </div>
               ),
             )}
@@ -778,7 +783,7 @@ function App() {
                 />
               ))}
             </div>
-          </div>
+          </DeviceShell>
           <div className="preview-footer">
             <span>{online ? 'Aperçu en direct' : 'Reconnexion au moteur…'}</span>
             <div className="pagination">

@@ -9,3 +9,10 @@ The paths in `src/ui/brand-icon.tsx` come from Simple Icons **13.21.0**:
 
 Simple Icons distributes these paths under [CC0](https://github.com/simple-icons/simple-icons/blob/13.21.0/LICENSE.md). Brand trademarks belong to their respective owners.
 The same React SVG renders in the editor's tile picker and on the physical keys.
+
+The editor's `web/elgato-mark.tsx` uses the
+[Elgato symbol](https://github.com/simple-icons/simple-icons/blob/13.21.0/icons/elgato.svg)
+from the same CC0 release. The casing reference is the official
+[Stream Deck + XL product image](https://images.ctfassets.net/h50kqpe25yx1/6CqiRg3O0GyMu4Q8MId1qL/368cad729d6fff4d87adb34577a6cc4b/SD_XL_OpenGraph.jpg).
+Its geometry/material are represented in CSS; the marketing photograph is not bundled
+or used behind the interactive controls. The wordmark uses the bundled typeface.

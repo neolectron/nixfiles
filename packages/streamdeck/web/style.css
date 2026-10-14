@@ -112,25 +112,6 @@ small {
   max-width: 1560px;
   margin: 0 auto;
 }
-.connection {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-.connection {
-  font-size: 13px;
-  color: #c4c8d1;
-}
-.status-dot {
-  height: 7px;
-  width: 7px;
-  border-radius: 50%;
-  background: #b29970;
-  flex-shrink: 0;
-}
-.status-dot.online {
-  background: #86caa0;
-}
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
@@ -142,7 +123,7 @@ small {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 25px;
+  margin-bottom: 16px;
 }
 .inspector-intro {
   margin-top: 8px;
@@ -156,11 +137,162 @@ small {
   padding-top: 4px;
   white-space: nowrap;
 }
+.device-model {
+  color: var(--muted);
+  font-size: 12px;
+}
+.device-stage {
+  overflow-x: auto;
+  padding: 12px 14px 32px;
+  margin: -12px -14px -16px;
+}
 .device {
-  padding: 23px 23px 17px;
-  background: #101115;
-  border: 1px solid #3f424d;
-  border-radius: 16px;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 760px;
+  min-width: 530px;
+  margin: 0 auto;
+  border-radius: 24px 24px 30px 30px;
+  background: linear-gradient(175deg, #191b1d 0%, #0c0d0e 28%, #18191b 63%, #393b3d 100%);
+  box-shadow:
+    inset 0 2px 2px #ffffff21,
+    inset 2px 0 2px #ffffff0a,
+    inset -2px 0 2px #000,
+    0 12px 18px #0006;
+}
+.device::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 8px 2px -8px;
+  border-radius: inherit;
+  background: linear-gradient(#18191b, #242628 92%, #101112);
+  box-shadow: inset 0 -2px 2px #ffffff12;
+  pointer-events: none;
+}
+.device-heading {
+  padding: 22px 0 26px;
+  text-align: center;
+}
+.device-brand {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.device-logo {
+  display: block;
+  color: #b29970;
+}
+.device-logo.online {
+  color: #86caa0;
+}
+.device-logo.error {
+  color: #ed8a87;
+}
+.elgato-mark {
+  display: block;
+  width: 23px;
+  height: 23px;
+}
+.device-brand-text {
+  text-align: left;
+}
+.device-brand-text h1 {
+  color: #e4e6e7;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 23px;
+  letter-spacing: 0.015em;
+  font-stretch: condensed;
+}
+.connection-label {
+  display: block;
+  margin-top: 3px;
+  color: #a4a8ad;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.device-front {
+  padding: 0 8% 30px;
+}
+.device-plus {
+  min-width: 420px;
+  max-width: 560px;
+}
+.device-xl {
+  max-width: 720px;
+}
+.device-standard {
+  min-width: 350px;
+  max-width: 550px;
+}
+.device-mini {
+  min-width: 270px;
+  max-width: 340px;
+}
+.device-neo {
+  min-width: 330px;
+  max-width: 440px;
+  background: linear-gradient(160deg, #f3f3ef, #b8bab8);
+}
+.device-neo .device-brand-text h1 {
+  color: #333638;
+}
+.device-neo .connection-label {
+  color: #50565a;
+}
+.device-studio {
+  min-width: 650px;
+  max-width: 900px;
+  border-radius: 10px;
+}
+.device-no-dials .device-front {
+  padding-bottom: 36px;
+}
+.device .deck-key {
+  border: 3px solid #08090b;
+  box-shadow:
+    0 0 0 1px #ffffff18,
+    0 2px 2px #000a;
+}
+.device .deck-key.selected {
+  border-color: var(--accent);
+}
+.lcd-bezel {
+  margin: 22px -10px 0;
+  padding: 10px;
+  border-radius: 5px;
+  background: #050607;
+  box-shadow:
+    inset 0 1px 3px #000,
+    0 1px 1px #ffffff16;
+}
+.device .lcd-strip {
+  margin-top: 0;
+  border-radius: 2px;
+}
+.device .dial-row {
+  margin: 24px -18px 0;
+  padding: 13px 18px;
+  border-radius: 17px;
+  background: linear-gradient(#070809, #0c0d0e 70%, #202224);
+  box-shadow:
+    inset 0 2px 5px #000,
+    0 1px 1px #ffffff12;
+}
+.device .dial-row:empty {
+  display: none;
+}
+.device .dial-control {
+  padding: 0;
+}
+.device .dial-control > span {
+  display: none;
+}
+.device .knob {
+  width: 62px;
+  filter: drop-shadow(0 4px 3px #000b);
 }
 .key-grid {
   display: grid;
@@ -485,9 +617,6 @@ button.lcd-card-hit:hover:not(:disabled) {
   .editor-sidebar {
     padding-left: 34px;
   }
-  .device {
-    padding: 28px;
-  }
   .key-grid {
     gap: 13px;
   }
@@ -497,9 +626,6 @@ button.lcd-card-hit:hover:not(:disabled) {
     padding: 28px 22px;
     gap: 22px;
     grid-template-columns: minmax(0, 1fr) 290px;
-  }
-  .device {
-    padding: 16px;
   }
   .key-grid {
     gap: 7px;
@@ -523,9 +649,6 @@ button.lcd-card-hit:hover:not(:disabled) {
   }
   .preview-heading {
     margin-bottom: 20px;
-  }
-  .device {
-    padding: 14px 10px;
   }
   .key-grid {
     gap: 6px;
@@ -560,9 +683,6 @@ button.lcd-card-hit:hover:not(:disabled) {
   .profile-name {
     font-size: 11px;
   }
-  .connection {
-    font-size: 12px;
-  }
   .inspector form {
     max-width: 480px;
   }
@@ -588,12 +708,12 @@ button.lcd-card-hit:hover:not(:disabled) {
 .dial-control.pressed {
   color: #b3dea4;
 }
-.dial-control.pressed .knob circle:first-child {
+.dial-control.pressed .knob-rim {
   fill: #405c42;
   stroke: #b3dea4;
   stroke-width: 3;
 }
-.dial-control.pressed .knob circle:nth-last-child(2) {
+.dial-control.pressed .knob-cap {
   fill: #486b4a;
 }
 .layout-controls {
@@ -934,7 +1054,7 @@ button.zone-edit-link {
     margin: -12px -3px -4px;
   }
   .key-grid {
-    min-width: 450px;
+    min-width: 0;
   }
 }
 .knob-rotor {
@@ -1009,28 +1129,6 @@ button.zone-edit-link {
   opacity: 0.85;
 }
 
-.deck-title {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-.deck-title > .status-dot {
-  margin-top: 10px;
-}
-.deck-title-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.deck-title h1 {
-  font-size: 20px;
-  line-height: 1.3;
-}
-.connection-label {
-  font-size: 12px;
-}
 .editor-tabs {
   display: flex;
   gap: 24px;
@@ -1065,17 +1163,6 @@ button.zone-edit-link {
 .plugin-tabs button {
   font-size: 12px;
   padding-bottom: 8px;
-}
-@media (max-width: 480px) {
-  .deck-title {
-    gap: 8px;
-  }
-  .deck-title h1 {
-    font-size: 18px;
-  }
-  .deck-title > .status-dot {
-    margin-top: 8px;
-  }
 }
 
 .configuration-save {
