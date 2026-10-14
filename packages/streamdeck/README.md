@@ -126,7 +126,14 @@ source adapters, control ownership and complete lifecycle behavior.
 actions through desktop MPRIS. It selects the playing player across applications,
 keeps the selected player on pause and switches when another starts. Key feedback
 shows the selected application and its playback state. Choose this plugin for
-global media commands, or **Spotify** to target that application specifically.
+global media commands, or **Spotify / Spotifast** to target those players.
+
+With the Spotify plugin and audio mixer enabled, touch a Spotify or Spotifast LCD
+card to switch between its volume gauge and the current track, artist and playback
+progress. Touch again to return to volume. The knob still adjusts volume and its
+click still toggles mute. The editor's LCD preview supports the same interaction.
+Track information remains visible when pausing removes the application's audio
+stream; Master stays pinned and swipes keep paging the mixer.
 
 ## Folders and partial pagination
 

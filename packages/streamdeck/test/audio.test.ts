@@ -3,6 +3,7 @@ import { NodeServices } from '@effect/platform-node';
 import { Deferred, Effect, Fiber, Layer } from 'effect';
 import { Audio, AudioError, Pactl, PULSE_VOLUME_MAX, MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT, decodeInputs, decodeSinks, group, serviceLayer, mockLayer, type Application, type Master } from '../src/audio.ts';
 import * as Mock from '../src/mock.ts';
+import * as Cards from '../src/mixer-cards.ts';
 import type { Control } from '../src/model.ts';
 import { assign, slotsFor, make as startMixer } from '../src/plugins/audio-mixer.ts';
 import { card } from '../src/mixer-display.ts';
@@ -189,6 +190,27 @@ test('mixer startup only renders; batched ticks and clicks change the app actual
   })).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer))));
   assert.strictEqual(deck.closes, 1);
 });
+
+it.effect('retained cards preserve a live application alias, slot and volume when its stream disappears', () => Effect.scoped(Effect.gen(function*() {
+  const deck = Mock.make(); const cards = yield* Cards.make;
+  let applications: ReadonlyArray<Application> = [app('com.spotify.client')];
+  yield* cards.register({ id: 'player', matches: () => true,
+    retain: Effect.succeed([{ key: 'spotify', name: 'Spotify', aliases: ['com.spotify.client'] }]),
+    frame: () => Effect.succeed(undefined) });
+  yield* Effect.gen(function*() {
+    const mixer = yield* startMixer();
+    assert.deepStrictEqual((yield* mixer.state).assignments, ['com.spotify.client']);
+    applications = []; yield* mixer.refresh;
+    const retained = yield* mixer.state;
+    assert.deepStrictEqual(retained.assignments, ['com.spotify.client']);
+    assert.strictEqual(retained.apps[0]!.key, 'com.spotify.client');
+    assert.strictEqual(retained.apps[0]!.volume, 50);
+    assert.strictEqual(retained.apps[0]!.paused, true);
+    assert.deepStrictEqual(retained.apps[0]!.streams, []);
+  }).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provide(Layer.mergeAll(deck.layer(), Layer.succeed(Audio, {
+    list: Effect.sync(() => applications), change: () => Effect.void, ...masterMock,
+  }))));
+})));
 
 test('page changes keep pending actions bound to the original app and empty dials do nothing', async () => {
   const deck = Mock.make(); const f = fixture(Array.from({ length: 8 }, (_, i) => input(i + 1, `App${i}`, [32768])));

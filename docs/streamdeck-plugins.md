@@ -105,6 +105,35 @@ Spotify keys 30–32. The saved profile was changed through the studio API with
 captured slot addresses and an expected empty binding. The real feedback selects
 `spotifast`; no playback/track mutation was used to configure the buttons.
 
+## Contribute an interactive mixer card
+
+The Spotify plugin resolves Spotify and Spotifast independently and registers its
+now-playing view in `MixerCards`. Touching a player's card toggles the volume gauge
+and track view; the latter displays title, artists, elapsed time, duration and
+progress. Knob rotation and clicks continue to use the audio mixer. MPRIS timing
+is sampled every second and advances according to playback rate only while playing;
+paused tracks keep a fixed position. Missing timing is shown as unknown.
+
+`src/mixer-cards.ts` is a generic scoped extension point. A contribution declares
+`matches(app)`, `frame(app, size)` and an optional labeled `tap.run(app)` Effect.
+Returning no frame uses the mixer's normal volume card. A frame supplies a change
+stamp and a lazy RGB render Effect; unchanged stamps avoid rendering and USB writes.
+Optional `retain` identities keep cards present while their audio streams disappear;
+aliases preserve their existing slot and application identity.
+
+The studio supplies one registry to the mixer and source plugins. Register inside
+the plugin activation scope: disabling unregisters the contribution and interrupts
+pending rendering. The mixer owns geometry, paging and all hardware LCD writes;
+the source plugin owns its metadata, React view and toggle state. Other plugins can
+use this extension without claiming the LCD or adding application-specific branches
+to the mixer. `src/plugins/spotify-lcd.ts` is the working example, with the pure
+React component in `src/ui/now-playing-card.ts`. Toggle state resets on reactivation.
+
+Physical touch and the accessible preview buttons invoke the same mixer API. Web
+requests include the displayed application, dial and page, so a delayed click cannot
+target another application after paging or reassignment. Swipes and Master remain
+under mixer control.
+
 ## Define a feature using a Layer
 
 `Plugin.fromLayer` builds the supplied Layer **inside the activation scope**.

@@ -29,6 +29,7 @@ export const organize = (command: Organize) => json('/api/organize', 'POST', com
 export const navigate = (command: Navigate) => json('/api/navigate', 'POST', command).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const setPlugin = (id: string, enabled: boolean, expected: boolean) => json('/api/plugin', 'POST', { id, enabled, expected }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const page = (direction: number) => json('/api/page', 'POST', { direction }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
+export const lcdTap = (dial: number, application: string, page: number) => json('/api/lcd-tap', 'POST', { dial, application, page }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const configureDiscord = (input: typeof AppInput.Type) => json('/api/discord/connection', 'PUT', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const authorizeDiscord = json('/api/discord/authorize', 'POST').pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 

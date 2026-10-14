@@ -6,6 +6,22 @@ remain untouched. This increment follows the approved preview/select/configure
 workflow and prioritizes application launch and scripts, because audio mute is
 already assigned to dial presses.
 
+## Spotify track view on the LCD
+
+With Spotify enabled, tapping a Spotify/Spotifast card switches between volume
+and track title, artists, elapsed/duration times and a progress bar. The source
+plugin registers scoped content with `MixerCards`; the audio mixer remains the
+sole LCD writer and owns paging and dial volume/mute. The browser preview invokes
+the same tap API, guarded by the displayed application and page. Spotify actions
+also resolve Spotifast automatically.
+
+The real Stream Deck test confirmed both view transitions and continuing knob
+volume control. Desktop and narrow browser previews were checked, including long
+title truncation and transparent interactive overlays. Tests cover paused timing,
+missing timing, player discovery, stream disappearance and alias retention, stale
+web taps, and plugin disable during rendering. No playback command was issued by
+these display tests. This change does not implement stream volume restoration.
+
 ## Structure
 
 - `studio-contract.ts`: shared Effect schemas for action parameters, profiles,
@@ -83,7 +99,7 @@ plugin forwards raw events once, removing the former nested binding recognizer.
 The browser imports the serializable Schema/defaults from `press-trigger.ts`
 without pulling in the runtime timer engine.
 
-140 Stream Deck tests and both package typechecks pass. Deterministic TestClock
+147 Stream Deck tests and both package typechecks pass. Deterministic TestClock
 tests cover boundaries, repeated down events, pair consumption, cancellation,
 scope shutdown and error propagation. Mock HID/studio tests cover persistence,
 page/edit invalidation, stale web cleanup and long-press push-to-talk cleanup.

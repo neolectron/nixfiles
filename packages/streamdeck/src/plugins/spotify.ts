@@ -1,10 +1,16 @@
-import { Config, Context, Effect, Layer, Schema } from 'effect';
+import { Config, Context, Effect, Layer, Option, Schema } from 'effect';
 import * as Mpris from '../mpris.ts';
 import * as Plugin from '../plugin.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
+import * as Player from './spotify-player.ts';
+import * as Lcd from './spotify-lcd.ts';
+import { MixerCards } from '../mixer-cards.ts';
 
-export class Spotify extends Context.Service<Spotify, Mpris.Controller>()('@nixfiles/streamdeck/Spotify') {
-  static readonly layer = Layer.effect(Spotify, Effect.flatMap(Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.withDefault('org.mpris.MediaPlayer2.spotify')), (name) => Mpris.make(name, 'Spotify'))).pipe(Layer.provide(Mpris.MprisTransport.layer));
+export class Spotify extends Context.Service<Spotify, Player.Controller>()('@nixfiles/streamdeck/Spotify') {
+  static readonly layer = Layer.effect(Spotify, Effect.gen(function*() {
+    const bus = yield* Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.option);
+    return yield* Player.make(Option.getOrUndefined(bus));
+  })).pipe(Layer.provide(Mpris.MprisTransport.layer));
 }
 type Icon = KeyFeedback['icon'];
 const unavailable = (icon: Icon): KeyFeedback => ({ icon, text: 'HORS LIGNE', tone: 'neutral' });
@@ -13,8 +19,13 @@ const transport = (id: string, name: string, description: string, method: Mpris.
   id, name, description, input: Plugin.NoInput, defaults: {}, run: (api: Mpris.Controller) => api.command(method), unavailable: unavailable(icon),
   feedback: (api) => Effect.map(api.state, (state) => method === 'PlayPause' ? playback(state) : { icon, text: method === 'Next' || method === 'Previous' ? state.title.slice(0, 40) || playback(state).text : playback(state).text, tone: playback(state).tone }),
 });
+export const run = (api: Player.Controller) => Effect.gen(function*() {
+    const cards = yield* Effect.serviceOption(MixerCards);
+    if (Option.isSome(cards)) yield* Lcd.register(api).pipe(Effect.provideService(MixerCards, cards.value));
+    yield* api.monitor;
+  });
 export const plugin = Plugin.fromLayer({
-  id: 'spotify', name: 'Spotify', description: 'Lecture, pistes, aléatoire et répétition via MPRIS local, sans connexion OAuth.', controls: {}, service: Spotify, layer: Spotify.layer, run: (api) => api.monitor,
+  id: 'spotify', name: 'Spotify / Spotifast', description: 'Lecture, pistes et vue tactile du titre, artiste et progression via MPRIS local.', controls: {}, service: Spotify, layer: Spotify.layer, run,
   actions: [
     transport('play-pause', 'Lecture / pause', 'Bascule la lecture ; la touche suit l’état réel de Spotify.', 'PlayPause', 'play'),
     transport('next', 'Piste suivante', 'Passe à la piste suivante.', 'Next', 'next'),

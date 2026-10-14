@@ -10,7 +10,7 @@ import * as Audio from '../src/audio.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 
 const fake = Effect.gen(function*() {
-  const state = yield* Ref.make<Mpris.State>({ status: 'Playing', title: 'Life Will Change', artists: ['Lyn'], canControl: true, canNext: true, canPrevious: true, canPlay: true, canPause: true, canSeek: true, shuffle: false, loop: 'None' });
+  const state = yield* Ref.make<Mpris.State>({ status: 'Playing', title: 'Life Will Change', artists: ['Lyn'], canControl: true, canNext: true, canPrevious: true, canPlay: true, canPause: true, canSeek: true, shuffle: false, loop: 'None', trackId: '/com/spotify/track/one', durationMicros: 300_000_000, positionMicros: 90_000_000, sampledAt: 0, rate: 1 });
   const mode = yield* Ref.make<'online' | 'offline' | 'malformed'>('online');
   const requests: ReadonlyArray<string>[] = [];
   const layer = Layer.succeed(Mpris.MprisTransport, { ready: Effect.void, run: (args) => Effect.gen(function*() {
@@ -23,9 +23,10 @@ const fake = Effect.gen(function*() {
       if (connection === 'malformed') return '{"type":"a{sv}","data":[{"PlaybackStatus":{"type":"s","data":"maybe"}}]}';
       const value = yield* Ref.get(state); const bool = (data: boolean) => ({ type: 'b', data });
       return JSON.stringify({ type: 'a{sv}', data: [{ PlaybackStatus: { type: 's', data: value.status },
+        Position: { type: 'x', data: value.positionMicros }, Rate: { type: 'd', data: value.rate },
         CanControl: bool(value.canControl), CanGoNext: bool(value.canNext), CanGoPrevious: bool(value.canPrevious), CanPlay: bool(value.canPlay), CanPause: bool(value.canPause), CanSeek: bool(value.canSeek),
         ...(value.shuffle === null ? {} : { Shuffle: bool(value.shuffle) }), ...(value.loop === null ? {} : { LoopStatus: { type: 's', data: value.loop } }),
-        Metadata: { type: 'a{sv}', data: { 'xesam:title': { type: 's', data: value.title }, 'xesam:artist': { type: 'as', data: value.artists }, 'mpris:trackid': { type: 's', data: '/com/spotify/track/one' } } },
+        Metadata: { type: 'a{sv}', data: { 'xesam:title': { type: 's', data: value.title }, 'xesam:artist': { type: 'as', data: value.artists }, 'mpris:trackid': { type: 'o', data: value.trackId }, 'mpris:length': { type: 'x', data: value.durationMicros } } },
       }] });
     }
     assert.strictEqual(args[7], 'org.mpris.MediaPlayer2.Player');
@@ -51,6 +52,18 @@ it.live('MPRIS decodes busctl variants and sends targeted literal commands, seri
   assert.deepStrictEqual(sent.filter((args) => args[8] === 'LoopStatus').map((args) => args.slice(9)), [['s', 'Playlist'], ['s', 'Track'], ['s', 'None']]);
   assert.deepStrictEqual(sent.at(-1)!.slice(8), ['Seek', 'x', '-10000000']);
   yield* api.command('Pause'); assert.strictEqual((yield* api.state).status, 'Paused'); yield* api.command('Play'); yield* api.command('Stop'); assert.strictEqual((yield* api.state).status, 'Stopped');
+}));
+
+it.live('MPRIS track timing uses microseconds, advances only during playback and clamps at the duration', () => Effect.gen(function*() {
+  const server = yield* fake; const api = yield* Mpris.make('org.mpris.MediaPlayer2.spotify').pipe(Effect.provide(server.layer));
+  const playing = yield* api.state;
+  assert.strictEqual(playing.trackId, '/com/spotify/track/one'); assert.strictEqual(playing.durationMicros, 300_000_000);
+  assert.strictEqual(Mpris.positionAt(playing, playing.sampledAt + 5000), 95_000_000);
+  assert.strictEqual(Mpris.positionAt(playing, playing.sampledAt + 999999), 300_000_000);
+  assert.strictEqual(Mpris.positionAt({ ...playing, rate: 2 }, playing.sampledAt + 5000), 100_000_000);
+  yield* server.change({ status: 'Paused' }); const paused = yield* api.current;
+  assert.strictEqual(Mpris.positionAt(paused, paused.sampledAt + 999999), 90_000_000);
+  assert.strictEqual(Mpris.positionAt({ ...paused, positionMicros: null }, paused.sampledAt), null);
 }));
 
 it.live('capabilities and unsupported optional properties reject commands without sending mutations', () => Effect.gen(function*() {

@@ -81,6 +81,7 @@ export type Catalogue = typeof Catalogue.Type;
 const BindingStatus = Schema.Literals(['idle', 'running', 'success', 'error']);
 export type BindingStatus = typeof BindingStatus.Type;
 export const UpdatePlugin = Schema.Struct({ id: Schema.NonEmptyString, enabled: Schema.Boolean, expected: Schema.Boolean });
+export const LcdTap = Schema.Struct({ dial: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)), application: Schema.NonEmptyString, page: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) });
 const PluginStatus = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String, enabled: Schema.Boolean,
   phase: Schema.Literals(['enabled', 'disabled', 'error', 'unsupported']), detail: Schema.String, keys: Schema.Array(Schema.Int), dials: Schema.Array(Schema.Int), lcds: Schema.Array(Schema.Int) });
 export const Snapshot = Schema.Struct({
@@ -93,7 +94,7 @@ export const Snapshot = Schema.Struct({
     status: BindingStatus, detail: Schema.String, count: Schema.Int, feedback: Schema.NullOr(KeyFeedback),
   })),
   lcds: Schema.Array(Schema.Struct({ index: Schema.Int, width: Schema.Int, height: Schema.Int, revision: Schema.Int })),
-  dials: Schema.Array(Schema.Struct({ index: Schema.Int, name: Schema.NullOr(Schema.String), volume: Schema.NullOr(Schema.Number), muted: Schema.Boolean, pressed: Schema.Boolean, master: Schema.Boolean, x: Schema.Number, width: Schema.Number })),
+  dials: Schema.Array(Schema.Struct({ index: Schema.Int, key: Schema.NullOr(Schema.String), interaction: Schema.NullOr(Schema.String), name: Schema.NullOr(Schema.String), volume: Schema.NullOr(Schema.Number), muted: Schema.Boolean, pressed: Schema.Boolean, master: Schema.Boolean, x: Schema.Number, width: Schema.Number })),
   page: Schema.Int, pages: Schema.Int, lastEvent: Schema.String, inputSequence: Schema.Int,
 });
 export type Snapshot = typeof Snapshot.Type;
