@@ -15,6 +15,10 @@ See the [research and design decisions](../../docs/streamdeck-effect-v4-research
 [Effect verification](../../docs/streamdeck-effect-v4-verification.md) and
 [original physical proof](../../docs/streamdeck-hardware-2026-10-13.md).
 
+The [system services and presentation plan](../../docs/system-control-streamdeck-plan.md)
+records the next architecture: reusable Effect system services, shared actions,
+scoped tiles/scenes/overlays, and folders as a navigation plugin.
+
 ## Coding standards
 
 The shared Oxlint rules and Oxfmt style follow Formula, including single quotes.
