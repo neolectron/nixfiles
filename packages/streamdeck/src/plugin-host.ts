@@ -18,6 +18,7 @@ import type { DeckEvent } from './model.ts';
 import type { ActionInfo, Invocation, Controls, Definition } from './plugin.ts';
 import { failureMessage } from './failure-message.ts';
 import { KeyFeedback } from './key-feedback.ts';
+import * as Overlays from './deck-overlays.ts';
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string;
   readonly message: string;
@@ -41,7 +42,11 @@ export interface Handle<Api> {
   /** Calls run in the plugin's scope: disabling cancels work still in flight. */
   readonly use: <A, E, R>(
     f: (api: Api) => Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E | PluginError, Exclude<Exclude<R, StreamDeck>, Scope.Scope>>;
+  ) => Effect.Effect<
+    A,
+    E | PluginError,
+    Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, Scope.Scope>
+  >;
 }
 const error = (id: string, reason: PluginError['reason'], message: string) =>
   new PluginError({ id, reason, message, status: reason === 'Failed' ? 500 : 409 });
@@ -115,6 +120,7 @@ const ownedDevice = (deck: Device, controls: Controls, active: () => boolean): D
 };
 export const make = Effect.gen(function* () {
   const deck = yield* StreamDeck;
+  const overlays = yield* Overlays.make(deck.buttons.map((key) => key.index));
   const owner = yield* Effect.scope;
   const lock = yield* Semaphore.make(1);
   type Record = {
@@ -155,7 +161,10 @@ export const make = Effect.gen(function* () {
   );
   const install = <Api, E, R>(definition: Definition<Api, E, R>) =>
     Effect.gen(function* () {
-      const context = yield* Effect.context<Exclude<Exclude<R, StreamDeck>, Scope.Scope>>();
+      const context =
+        yield* Effect.context<
+          Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, Scope.Scope>
+        >();
       return yield* locked(
         Effect.gen(function* () {
           if (!/^[a-z][a-z0-9.-]*$/.test(definition.id) || records.has(definition.id))
@@ -205,6 +214,7 @@ export const make = Effect.gen(function* () {
             | {
                 readonly value: Api;
                 readonly device: Device;
+                readonly presentations: Overlays.Controller;
               }
             | undefined;
           let active = false;
@@ -283,9 +293,14 @@ export const make = Effect.gen(function* () {
                 const startedScope = scope;
                 active = true;
                 const device = ownedDevice(deck, controls, () => active && scope === startedScope);
+                const presentations = overlays.forOwner(
+                  definition.id,
+                  () => active && scope === startedScope,
+                );
                 const setup = yield* restore(
                   definition.setup.pipe(
                     Effect.provideService(StreamDeck, device),
+                    Effect.provideService(Overlays.DeckOverlays, presentations),
                     Scope.provide(startedScope),
                     Effect.provideContext(context),
                   ),
@@ -301,12 +316,13 @@ export const make = Effect.gen(function* () {
                   yield* status('error', detail);
                   return yield* Effect.fail(error(definition.id, 'Failed', detail));
                 }
-                api = { value: setup.value.api, device };
+                api = { value: setup.value.api, device, presentations };
                 yield* status('enabled');
                 if (setup.value.run) {
                   const fiber = yield* Effect.forkIn(
                     setup.value.run.pipe(
                       Effect.provideService(StreamDeck, device),
+                      Effect.provideService(Overlays.DeckOverlays, presentations),
                       Scope.provide(startedScope),
                       Effect.provideContext(context),
                       Effect.andThen(Effect.never),
@@ -358,6 +374,7 @@ export const make = Effect.gen(function* () {
                     return yield* Effect.forkIn(
                       Effect.suspend(() => f(current.value)).pipe(
                         Effect.provideService(StreamDeck, current.device),
+                        Effect.provideService(Overlays.DeckOverlays, current.presentations),
                         Scope.provide(scope),
                       ),
                       scope,
@@ -402,10 +419,7 @@ export const make = Effect.gen(function* () {
             });
           record.feedback = (id, input) =>
             Effect.suspend(() => {
-              const action = invariant(
-                declared.find((currentAction) => currentAction.info.id === id),
-                'plugin-host',
-              );
+              const action = declared.find((currentAction) => currentAction.info.id === id);
               if (!action?.feedback) return Effect.succeed(null);
               return handle
                 .use((candidateApi) =>
@@ -429,6 +443,7 @@ export const make = Effect.gen(function* () {
       );
     });
   return {
+    overlays,
     install,
     catalogue: Effect.sync(() =>
       [...records.values()].flatMap((record) =>

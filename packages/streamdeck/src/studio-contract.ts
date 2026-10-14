@@ -347,6 +347,11 @@ export const Snapshot = Schema.Struct({
       zone: Schema.String,
       pinned: Schema.Boolean,
       navigation: Schema.Boolean,
+      overlay: Schema.optionalKey(
+        Schema.UndefinedOr(
+          Schema.Struct({ owner: Schema.String, id: Schema.String, name: Schema.String }),
+        ),
+      ),
       binding: Schema.NullOr(ButtonBinding),
       revision: Schema.Int,
       pressed: Schema.Boolean,

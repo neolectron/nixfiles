@@ -139,6 +139,13 @@ function KeyInspector({
       setTesting(false);
     }
   };
+  if (selected.overlay)
+    return (
+      <section className="inspector">
+        <h2>{selected.overlay.name}</h2>
+        <p className="inspector-intro">Overlay · {selected.overlay.owner}</p>
+      </section>
+    );
   if (selected.navigation)
     return (
       <section className="inspector">
@@ -593,6 +600,7 @@ function App() {
       !online ||
       !shortcutsActive ||
       editor.busy ||
+      target.overlay ||
       target.navigation ||
       target.pressed ||
       target.status === 'running'

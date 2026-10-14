@@ -3,9 +3,11 @@ import { StudioError } from '../studio-errors.ts';
 import * as Actions from '../studio-actions.tsx';
 import * as Plugin from '../plugin.ts';
 import { StreamDeck, type Device } from '../stream-deck.ts';
+import type * as Overlays from '../deck-overlays.ts';
 import type { ApplicationEntry } from '../studio-contract.ts';
 
 export interface Options {
+  readonly overlays?: Effect.Success<ReturnType<typeof Overlays.make>>;
   readonly profile: string;
   readonly applications: ReadonlyArray<ApplicationEntry>;
   readonly pluginActions?: Parameters<typeof Actions.make>[4];
@@ -20,6 +22,7 @@ export const make = (options: Options) =>
       options.applications,
       options.audioPage,
       options.pluginActions,
+      options.overlays,
     );
     const events = yield* deck.subscribe;
     const route = Plugin.listen(events, (event) => {

@@ -19,7 +19,8 @@ type Gesture = {
   revision: number;
   session: string;
 };
-const movable = (key: Key) => !key.navigation && key.status !== 'running' && !key.pressed;
+const movable = (key: Key) =>
+  !key.overlay && !key.navigation && key.status !== 'running' && !key.pressed;
 const draftNavigation = (key: Key): Navigate | null => {
   const binding = key.binding;
   if (!binding) return null;

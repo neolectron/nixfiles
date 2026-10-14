@@ -144,6 +144,7 @@ export const startStudio = (options: {
       .install(
         Shortcuts.plugin({
           profile: options.profile,
+          overlays: host.overlays,
           applications,
           audioPage,
           pluginActions: {
@@ -255,7 +256,11 @@ export const startStudio = (options: {
       keys: new Map(
         [...emptyLayout.keys].map(([key, slot]) => [
           key,
-          { ...slot, state: { count: 0, status: 'idle' as const, detail: '', feedback: null } },
+          {
+            ...slot,
+            overlay: undefined,
+            state: { count: 0, status: 'idle' as const, detail: '', feedback: null },
+          },
         ]),
       ),
     };
@@ -378,6 +383,7 @@ export const startStudio = (options: {
             zone: slot.zone,
             pinned: slot.pinned,
             navigation: slot.virtual,
+            overlay: 'overlay' in slot ? slot.overlay : undefined,
             binding: Option.isSome(currentActions) ? (slot.entry?.binding ?? null) : null,
             revision: frames.get(`key/${key.index}`)?.revision ?? 0,
             pressed: inputView.pressed.has(key.index),

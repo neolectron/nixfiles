@@ -1,3 +1,4 @@
+import type * as Overlays from './deck-overlays.ts';
 import { invariant } from './errors.ts';
 import {
   Crypto,
@@ -160,6 +161,7 @@ export const make = (
     ) => Effect.Effect<KeyFeedback | null>;
     interaction?: (plugin: string, command: string) => Effect.Effect<'press' | 'hold'>;
   },
+  overlays?: Effect.Success<ReturnType<typeof Overlays.make>>,
 ) =>
   Effect.gen(function* () {
     const scope = yield* Effect.scope;
@@ -255,7 +257,32 @@ export const make = (
       const current = yield* Ref.get(model);
       const all = yield* Ref.get(states);
       const feedback = yield* Ref.get(feedbacks);
-      const projection = Layout.project(current.profile, current.navigation, current.revision);
+      const overlay = yield* (
+        overlays?.snapshot ??
+          Effect.succeed({ revision: 0, keys: new Map<number, Overlays.Claim>() })
+      );
+      const projection = Layout.project(
+        current.profile,
+        current.navigation,
+        current.revision + overlay.revision,
+      );
+      const projectedKeys = new Map(
+        [...projection.keys].map(([key, slot]) => {
+          const claim = overlay.keys.get(key);
+          return [
+            key,
+            claim
+              ? {
+                  ...slot,
+                  entry: claim.entry,
+                  address: claim.address,
+                  virtual: false,
+                  overlay: { owner: claim.owner, id: claim.id, name: claim.name },
+                }
+              : { ...slot, overlay: undefined },
+          ];
+        }),
+      );
       return {
         configuration: {
           profile: current.profile,
@@ -264,7 +291,7 @@ export const make = (
         },
         layout: projection.layout,
         keys: new Map(
-          [...projection.keys].map(([key, slot]) => [
+          [...projectedKeys].map(([key, slot]) => [
             key,
             {
               ...slot,
@@ -401,6 +428,10 @@ export const make = (
       )(
         Effect.gen(function* () {
           const slot = yield* currentKey(key, address);
+          if (slot.overlay)
+            return yield* Effect.fail(
+              invalid('Cette touche est fournie par un overlay temporaire.', 409),
+            );
           if (slot.virtual)
             return yield* Effect.fail(invalid('La touche Retour du dossier est réservée.'));
           if (slot.state.status === 'running')
@@ -531,6 +562,13 @@ export const make = (
           if (command.operation === 'exchange') {
             const from = yield* currentKey(command.source, command.sourceAddress);
             const to = yield* currentKey(command.target, command.targetAddress);
+            if (from.overlay || to.overlay)
+              return yield* Effect.fail(
+                invalid(
+                  'Les touches d’un overlay ne peuvent pas être déplacées dans le profil.',
+                  409,
+                ),
+              );
             const active = yield* Ref.get(states);
             if (
               [from, to].some(
@@ -578,7 +616,7 @@ export const make = (
             expected &&
             (slot.address !== address ||
               JSON.stringify(entry.binding) !== JSON.stringify(expected.binding) ||
-              (yield* Ref.get(model)).revision !== expected.revision)
+              (yield* view).layout.revision !== expected.revision)
           )
             return;
           if (releases.has(key))
@@ -765,7 +803,7 @@ export const make = (
               ? {
                   binding: slot.entry.binding,
                   address: slot.address,
-                  revision: (yield* Ref.get(model)).revision,
+                  revision: (yield* view).layout.revision,
                 }
               : undefined;
           }),
@@ -777,6 +815,7 @@ export const make = (
           source,
         }),
     });
+    let paintedOverlayRevision = -1;
     return {
       profile: Effect.map(Ref.get(model), (candidateModel) => candidateModel.profile),
       states: Effect.map(
@@ -798,8 +837,13 @@ export const make = (
         1,
       )(
         Effect.gen(function* () {
+          const overlayRevision = (yield* overlays?.snapshot ?? Effect.succeed({ revision: 0 }))
+            .revision;
+          const changed = paintedOverlayRevision !== overlayRevision;
           for (const [key, slot] of (yield* view).keys)
-            if (slot.entry?.binding.action === 'plugin') yield* paint(key, slot.entry, slot.state);
+            if (changed || slot.entry?.binding.action === 'plugin')
+              yield* paint(key, slot.entry, slot.state);
+          paintedOverlayRevision = overlayRevision;
         }),
       ),
       navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)),
