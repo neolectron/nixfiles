@@ -72,8 +72,11 @@ export const Catalogue = Schema.Struct({
 export type Catalogue = typeof Catalogue.Type;
 const BindingStatus = Schema.Literals(['idle', 'running', 'success', 'error']);
 export type BindingStatus = typeof BindingStatus.Type;
+export const UpdatePlugin = Schema.Struct({ id: Schema.NonEmptyString, enabled: Schema.Boolean, expected: Schema.Boolean });
+const PluginStatus = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String, enabled: Schema.Boolean,
+  phase: Schema.Literals(['enabled', 'disabled', 'error', 'unsupported']), detail: Schema.String, keys: Schema.Array(Schema.Int), dials: Schema.Array(Schema.Int), lcds: Schema.Array(Schema.Int) });
 export const Snapshot = Schema.Struct({
-  layout: LayoutView, sessionId: Schema.String, model: Schema.String, mock: Schema.Boolean,
+  plugins: Schema.Struct({ revision: Schema.Int, items: Schema.Array(PluginStatus) }), layout: LayoutView, sessionId: Schema.String, model: Schema.String, mock: Schema.Boolean,
   keys: Schema.Array(Schema.Struct({
     index: Schema.Int, row: Schema.Int, column: Schema.Int, width: Schema.Int, height: Schema.Int,
     id: Schema.NullOr(Schema.String), address: Schema.String, zone: Schema.String, pinned: Schema.Boolean, navigation: Schema.Boolean,

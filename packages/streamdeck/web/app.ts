@@ -6,6 +6,7 @@ import { KeyCard } from '../src/ui/key-card.ts';
 import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.ts';
 import { TargetPreview, zoneLabel } from './zone-map.ts';
+import { PluginControls } from './plugin-controls.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {
@@ -88,7 +89,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>(); const [catalogue, setCatalogue] = useState<Catalogue>();
   const [online, setOnline] = useState(false); const [error, setError] = useState('');
   const [selection, setSelection] = useState<Selection>({ kind: 'key', index: 0 }); const [dirty, setDirty] = useState(false);
-  const acceptSnapshot = (value: Snapshot) => setSnapshot((previous) => previous?.sessionId === value.sessionId && (previous.inputSequence > value.inputSequence || previous.layout.revision > value.layout.revision) ? previous : value);
+  const acceptSnapshot = (value: Snapshot) => setSnapshot((previous) => previous?.sessionId === value.sessionId && (previous.inputSequence > value.inputSequence || previous.plugins.revision > value.plugins.revision || (previous.plugins.revision === value.plugins.revision && previous.layout.revision > value.layout.revision)) ? previous : value);
   useEffect(() => {
     const watcher = Effect.runFork(Api.observe((value) => { acceptSnapshot(value); setOnline(true); }, () => setOnline(false)));
     const loader = Effect.runFork(Api.catalogue.pipe(Effect.retry(Schedule.spaced(1000)), Effect.match({ onSuccess: setCatalogue, onFailure: (error) => setError(messageOf(error)) })));
@@ -101,6 +102,8 @@ function App() {
   };
   const selectedKey = snapshot?.keys.find((key) => selection.kind === 'key' && key.index === selection.index);
   const selectedDial = snapshot?.dials.find((dial) => selection.kind === 'dial' && dial.index === selection.index);
+  const shortcutsActive = snapshot?.plugins.items.find((plugin) => plugin.id === 'shortcuts')?.enabled ?? false;
+  const mixerActive = snapshot?.plugins.items.find((plugin) => plugin.id === 'audio-mixer')?.enabled ?? false;
   const columns = snapshot ? Math.max(...snapshot.keys.map((key) => key.column)) + 1 : 9;
   const turnPage = (direction: number) => { Effect.runFork(Api.page(direction).pipe(Effect.match({ onSuccess: acceptSnapshot, onFailure: (error) => setError(messageOf(error)) }))); };
   return h('div', { className: 'app-shell' },
@@ -113,7 +116,7 @@ function App() {
         h('div', { className: 'device', style: { '--columns': columns } as import('react').CSSProperties },
           h('div', { className: snapshot ? 'key-grid' : 'key-grid loading', 'aria-label': 'Touches' }, ...(snapshot?.keys ?? Array.from({ length: 36 }, (_, index) => ({ index, binding: null, revision: 0, pressed: false }))).map((key) => h('button', {
             key: key.index, className: `deck-key${selection.kind === 'key' && selection.index === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}`,
-            'aria-label': `Touche ${key.index + 1}${key.binding ? ` · ${key.binding.label}` : ' · libre'}`, 'aria-pressed': selection.kind === 'key' && selection.index === key.index,
+            'aria-label': `Touche ${key.index + 1}${key.binding ? ` · ${key.binding.label}` : ` · ${snapshot?.plugins.items.find((plugin) => plugin.enabled && plugin.keys.includes(key.index))?.name ?? 'libre'}`}`, 'aria-pressed': selection.kind === 'key' && selection.index === key.index,
             disabled: !snapshot, onClick: () => select({ kind: 'key', index: key.index }),
             onDoubleClick: () => {
               const current = snapshot?.keys.find((item) => item.index === key.index);
@@ -132,11 +135,14 @@ function App() {
         ),
         h('div', { className: 'preview-footer' }, h('span', {}, online ? 'Aperçu en direct' : 'Reconnexion au moteur…'),
           h('div', { className: 'pagination' }, h('button', { 'aria-label': 'Applications précédentes', disabled: !online || (snapshot?.pages ?? 1) < 2, onClick: () => turnPage(-1) }, h(Icon, { name: 'left', size: 17 })), h('span', {}, `${(snapshot?.page ?? 0) + 1} / ${snapshot?.pages ?? 1}`), h('button', { 'aria-label': 'Applications suivantes', disabled: !online || (snapshot?.pages ?? 1) < 2, onClick: () => turnPage(1) }, h(Icon, { name: 'right', size: 17 })))),
-        snapshot ? h(LayoutControls, { snapshot, selected: selectedKey, online, dirty, onSnapshot: acceptSnapshot }) : null,
+        snapshot ? h(PluginControls, { snapshot, online, dirty, onSnapshot: acceptSnapshot }) : null,
+        snapshot ? h(LayoutControls, { snapshot, selected: selectedKey, online: online && shortcutsActive, dirty, onSnapshot: acceptSnapshot }) : null,
         h('p', { className: 'preview-note' }, 'Les touches libres restent sans affectation. Leur ancienne image physique n’est pas disponible.'),
         error ? h('p', { className: 'error', role: 'alert' }, error) : null,
       ),
-      selectedKey && catalogue ? h(KeyInspector, { key: selectedKey.index, selected: selectedKey, catalogue, snapshot: snapshot!, online, onSnapshot: acceptSnapshot, onDirty: setDirty })
+      selectedKey && !shortcutsActive ? h('section', { className: 'inspector' }, h('h2', {}, `Touche ${selectedKey.index + 1}`), h('p', { className: 'inspector-intro' }, snapshot?.plugins.items.some((plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index)) ? `Cette touche est pilotée par ${snapshot.plugins.items.find((plugin) => plugin.enabled && plugin.keys.includes(selectedKey.index))!.name}. Désactive ce plugin avant de lui affecter un raccourci.` : 'Le plugin Raccourcis est désactivé. Active-le dans Fonctionnalités pour configurer et utiliser les touches.'))
+        : selectedDial && !mixerActive ? h('section', { className: 'inspector' }, h('h2', {}, `Potard ${selectedDial.index + 1}`), h('p', { className: 'inspector-intro' }, 'Le mixer audio est désactivé. Ce potard est disponible pour un autre plugin.'))
+        : selectedKey && catalogue ? h(KeyInspector, { key: selectedKey.index, selected: selectedKey, catalogue, snapshot: snapshot!, online, onSnapshot: acceptSnapshot, onDirty: setDirty })
         : selectedDial ? h('section', { className: 'inspector dial-inspector' }, h('h2', {}, selectedDial.master ? 'Master' : `Potard ${selectedDial.index + 1}`), h('p', { className: 'inspector-intro' }, 'Mixer audio'),
           h('div', { className: 'dial-assignment' }, h('h3', {}, selectedDial.name ?? 'Aucune application'), h('p', {}, selectedDial.volume === null ? 'Ce potard est libre sur cette page.' : `${Math.round(selectedDial.volume)} %${selectedDial.muted ? ' · Son coupé' : ''}`)),
           h('dl', { className: 'behaviors' }, h('dt', {}, 'Rotation'), h('dd', {}, 'Volume de la source affichée'), h('dt', {}, 'Appui'), h('dd', {}, 'Couper ou rétablir le son')),
