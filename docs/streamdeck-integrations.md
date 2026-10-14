@@ -47,7 +47,8 @@ Discord restricts unapproved RPC applications to approved testers.
 1. Open **Fonctionnalités → Connexion Discord** at `http://127.0.0.1:3900`.
 2. Create an application in the linked Discord Developer Portal. Under
    **OAuth2 → Redirects**, register exactly `http://127.0.0.1:3900/` and save.
-   The authorization request and code exchange use this same loopback URI.
+   This is application metadata; the RPC authorization request and token exchange
+   must omit `redirect_uri`, unlike ordinary browser OAuth.
    Your account/application also needs the RPC access required by Discord.
 3. Copy **Application ID** and **OAuth2 → Client secret** into the local form,
    then choose **Enregistrer l’application**. Never send the secret in chat.
@@ -87,10 +88,11 @@ from button presses.
 Discord documents exclusive control for `SET_VOICE_SETTINGS`, and restoration
 of preceding voice settings on RPC disconnect. Disabling/restarting the plugin
 can therefore restore those settings; keep this in mind during a real voice test.
-The real deck binding **Mute Discord** on key 36 is preserved. Authenticated
-RPC remains unverified until Manuel supplies his application and authorizes it.
-Tests use fake voice state plus a real temporary Unix socket, without accessing
-Discord or enabling a microphone.
+The real deck binding **Mute Discord** on key 36 is preserved. On 2026-10-14,
+real RPC authentication, event subscription and initial voice-state reads passed
+with Manuel's application. The studio returned `authorized: true`, plugin phase
+`enabled`, and key 36 feedback **COUPÉ**. Automated tests use fake voice state plus
+a real temporary Unix socket; they never access Discord or enable a microphone.
 
 The previously validated niri/wtype backend remains explicitly selectable with
 `STREAMDECK_DISCORD_BACKEND=keyboard`; legacy `auto` is also supported. It briefly
@@ -192,5 +194,14 @@ message incorrectly attributed every RPC error to tester/approval access.
 Diagnostics now retain the numeric code and distinguish redirect, scope,
 client-ID, token and permission failures without echoing arbitrary remote data.
 This observed refusal does not establish whether the application has RPC access.
-The configured credentials remain private; the pending setup step is registering
-the loopback redirect and retrying user authorization.
+The configured credentials remain private. After registering the loopback URI,
+a subsequent live refusal
+was `Redirect URI cannot be used in the RPC OAuth2 Authorization flow`: RPC
+rejects an explicit redirect even when it is registered. Both `AUTHORIZE` and
+the RPC code exchange now omit it, with regression checks on the actual request
+arguments/form body. Registered portal metadata is retained. This matches the
+[RPC compatibility note](https://github.com/fredemmott/StreamDeck-Discord/releases/tag/v2.2)
+and the original adapter's authorization/token-exchange implementation.
+Retrying the studio authorization endpoint then returned HTTP 200 with the plugin
+enabled; a subsequent snapshot confirmed persisted authorization and live muted
+microphone feedback. No voice-setting toggle was sent during this diagnosis.

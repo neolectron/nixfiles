@@ -5,7 +5,6 @@ import { authorize, DiscordOAuth, make, makeOAuth } from '../src/discord-connect
 import { HttpClient, HttpClientResponse, type HttpClientRequest } from 'effect/http';
 import { Decoder, DiscordTransport, encode } from '../src/discord-ipc.ts';
 import { IntegrationError, type Message } from '../src/json-socket.ts';
-import { RedirectUri } from '../src/discord-contract.ts';
 import { rpcError } from '../src/discord-rpc-error.ts';
 
 const transport = (denied = false) => {
@@ -33,7 +32,7 @@ it.effect('IPC decodes split/coalesced frames and bounds frame lengths', () => E
 
 it.live('authorization is interactive, scoped and only requests rpc/identify', () => Effect.gen(function*() {
   const fake = transport(); assert.strictEqual(yield* authorize('123456').pipe(Effect.provide(fake.layer)), 'temporary-code');
-  assert.deepStrictEqual(fake.sent[0]!.args, { client_id: '123456', scopes: ['rpc', 'identify'], redirect_uri: RedirectUri }); assert.strictEqual(fake.closed(), 1);
+  assert.deepStrictEqual(fake.sent[0]!.args, { client_id: '123456', scopes: ['rpc', 'identify'] }); assert.strictEqual(fake.closed(), 1);
   const denied = transport(true); const result = yield* Effect.result(authorize('123456').pipe(Effect.provide(denied.layer)));
   assert.strictEqual(result._tag, 'Failure'); assert.strictEqual(denied.closed(), 1);
   if (result._tag === 'Failure') assert.ok(!result.failure.message.includes('DO NOT EXPOSE'));
@@ -42,13 +41,14 @@ it.live('authorization is interactive, scoped and only requests rpc/identify', (
 it.effect('RPC diagnostics distinguish a missing redirect from refused scopes and never echo arbitrary payloads', () => Effect.sync(() => {
   const missing = rpcError('AUTHORIZE', { code: 5000, message: 'OAuth2 Error: invalid_request: Missing "redirect_uri" in request.' });
   assert.ok(missing.message.includes('(5000)')); assert.ok(missing.message.includes('URI de redirection')); assert.ok(!missing.message.includes('testeur'));
+  assert.ok(rpcError('AUTHORIZE', { code: 5000, message: 'Redirect URI cannot be used in the RPC OAuth2 Authorization flow' }).message.includes('interdit un redirect_uri explicite'));
   assert.ok(rpcError('AUTHORIZE', { code: 5000, message: 'OAuth2 Error: invalid_scope: private-secret' }).message.includes('Scopes OAuth refusés'));
   assert.ok(rpcError('AUTHENTICATE', { code: 4009, message: 'private-access-token' }).message.includes('Jeton OAuth invalide'));
   assert.ok(rpcError('AUTHORIZE', { code: 4007 }).message.includes('Application ID invalide'));
   assert.strictEqual(rpcError('AUTHORIZE', { code: 9999, message: 'DO NOT EXPOSE', token: 'private-token' }).message, 'Discord RPC AUTHORIZE (9999) : Commande refusée par Discord.');
 }));
 
-it.live('OAuth code exchange uses the registered redirect URI; refresh grants omit it and errors redact credentials', () => Effect.gen(function*() {
+it.live('RPC OAuth code and refresh grants omit redirect_uri and errors redact credentials', () => Effect.gen(function*() {
   const sent: Array<HttpClientRequest.HttpClientRequest> = [];
   const client = HttpClient.make((request) => Effect.sync(() => {
     sent.push(request);
@@ -64,7 +64,7 @@ it.live('OAuth code exchange uses the registered redirect URI; refresh grants om
     assert.strictEqual(request.body.contentType, 'application/x-www-form-urlencoded');
     return new URLSearchParams(new TextDecoder().decode(request.body.body));
   };
-  assert.strictEqual(body(0).get('redirect_uri'), RedirectUri); assert.strictEqual(body(0).get('code'), 'one-time-code');
+  assert.strictEqual(body(0).get('redirect_uri'), null); assert.strictEqual(body(0).get('code'), 'one-time-code');
   assert.strictEqual(body(1).get('redirect_uri'), null); assert.strictEqual(body(1).get('refresh_token'), 'old-refresh');
   const rejected = HttpClient.make((request) => Effect.succeed(HttpClientResponse.fromWeb(request, new Response('private-secret one-time-code', { status: 400 }))));
   const failing = yield* makeOAuth.pipe(Effect.provideService(HttpClient.HttpClient, rejected));

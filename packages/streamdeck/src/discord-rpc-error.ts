@@ -9,6 +9,7 @@ export const rpcError = (command: string, data: unknown): IntegrationError => {
     : code === 4008 ? 'Origine OAuth de l’application refusée.'
     : code === 4009 ? 'Jeton OAuth invalide ou révoqué. Autorise à nouveau l’application.'
     : code === 4006 ? 'Permissions RPC insuffisantes. Vérifie l’accès de l’application et de ton compte.'
+    : code === 5000 && /redirect uri cannot be used/i.test(detail) ? 'Le flux OAuth RPC interdit un redirect_uri explicite. La requête du logiciel doit être corrigée.'
     : code === 5000 && /redirect_uri/i.test(detail) ? 'URI de redirection OAuth manquante ou invalide. Ajoute l’URI indiquée dans OAuth2 → Redirects du Developer Portal.'
     : code === 5000 && /invalid_scope/i.test(detail) ? 'Scopes OAuth refusés. L’accès RPC de cette application doit être vérifié auprès de Discord.'
     : code === 5000 && /access_denied/i.test(detail) ? 'Autorisation OAuth refusée. Tu peux relancer la demande dans Discord.'
