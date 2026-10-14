@@ -157,7 +157,7 @@ export function PluginFields({
       {values.plugin &&
       !snapshot.plugins.items.find((plugin) => plugin.id === values.plugin)?.enabled ? (
         <p className="field-hint">
-          Cette affectation peut être enregistrée. Active le plugin dans Fonctionnalités pour
+          Cette affectation peut être enregistrée. Active le plugin dans l’onglet Plugins pour
           l’utiliser.
         </p>
       ) : null}

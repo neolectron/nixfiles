@@ -10,10 +10,15 @@ Use Liberation Sans throughout, tabular numbers for controls and code type only
 for command arguments/output. Keep the deck visually dominant, inspect selected
 keys without modal interruption, and make saved/unsaved/error states explicit.
 
-Desktop: header, device preview at left, property inspector at right. Narrow
-screens: inspector below the preview; the grid remains nine columns. No decorative
+Desktop: device preview at left, tabbed configuration at right, without a global
+navbar. The detected model name and connection indicator lead the preview; the
+status dot sits before the name. Before USB detection the title stays generic.
+Édition keeps the selected key/dial inspector. Plugins groups activation switches
+and per-plugin collapsible configuration; switches remain reachable when collapsed.
+Tab changes preserve unsaved drafts. Narrow screens: configuration below the preview;
+the grid follows the device's columns. No decorative
 motion, metrics, marketing content or unfinished navigation. Physical knob
 selection explains the current mixer assignment. Key faces invoke their configured simple/double/long gestures. The corner pencil
 (on hover or keyboard focus) and right click open editing without invoking an
 action. The numbered corner is a separate pointer drag handle; Alt + arrows also
-rearrange. USB disconnection changes the header status and leaves web actions live.
+rearrange. USB disconnection changes the status beside the device name and leaves web actions live.

@@ -20,6 +20,7 @@ export interface Lcd extends Key {
 }
 export interface Device {
   readonly info: DeviceInfo;
+  readonly detectedModel?: Effect.Effect<string | null>;
   readonly connected?: Effect.Effect<boolean>;
   readonly connectionChanges?: import('effect').Stream.Stream<boolean>;
   readonly connectionError?: Effect.Effect<string | null>;
@@ -209,6 +210,7 @@ const make = (options: OpenOptions) =>
     };
     return StreamDeck.of({
       info: connection.info,
+      ...(connection.detectedModel ? { detectedModel: connection.detectedModel } : {}),
       connected: connection.connected ?? Effect.succeed(true),
       ...(connection.connectionChanges ? { connectionChanges: connection.connectionChanges } : {}),
       connectionError: connection.connectionError ?? Effect.succeed(null),

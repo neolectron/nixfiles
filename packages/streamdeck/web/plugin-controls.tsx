@@ -31,11 +31,60 @@ export function PluginControls({
     }
   };
   return (
-    <section className="plugin-controls" aria-label="Fonctionnalités">
-      <h3>Fonctionnalités</h3>
+    <section className="plugin-controls" aria-label="Activation et configuration des plugins">
       {snapshot.plugins.items.map((plugin) => (
-        <div key={plugin.id}>
-          <label className="plugin-row">
+        <div key={plugin.id} className="plugin-entry">
+          <details className="plugin-details">
+            <summary aria-label={`Configurer ${plugin.name}`}>
+              <svg
+                className="plugin-chevron"
+                width={16}
+                height={16}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              >
+                <path d="m9 5 7 7-7 7" />
+              </svg>
+              <span className="plugin-summary-label">
+                <strong>{plugin.name}</strong>
+                <span className={`plugin-phase ${plugin.phase}`} role="status">
+                  {busy === plugin.id
+                    ? 'En cours…'
+                    : plugin.phase === 'enabled'
+                      ? 'Actif'
+                      : plugin.phase === 'error'
+                        ? 'Erreur'
+                        : plugin.phase === 'unsupported'
+                          ? 'Indisponible'
+                          : 'Désactivé'}
+                </span>
+              </span>
+            </summary>
+            <div className="plugin-body">
+              <p className="field-hint">{plugin.description}</p>
+              <p className="plugin-controls-used">
+                {[
+                  plugin.keys.length ? `Touches ${keyRanges(plugin.keys)}` : '',
+                  plugin.dials.length ? `Potards ${keyRanges(plugin.dials)}` : '',
+                  plugin.lcds.length ? 'Écran LCD' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'Aucun contrôle réservé'}
+              </p>
+              {plugin.id === 'discord' ? (
+                <DiscordConnection
+                  snapshot={snapshot}
+                  disabled={!online || !!busy || dirty}
+                  onSnapshot={onSnapshot}
+                  onBusy={setConnecting}
+                />
+              ) : null}
+            </div>
+          </details>
+          <label className="plugin-toggle">
             <input
               type="checkbox"
               aria-label={`Activer ${plugin.name}`}
@@ -45,30 +94,6 @@ export function PluginControls({
                 void toggle(plugin, (event.currentTarget as HTMLInputElement).checked)
               }
             />
-            <span>
-              <strong>{plugin.name}</strong>
-              <span className={`plugin-phase ${plugin.phase}`} role="status">
-                {busy === plugin.id
-                  ? 'En cours…'
-                  : plugin.phase === 'enabled'
-                    ? 'Actif'
-                    : plugin.phase === 'error'
-                      ? 'Erreur'
-                      : plugin.phase === 'unsupported'
-                        ? 'Indisponible'
-                        : 'Désactivé'}
-              </span>
-              <small>{plugin.description}</small>
-              <small>
-                {[
-                  plugin.keys.length ? `Touches ${keyRanges(plugin.keys)}` : '',
-                  plugin.dials.length ? `Potards ${keyRanges(plugin.dials)}` : '',
-                  plugin.lcds.length ? 'Écran LCD' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'Aucun contrôle réservé'}
-              </small>
-            </span>
           </label>
           {plugin.detail ? (
             <p className={plugin.phase === 'error' ? 'error' : 'field-hint'}>{plugin.detail}</p>
@@ -77,21 +102,13 @@ export function PluginControls({
       ))}
       {dirty ? (
         <p className="field-hint">
-          Enregistre ou annule l’affectation avant de changer les fonctionnalités.
+          Enregistre ou annule l’affectation dans Édition avant de changer les plugins.
         </p>
       ) : null}
       {error ? (
         <p className="error" role="alert">
           {error}
         </p>
-      ) : null}
-      {snapshot.plugins.items.some((plugin) => plugin.id === 'discord') ? (
-        <DiscordConnection
-          snapshot={snapshot}
-          disabled={!online || !!busy || dirty}
-          onSnapshot={onSnapshot}
-          onBusy={setConnecting}
-        />
       ) : null}
     </section>
   );

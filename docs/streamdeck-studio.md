@@ -1,5 +1,22 @@
 # First local Stream Deck editor
 
+## Device heading and plugin sidebar — 14 October 2026
+
+The global navbar is removed. The connection dot/status precedes the device name
+above its preview. The name comes from HID discovery/open metadata; an offline
+canvas no longer claims to be a detected + XL. Before discovery it says Stream Deck,
+then keeps the most recently detected model through a disconnection. Detection and
+reconnection fixtures cover Mini, XL and + names without changing the device profile.
+
+The right column has **Édition** and **Plugins** tabs, with arrow/Home/End keyboard
+navigation. Both panels remain mounted to retain unsaved key and connection drafts.
+Selecting a key/dial for editing returns to Édition. Plugin switches and collapsible
+rows now live in Plugins, including the Discord configuration inputs directly inside
+its row. Closed rows retain their activation switch; a dirty key draft blocks plugin
+changes until it is saved or canceled. Plugin activation is distinct from transport
+health: Discord's configuration shows its saved authorization, not an inferred RPC
+connection just because the plugin is enabled.
+
 ## Dial interaction and visible rearrangement handles — 14 October 2026
 
 Snapshots now carry cumulative signed `rotationSteps` for each encoder. Immediate

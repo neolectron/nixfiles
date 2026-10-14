@@ -6,6 +6,8 @@ import type { DeckEvent, DeviceInfo, Position } from './model.ts';
 /** Backend boundary. Scripts use StreamDeck, never native driver objects. */
 export interface Connection {
   readonly info: DeviceInfo;
+  /** Physical metadata, distinct from an offline virtual canvas's profile. */
+  readonly detectedModel?: Effect.Effect<string | null>;
   /** Optional live physical connection state for persistent virtual transports. */
   readonly connected?: Effect.Effect<boolean>;
   readonly connectionChanges?: import('effect').Stream.Stream<boolean>;

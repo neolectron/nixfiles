@@ -62,7 +62,11 @@ not the future LCD SurfaceHost/scene tile contract described in the architecture
 
 ## Use the built-in plugins
 
-The editor's **Fonctionnalités** switches control **Mixer audio**, **Applications et scripts** and **Raccourcis**.
+The editor's **Plugins** tab controls **Mixer audio**, **Applications et scripts**, **Raccourcis**
+and personal plugins. Each list row expands to show its details and any available
+configuration fields; Discord's connection form lives inside its own row. Activation
+stays accessible while the row is collapsed. The **Édition** tab retains the selected
+key/dial and unsaved drafts when switching between tabs.
 Their enabled preferences are atomically saved with mode `0600` alongside the key
 profile, in `<profile>.plugins.json`. Existing profiles default to all three enabled.
 New personal plugins default to disabled. Unsupported hardware and source errors

@@ -340,7 +340,7 @@ export const startStudio = (options: {
         plugins: yield* host.snapshot,
         layout: actionView.layout,
         sessionId,
-        model: deck.info.model,
+        model: (yield* deck.detectedModel ?? Effect.succeed(deck.info.model)) ?? 'Stream Deck',
         mock: options.mock ?? false,
         connected: options.mock ? false : yield* deck.connected ?? Effect.succeed(true),
         connectionError: yield* deck.connectionError ?? Effect.succeed(null),
