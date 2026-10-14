@@ -12,6 +12,24 @@ at its root; presentation plugins reuse them. Disabling a presentation does not
 close a shared integration. Standalone plugins can still own their own service
 scope. See [the service API](../packages/system-control/README.md).
 
+## Persist plugin state
+
+Studio supplies the shared `PersistentState` Effect service to plugin setup and
+Layer construction. A plugin can capture a typed document in its Layer and expose
+actions that read or update it:
+
+```ts
+const state = yield * PersistentState;
+const counter = state.document('plugins/example/count.v1.json', Schema.Int);
+const increment = counter.modify((before) => Effect.succeed(Option.getOrElse(before, () => 0) + 1));
+```
+
+The plugin owns its Schema, key namespace and when to save. The app selects the
+backend once; plugin code stays the same. Disabling a plugin preserves its saved
+data. Standalone hosts must provide `PersistentState.layer` with a `StateStorage`
+adapter. See the [storage API](../packages/system-control/README.md#application-state-and-storage-adapters)
+for memory, atomic files and the bridge to upstream KeyValueStore Layers.
+
 ## Export ready-to-assign key tiles
 
 An action can export a `tile` alongside its Schema, defaults and handler:

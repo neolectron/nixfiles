@@ -1,4 +1,7 @@
 import * as SystemRuntime from '@nixfiles/system-control/runtime.ts';
+import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
+import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
+import * as FileStorage from '@nixfiles/system-control/state-storage-file.ts';
 import * as Notes from '@nixfiles/system-control/notes.ts';
 import { Update as NoteUpdate } from '@nixfiles/system-control/notes-contract.ts';
 import * as Speech from '@nixfiles/system-control/speech.ts';
@@ -95,9 +98,15 @@ export const startStudio = (options: {
   renderer?: RendererKind;
   applications?: ReadonlyArray<ApplicationEntry>;
   origin?: string;
+  /** Provide one scoped adapter for layout, plugin preferences, notes and plugin state. */
+  persistence?: Layer.Layer<
+    StateStorage,
+    unknown,
+    FileSystem.FileSystem | Path.Path | Crypto.Crypto
+  >;
   configurePlugins?: (
     host: Effect.Success<typeof Plugins.make>,
-  ) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope>;
+  ) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope | PersistentState>;
 }) =>
   Effect.gen(function* () {
     const original = yield* StreamDeck;
@@ -123,12 +132,19 @@ export const startStudio = (options: {
     );
     const cards = yield* Cards.make;
     const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
-    const notes = yield* Notes.make(
-      (yield* Path.Path).join((yield* Path.Path).dirname(options.profile), 'notes'),
+    const path = yield* Path.Path;
+    const persistenceServices = yield* Layer.build(
+      PersistentState.layer.pipe(
+        Layer.provideMerge(options.persistence ?? FileStorage.layer(path.dirname(options.profile))),
+      ),
     );
+    const persistentState = Context.get(persistenceServices, PersistentState);
+    const notes = yield* Notes.makeWithState().pipe(Effect.provideContext(persistenceServices));
     const speech = Context.get(yield* Layer.build(Speech.Speech.layer), Speech.Speech);
     const noteOpener = yield* NotesPlugin.opener(options.origin ?? 'http://127.0.0.1:3900');
-    const settings = yield* PluginSettings.make(`${options.profile}.plugins.json`);
+    const settings = yield* PluginSettings.makeWithState(
+      `${path.basename(options.profile)}.plugins.json`,
+    ).pipe(Effect.provideContext(persistenceServices));
     const discordConnection = yield* makeDiscordConnection(
       `${options.profile}.discord-connection.json`,
     );
@@ -181,7 +197,10 @@ export const startStudio = (options: {
           },
         }),
       )
-      .pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+      .pipe(
+        Effect.provideService(Takumi.ReactRenderer, renderer),
+        Effect.provideContext(persistenceServices),
+      );
     const systemServices =
       options.configurePlugins || options.mock
         ? Context.empty()
@@ -196,9 +215,11 @@ export const startStudio = (options: {
         .pipe(
           Effect.provideService(Takumi.ReactRenderer, renderer),
           Effect.provideService(Cards.MixerCards, cards),
+          Effect.provideContext(persistenceServices),
         );
     else
       yield* PersonalPlugins.configure(host).pipe(
+        Effect.provideContext(persistenceServices),
         Effect.provideService(Notes.Notes, notes),
         Effect.provideService(Speech.Speech, speech),
         Effect.provideService(NotesPlugin.NoteOpener, noteOpener),
@@ -512,6 +533,7 @@ export const startStudio = (options: {
         });
       });
     return {
+      persistentState,
       notes,
       speech,
       snapshot: readSnapshot,
@@ -889,6 +911,7 @@ export const studio = (options: {
   profile: string;
   mock: boolean;
   renderer?: RendererKind;
+  persistence?: NonNullable<Parameters<typeof startStudio>[0]['persistence']>;
   configurePlugins?: NonNullable<Parameters<typeof startStudio>[0]['configurePlugins']>;
 }) =>
   Effect.gen(function* () {

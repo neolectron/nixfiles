@@ -1,4 +1,7 @@
 import type * as Overlays from './deck-overlays.ts';
+import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
+import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
+import * as FileStorage from '@nixfiles/system-control/state-storage-file.ts';
 import { invariant } from './errors.ts';
 import {
   Crypto,
@@ -6,7 +9,7 @@ import {
   Effect,
   Equal,
   Fiber,
-  FileSystem,
+  Layer,
   Path,
   Ref,
   Schema,
@@ -141,7 +144,7 @@ export interface KeyState {
 }
 const emptyState: KeyState = { count: 0, status: 'idle', detail: '' };
 /** One scoped owner for stable shortcuts, navigation, persistence and execution. */
-export const make = (
+export const makeWithState = (
   deck: Device,
   profileFile: string,
   applications: ReadonlyArray<ApplicationEntry>,
@@ -165,16 +168,16 @@ export const make = (
 ) =>
   Effect.gen(function* () {
     const scope = yield* Effect.scope;
-    const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const storage = yield* StateStorage;
+    const profileKey = path.basename(profileFile);
+    const profileDocument = (yield* PersistentState).document(profileKey, Profile);
     const commands = pluginActions ? undefined : yield* Commands.make(applications);
     const crypto = yield* Crypto.Crypto;
     const renderer = yield* Takumi.current;
     const lock = yield* Semaphore.make(1);
     const deviceKeys = deck.buttons.filter((key) => key.pixelSize).map((key) => key.index);
-    const originalText = (yield* fs.exists(profileFile))
-      ? yield* fs.readFileString(profileFile)
-      : undefined;
+    const originalText = yield* storage.get(profileKey);
     const stored =
       originalText === undefined
         ? undefined
@@ -384,22 +387,18 @@ export const make = (
           while (owner.items.at(-1) === null) owner.items.pop();
         const validated = yield* Schema.decodeUnknownEffect(Profile)(compact);
         yield* checked(() => Layout.validate(validated, deviceKeys));
-        yield* fs.makeDirectory(path.dirname(profileFile), { recursive: true });
-        if (legacyText !== undefined && !(yield* fs.exists(`${profileFile}.v1.backup`)))
-          yield* fs.writeFileString(`${profileFile}.v1.backup`, legacyText, { mode: 0o600 });
+        if (
+          legacyText !== undefined &&
+          (yield* storage.get(`${profileKey}.v1.backup`)) === undefined
+        )
+          yield* storage.set(`${profileKey}.v1.backup`, legacyText);
         if (
           previousDiscordText !== undefined &&
-          !(yield* fs.exists(`${profileFile}.discord-share.backup`))
+          (yield* storage.get(`${profileKey}.discord-share.backup`)) === undefined
         )
-          yield* fs.writeFileString(`${profileFile}.discord-share.backup`, previousDiscordText, {
-            mode: 0o600,
-          });
-        const temporary = `${profileFile}.${yield* crypto.randomUUIDv4()}.tmp`;
+          yield* storage.set(`${profileKey}.discord-share.backup`, previousDiscordText);
         yield* Effect.gen(function* () {
-          yield* fs.writeFileString(temporary, `${JSON.stringify(validated, null, 2)}\n`, {
-            mode: 0o600,
-          });
-          yield* fs.rename(temporary, profileFile);
+          yield* profileDocument.set(validated);
           yield* Ref.update(model, (before) => ({
             profile: validated,
             navigation,
@@ -408,10 +407,7 @@ export const make = (
           }));
           legacyText = undefined;
           previousDiscordText = undefined;
-        }).pipe(
-          Effect.uninterruptible,
-          Effect.ensuring(fs.remove(temporary, { force: true }).pipe(Effect.ignore)),
-        );
+        }).pipe(Effect.uninterruptible);
       });
     const navigateUnlocked = (command: Navigate) =>
       Effect.gen(function* () {
@@ -865,4 +861,14 @@ export const make = (
       ),
       navigate: (command: Navigate) => Semaphore.withPermits(lock, 1)(navigateUnlocked(command)),
     };
+  });
+
+/** Standalone convenience; Studio supplies the shared state Layer to makeWithState. */
+export const make = (...args: Parameters<typeof makeWithState>) =>
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const services = yield* Layer.build(
+      PersistentState.layer.pipe(Layer.provideMerge(FileStorage.layer(path.dirname(args[1])))),
+    );
+    return yield* makeWithState(...args).pipe(Effect.provideContext(services));
   });

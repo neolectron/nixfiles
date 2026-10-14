@@ -188,6 +188,87 @@ overrides. Jobs are ephemeral, bounded to ten minutes, with no detached process;
 output/temp files belong to the job scope. MCP/app/plugin integrations are disabled
 per invocation using the same configuration boundary as the selection adapter.
 
+## Application state and storage adapters
+
+`PersistentState` in `persistent-state.ts` is the shared, scoped state service.
+It opens schema-validated documents by logical key, with `get` (`Option`), `set`,
+`remove` and `modify`. A document has no knowledge of files, Redis or SQL:
+
+```ts
+import { Effect, Option, Schema } from 'effect';
+import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
+
+const increment = Effect.gen(function* () {
+  const state = yield* PersistentState;
+  const counter = state.document('plugins/my-plugin/counter.v1.json', Schema.Int);
+  return yield* counter.modify((before) => Effect.succeed(Option.getOrElse(before, () => 0) + 1));
+});
+```
+
+Use stable, plugin-owned keys and versioned Schemas. JSON serialization uses
+`Schema.toCodecJson`, so encoding/decoding services and errors remain typed.
+Reads always consult storage; invalid saved values fail rather than silently
+resetting to defaults. A failed validation, business rule or adapter write does
+not publish a successful mutation. The scope interrupts pending operations and
+revokes retained document APIs when it closes.
+
+The adapter boundary is `StateStorage` in `state-storage.ts`. Its `Adapter` type
+is the `get`/`set`/`remove` subset of Effect's own `KeyValueStore` interface, with
+its existing `KeyValueStoreError`. It deliberately omits backend-wide `clear` and
+`size`, since a directory/database may contain credentials or unrelated data.
+There is no second vendor-specific repository interface to implement.
+
+```ts
+import { Layer } from 'effect';
+import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
+import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
+import * as Files from '@nixfiles/system-control/state-storage-file.ts';
+
+const MemoryState = PersistentState.layer.pipe(Layer.provide(StateStorage.layerMemory));
+const FileState = PersistentState.layer.pipe(Layer.provide(Files.layer('./data')));
+```
+
+`layerMemory` reuses Effect's `KeyValueStore.layerMemory`; it has no custom memory
+implementation. The file adapter is application-specific because existing JSON
+paths and atomic temp-file/rename writes must survive this refactor. It creates
+0700 directories and 0600 files on mutation, without rewriting existing data on
+startup. Its keys are safe relative paths; `/`, `..`, empty segments, backslashes
+and NUL cannot escape the configured root. `remove` affects exactly one key.
+
+Any existing `KeyValueStore` Layer can be used through the bridge:
+
+```ts
+import * as KeyValueStore from 'effect/persistence/KeyValueStore';
+
+const Storage = StateStorage.layerKeyValueStore.pipe(
+  Layer.provide(KeyValueStore.layerSql({ table: 'streamdeck_state' })),
+);
+// Supply a SqlClient driver Layer to Storage, then use it at the app root.
+```
+
+For Redis or another SDK, provide `Layer.effect(StateStorage, ...)` returning
+those three effectful operations. Acquire clients with `Effect.acquireRelease`
+inside the Layer, translate transport errors to `KeyValueStoreError`, and bound
+network calls using the client's timeout settings. Supply `undefined` for a
+missing key and make removal idempotent. No Redis/Postgres client is installed
+or connected by this change. SQL above is an upstream integration point.
+
+`modify` serializes read/validate/write across **one shared PersistentState
+instance**. This protects notes and preferences across local consumers, including
+separate service instances. It is not a cross-process CAS or SQL transaction;
+shared Redis/Postgres deployment with concurrent application writers would need
+a transactional/CAS extension. Do not nest document mutations inside a `modify`
+callback, since they share the same lock. Individual backend writes must be atomic.
+
+Research: Effect v4 already provides
+[KeyValueStore](https://effect.website/docs/v4/api/effect/persistence/KeyValueStore)
+and memory/file/SQL/Web Storage Layers. Its
+[Persistence](https://effect.website/docs/v4/api/effect/persistence/Persistence)
+stores request results with expiry, which fits caches rather than editable app
+documents. `Atom.kvs` is also present in the pinned Effect source, but its automatic
+UI writes do not match Studio's explicit Save flow. The implementation is checked
+against our pinned Effect **4.0.4**; these upstream APIs are marked unstable.
+
 ## Local notes and speech
 
 `Notes.layer(directory)` from `notes.ts` provides `read(id)`, `ensure(id, title)`,
@@ -197,6 +278,10 @@ mutations. A stale save returns `NoteError` with status 409. Retained APIs retur
 503 after their scope closes. Studio stores them in `notes/` beside its profile;
 they are independent of layout saves and plugin activation. Pure schemas live in
 `notes-contract.ts` for UI/API reuse without platform dependencies.
+
+Studio uses `Notes.layerWithState()` / `makeWithState()` with its shared
+`PersistentState`. The directory-based constructors remain standalone convenience
+wrappers around the same service and file adapter.
 
 `Speech.layer` from `speech.ts` provides `capture(target, released)` and `activity`.
 The release Effect stops capture and starts transcription. Activity identifies the

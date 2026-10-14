@@ -37,6 +37,47 @@ Folder preview navigation and Cancel also worked. Real-deck verification prepare
 and canceled a tile edit plus drag; the personal profile stayed byte-for-byte
 unchanged. Desktop and narrow-screen Save controls were checked.
 
+## Swappable application persistence
+
+Studio builds one `PersistentState` service and provides it to the layout,
+plugin preferences, Notes and every plugin setup. The default atomic file adapter
+keeps the current profile, migration backups, `.plugins.json` and `notes/*.json`
+paths. Existing JSON is read directly; startup does not migrate or rewrite it.
+Layout/configuration edits still require **Enregistrer**. Typed note text still
+requires its own Save; dictated text is appended immediately after transcription.
+Transient connection state, in-flight jobs and browser drafts remain transient.
+Discord OAuth credentials retain their separate local credential store.
+
+To start with disposable state, choose the existing Effect memory adapter:
+
+```bash
+pnpm streamdeck studio --storage memory --mock --mock-audio
+```
+
+Memory starts empty, does not fall back to the saved layout/notes/preferences and
+is discarded on exit. The default is `--storage file`. `--profile` selects the
+profile filename and file-storage directory; with an injected adapter only its
+basename identifies the layout and preference keys. Notes retain their existing
+shared `notes/` namespace within that storage root.
+
+For programmatic use, pass an adapter Layer to `studio` or `startStudio`:
+
+```ts
+yield *
+  studio({
+    port: 3900,
+    profile: './data/profile.json',
+    mock: true,
+    persistence: StateStorage.layerMemory,
+  });
+```
+
+Supply an already-composed `StateStorage` Layer for SQL, Redis or another backend;
+the application owns its lifetime. See the
+[adapter contract and examples](../packages/system-control/README.md#application-state-and-storage-adapters).
+Tests restart Studio against a shared adapter, verify a fresh memory backend is
+empty, and ensure an injected adapter never reads/writes a sentinel legacy profile.
+
 ## Device heading and plugin sidebar — 14 October 2026
 
 The global navbar is removed. The connection dot precedes the device name, with

@@ -16,7 +16,7 @@ export interface Options {
 export const make = (options: Options) =>
   Effect.gen(function* () {
     const deck = yield* StreamDeck;
-    const actions = yield* Actions.make(
+    const actions = yield* Actions.makeWithState(
       deck,
       options.profile,
       options.applications,
