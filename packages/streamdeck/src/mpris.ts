@@ -1,0 +1,82 @@
+import { Context, Effect, Layer, Ref, Result, Schedule, Schema, Semaphore, Stream } from 'effect';
+import { ChildProcess, ChildProcessSpawner } from 'effect/process';
+import { IntegrationError } from './json-socket.ts';
+import * as Sources from './sources.ts';
+
+const path = '/org/mpris/MediaPlayer2'; const player = 'org.mpris.MediaPlayer2.Player'; const properties = 'org.freedesktop.DBus.Properties';
+const string = Schema.Struct({ type: Schema.Literal('s'), data: Schema.String });
+const boolean = Schema.Struct({ type: Schema.Literal('b'), data: Schema.Boolean });
+const variant = Schema.Struct({ type: Schema.String, data: Schema.Unknown });
+const reply = Schema.Struct({ type: Schema.Literal('a{sv}'), data: Schema.Tuple([Schema.Struct({
+  PlaybackStatus: Schema.Struct({ type: Schema.Literal('s'), data: Schema.Literals(['Playing', 'Paused', 'Stopped']) }),
+  CanControl: boolean, CanGoNext: boolean, CanGoPrevious: boolean, CanPlay: boolean, CanPause: boolean, CanSeek: boolean,
+  Shuffle: Schema.optional(boolean), LoopStatus: Schema.optional(Schema.Struct({ type: Schema.Literal('s'), data: Schema.Literals(['None', 'Track', 'Playlist']) })),
+  Metadata: Schema.optional(Schema.Struct({ type: Schema.Literal('a{sv}'), data: Schema.Record(Schema.String, variant) })),
+})]) });
+export interface State {
+  readonly status: 'Playing' | 'Paused' | 'Stopped'; readonly title: string; readonly artists: ReadonlyArray<string>;
+  readonly canControl: boolean; readonly canNext: boolean; readonly canPrevious: boolean; readonly canPlay: boolean; readonly canPause: boolean; readonly canSeek: boolean;
+  readonly shuffle: boolean | null; readonly loop: 'None' | 'Track' | 'Playlist' | null;
+}
+export type Command = 'PlayPause' | 'Play' | 'Pause' | 'Stop' | 'Next' | 'Previous';
+/** Replaceable D-Bus boundary. busctl JSON avoids parsing GVariant text or invoking a shell. */
+export class MprisTransport extends Context.Service<MprisTransport, {
+  readonly ready: Effect.Effect<void, IntegrationError>;
+  readonly run: (args: ReadonlyArray<string>) => Effect.Effect<string, IntegrationError>;
+}>()('@nixfiles/streamdeck/MprisTransport') {
+  static readonly layer = Layer.effect(MprisTransport, Effect.gen(function*() {
+    const processes = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const run = (args: ReadonlyArray<string>) => Effect.scoped(Effect.gen(function*() {
+      const handle = yield* processes.spawn(ChildProcess.make('busctl', args, { stdin: 'ignore' }));
+      const [out, err, code] = yield* Effect.all([Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr)), handle.exitCode], { concurrency: 'unbounded' });
+      if (code !== 0) return yield* Effect.fail(new IntegrationError({ message: `Spotify/MPRIS indisponible : ${err.trim().slice(-600) || 'ouvre Spotify Desktop dans cette session.'}` }));
+      return out;
+    })).pipe(Effect.timeout('3 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'busctl indisponible ou D-Bus ne répond pas. Utilise le shell Nix du projet et ouvre Spotify Desktop.' })));
+    return { ready: run(['--version']).pipe(Effect.asVoid), run };
+  }));
+}
+
+/** One player per service; queries/toggles are serialized and the cache survives app restarts. */
+export const make = (busName: string) => Effect.gen(function*() {
+  if (busName.length > 255 || !/^org\.mpris\.MediaPlayer2\.[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*$/.test(busName)) return yield* Effect.fail(new IntegrationError({ message: 'Nom D-Bus MPRIS invalide.' }));
+  const transport = yield* MprisTransport; yield* transport.ready;
+  const lock = yield* Semaphore.make(1);
+  const cached = yield* Ref.make<Result.Result<State, IntegrationError>>(Result.fail(new IntegrationError({ message: 'Ouvre Spotify Desktop pour lire son état.' })));
+  // --auto-start=no: merely enabling the plugin never launches an application or changes playback.
+  const run = (args: ReadonlyArray<string>) => transport.run(['--user', '--json=short', '--timeout=2s', '--auto-start=no', ...args]);
+  const read = run(['call', busName, path, properties, 'GetAll', 's', player]).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(reply))),
+    Effect.map(({ data: [props] }): State => {
+      const metadata = props.Metadata?.data ?? {};
+      const title = Schema.decodeUnknownOption(string)(metadata['xesam:title']);
+      const artist = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('as'), data: Schema.Array(Schema.String) }))(metadata['xesam:artist']);
+      return { status: props.PlaybackStatus.data, title: title._tag === 'Some' ? title.value.data : '', artists: artist._tag === 'Some' ? artist.value.data : [],
+        canControl: props.CanControl.data, canNext: props.CanGoNext.data, canPrevious: props.CanGoPrevious.data, canPlay: props.CanPlay.data, canPause: props.CanPause.data, canSeek: props.CanSeek.data,
+        shuffle: props.Shuffle?.data ?? null, loop: props.LoopStatus?.data ?? null };
+    }), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'État MPRIS Spotify invalide.' })),
+  );
+  const refresh = Effect.gen(function*() { const result = yield* Effect.result(read); yield* Ref.set(cached, result); return yield* Effect.fromResult(result); });
+  const current = Semaphore.withPermits(lock, 1)(refresh);
+  const mutate = (allowed: (state: State) => boolean, args: (state: State) => ReadonlyArray<string>, description: string, confirmed?: (before: State, after: State) => boolean) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
+    const before = yield* refresh;
+    if (!before.canControl || !allowed(before)) return yield* Effect.fail(new IntegrationError({ message: `Spotify ne permet pas ${description} actuellement.` }));
+    yield* run(args(before));
+    // Spotify can acknowledge D-Bus before updating its properties. Query only; never resend a toggle.
+    return yield* confirmed ? Effect.repeat(refresh, { until: (after) => confirmed(before, after), schedule: Schedule.spaced(50) }).pipe(
+      Effect.timeout('2 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'Commande envoyée, mais Spotify n’a pas confirmé le nouvel état. Vérifie la lecture avant de réessayer.' })),
+    ) : refresh;
+  }));
+  const call = (method: string, ...args: ReadonlyArray<string>) => ['call', busName, path, player, method, ...args];
+  const command = (method: Command) => mutate((state) => method === 'Next' ? state.canNext : method === 'Previous' ? state.canPrevious : method === 'Play' ? state.canPlay : method === 'Pause' ? state.canPause : method === 'PlayPause' ? state.status === 'Playing' ? state.canPause : state.canPlay : true, () => call(method), 'cette commande', method === 'Next' || method === 'Previous' ? undefined : (before, after) => after.status === (method === 'PlayPause' ? before.status === 'Playing' ? 'Paused' : 'Playing' : method === 'Play' ? 'Playing' : method === 'Pause' ? 'Paused' : 'Stopped'));
+  const seek = (seconds: number) => !Number.isFinite(seconds) || Math.abs(seconds) > 300 ? Effect.fail(new IntegrationError({ message: 'Le déplacement doit être compris entre −300 et 300 secondes.' })) : mutate((state) => state.canSeek, () => call('Seek', 'x', String(Math.round(seconds * 1_000_000))), 'le déplacement dans la piste');
+  const set = (name: string, type: string, value: string) => ['set-property', busName, path, player, name, type, value];
+  const toggleShuffle = mutate((state) => state.shuffle !== null, (state) => set('Shuffle', 'b', String(!state.shuffle)), 'le mode aléatoire', (before, after) => after.shuffle === !before.shuffle);
+  const nextLoop = (state: State) => state.loop === 'None' ? 'Playlist' : state.loop === 'Playlist' ? 'Track' : 'None';
+  const cycleLoop = mutate((state) => state.loop !== null, (state) => set('LoopStatus', 's', nextLoop(state)), 'la répétition', (before, after) => after.loop === nextLoop(before));
+  yield* current.pipe(Effect.ignore);
+  // Absence/errors are cached as offline feedback, rather than disabling the plugin permanently.
+  const monitor = Stream.runDrain(Sources.poll(current.pipe(Effect.ignore), '1 second'));
+  const state = Effect.flatMap(Ref.get(cached), Effect.fromResult);
+  return { current, state, command, seek, toggleShuffle, cycleLoop, monitor };
+});
+export type Controller = Effect.Success<ReturnType<typeof make>>;
