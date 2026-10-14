@@ -14,11 +14,16 @@ plugin registers scoped content with `MixerCards`; the audio mixer remains the
 sole LCD writer and owns paging and dial volume/mute. The browser preview invokes
 the same tap API, guarded by the displayed application and page. Spotify actions
 also resolve Spotifast automatically.
-Rotation now immediately shows the volume gauge, retaining the selected track
-view for restoration after 1.5 seconds of inactivity and the next mixer refresh.
+Rotation now immediately adds a circular volume overlay on the album artwork,
+with the percentage centered. It disappears after 1.5 seconds of inactivity and
+the next mixer refresh; the expanded track view stays visible throughout.
 Clock-controlled tests cover renewed deadlines, independent players and explicit
 touch choices; a mixer test verifies redraw before audio flush and excludes empty
 dials and Master from application notifications.
+The real deck test confirmed the overlay and its disappearance without shrinking
+the card. The pure `ui/volume-overlay.ts` component reuses the volume boost colors;
+the plugin owns timing and the mixer remains the audio writer. Without artwork,
+the overlay uses a neutral tile; narrow cards can also display it.
 
 The real Stream Deck test confirmed both view transitions and continuing knob
 volume control. Desktop and narrow browser previews were checked, including long

@@ -60,25 +60,27 @@ it.live('Spotify card toggles without transport commands, freezes on pause and d
   assert.strictEqual(yield* frame.draw, undefined); assert.strictEqual(yield* cards.tap(spotifyApp), false);
 })).pipe(Effect.provide(NodeServices.layer)));
 
-it.effect('rotation temporarily reveals volume, renews the timeout and preserves explicit view choices', () => Effect.scoped(Effect.gen(function*() {
+it.effect('rotation overlays volume without collapsing the track and preserves timeout and explicit view choices', () => Effect.scoped(Effect.gen(function*() {
   const source = yield* fixture; const api = yield* Player.make().pipe(Effect.provide(source.layer));
-  const cards = yield* Cards.make; const renderer = yield* Takumi.make;
-  yield* SpotifyLcd.register(api).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provideService(Takumi.ReactRenderer, renderer));
-  const frame = cards.frame(spotifyApp, { width: 216, height: 100 });
-  yield* cards.tap(spotifyApp); assert.ok(yield* frame);
-  yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 }); assert.strictEqual(yield* frame, undefined);
+  const cards = yield* Cards.make; const renderer = yield* Takumi.make; const shown = yield* Ref.make(false);
+  const observed = { ...renderer, rgb: (view: Parameters<typeof renderer.rgb>[0], size: Parameters<typeof renderer.rgb>[1]) =>
+    Ref.set(shown, (view.props as { volumeOverlay: boolean }).volumeOverlay).pipe(Effect.andThen(renderer.rgb(view, size))) };
+  yield* SpotifyLcd.register(api).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provideService(Takumi.ReactRenderer, observed));
+  const frame = cards.frame(spotifyApp, { width: 216, height: 100 }, { width: 648, height: 100 });
+  const overlay = Effect.gen(function*() { const current = yield* frame; assert.ok(current); assert.strictEqual(current.size.width, 648); yield* current.draw; return yield* Ref.get(shown); });
+  yield* cards.tap(spotifyApp); assert.strictEqual(yield* overlay, false);
+  yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 }); assert.strictEqual(yield* overlay, true);
   yield* TestClock.adjust(1000);
   yield* cards.adjust(spotifyApp, { delta: -2, toggles: 0 });
-  yield* TestClock.adjust(1000); assert.strictEqual(yield* frame, undefined);
-  yield* TestClock.adjust(500); assert.ok(yield* frame);
-  // Other applications and mute clicks do not hide this player's track.
-  yield* cards.adjust({ ...spotifyApp, key: 'spotify' }, { delta: 2, toggles: 0 }); assert.ok(yield* frame);
-  yield* cards.adjust(spotifyApp, { delta: 0, toggles: 1 }); assert.ok(yield* frame);
+  yield* TestClock.adjust(1000); assert.strictEqual(yield* overlay, true);
+  yield* TestClock.adjust(500); assert.strictEqual(yield* overlay, false);
+  yield* cards.adjust({ ...spotifyApp, key: 'spotify' }, { delta: 2, toggles: 0 }); assert.strictEqual(yield* overlay, false);
+  yield* cards.adjust(spotifyApp, { delta: 0, toggles: 1 }); assert.strictEqual(yield* overlay, false);
   yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 });
   yield* cards.tap(spotifyApp); yield* TestClock.adjust(1500); assert.strictEqual(yield* frame, undefined);
-  yield* cards.tap(spotifyApp); assert.ok(yield* frame);
+  yield* cards.tap(spotifyApp); assert.strictEqual(yield* overlay, false);
   yield* cards.adjust(spotifyApp, { delta: 2, toggles: 0 });
-  yield* cards.tap(spotifyApp); yield* cards.tap(spotifyApp); assert.ok(yield* frame);
+  yield* cards.tap(spotifyApp); yield* cards.tap(spotifyApp); assert.strictEqual(yield* overlay, false);
   assert.ok(source.requests.every((args) => args[8] === 'GetAll'));
 })).pipe(Effect.provide(NodeServices.layer)));
 
