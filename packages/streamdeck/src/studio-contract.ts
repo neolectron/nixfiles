@@ -1,4 +1,6 @@
 import { Schema } from 'effect';
+import { KeyFeedback } from './key-feedback.ts';
+import { PublicConnection } from './discord-contract.ts';
 
 const shortText = Schema.String.check(Schema.isMaxLength(80));
 const argument = Schema.String.check(Schema.isMaxLength(4096));
@@ -79,12 +81,13 @@ export const UpdatePlugin = Schema.Struct({ id: Schema.NonEmptyString, enabled: 
 const PluginStatus = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String, enabled: Schema.Boolean,
   phase: Schema.Literals(['enabled', 'disabled', 'error', 'unsupported']), detail: Schema.String, keys: Schema.Array(Schema.Int), dials: Schema.Array(Schema.Int), lcds: Schema.Array(Schema.Int) });
 export const Snapshot = Schema.Struct({
+  discordConnection: PublicConnection,
   plugins: Schema.Struct({ revision: Schema.Int, items: Schema.Array(PluginStatus) }), layout: LayoutView, sessionId: Schema.String, model: Schema.String, mock: Schema.Boolean,
   keys: Schema.Array(Schema.Struct({
     index: Schema.Int, row: Schema.Int, column: Schema.Int, width: Schema.Int, height: Schema.Int,
     id: Schema.NullOr(Schema.String), address: Schema.String, zone: Schema.String, pinned: Schema.Boolean, navigation: Schema.Boolean,
     binding: Schema.NullOr(ButtonBinding), revision: Schema.Int, pressed: Schema.Boolean,
-    status: BindingStatus, detail: Schema.String, count: Schema.Int,
+    status: BindingStatus, detail: Schema.String, count: Schema.Int, feedback: Schema.NullOr(KeyFeedback),
   })),
   lcds: Schema.Array(Schema.Struct({ index: Schema.Int, width: Schema.Int, height: Schema.Int, revision: Schema.Int })),
   dials: Schema.Array(Schema.Struct({ index: Schema.Int, name: Schema.NullOr(Schema.String), volume: Schema.NullOr(Schema.Number), muted: Schema.Boolean, pressed: Schema.Boolean, master: Schema.Boolean, x: Schema.Number, width: Schema.Number })),

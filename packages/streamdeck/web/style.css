@@ -761,3 +761,23 @@ button.zone-edit-link{
 .plugin-fields{
   margin-top:20px
 }
+.discord-connection{
+  border-top:1px solid var(--line);
+  margin-top:14px;
+  padding-top:16px
+}
+.discord-connection summary{
+  cursor:pointer;
+  font-size:14px;
+  line-height:1.6
+}
+.discord-connection form{
+  display:grid;
+  gap:12px;
+  margin-top:12px
+}
+.discord-connection-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px
+}

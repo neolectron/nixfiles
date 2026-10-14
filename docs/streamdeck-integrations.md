@@ -31,45 +31,69 @@ automatically retried, since repeating a toggle would reverse it.
 
 ## Discord voice controls
 
-`src/plugins/discord.ts` defaults to local shortcuts when RPC credentials are
-absent. This mode needs the existing niri Wayland session and `wtype`. Activation
-checks the tools/protocol with a no-input probe; it does not toggle audio state.
-Both tools already exist through Nix on the current machine, so no packages,
-permissions, daemon or global keybindings were changed.
+`src/plugins/discord.ts` now defaults to the [documented local RPC](https://docs.discord.com/developers/topics/rpc)
+backend, using native IPC through Effect platform's `NodeSocket.makeNet`.
+No focus changes or keyboard events are needed. The deprecated WebSocket RPC
+transport is reserved for old private-beta participants; it is no longer used.
 
-Mute/deafen use Discord's [documented Ctrl+Shift+M / Ctrl+Shift+D shortcuts](https://support.discord.com/hc/en-us/articles/31232432266647-Discord-Commands-Shortcuts-and-Navigation-Guide).
-The operation finds and briefly focuses Discord, confirms focus, sends a keysym
-chord and restores the preceding window. Closed Discord or unconfirmed focus
-prevents input. Restoration also runs after failure/cancellation and avoids
-taking focus back if the user moved elsewhere. `wtype` owns a temporary virtual
-keyboard whose keys/modifiers are released when that scoped process exits.
-The backend cannot read voice settings: mute/deaf are explicitly `null` rather
-than inferred from presses. **Connexion Discord** reports the backend and whether
-the window is open. Manuel confirmed that the existing physical **Mute Discord**
-key 36 changes Discord's mute state and returns focus to the preceding window.
+The official [Elgato authorization flow](https://help.elgato.com/hc/en-us/articles/4422740578189-Elgato-Stream-Deck-Pedal-Discord-Plugin-Setup)
+ships its own integration: users press an action and authorize it in Discord.
+Elgato does not document its private application credentials or RPC approval
+arrangements. Our personal integration needs its own developer application;
+Discord restricts unapproved RPC applications to approved testers.
 
-`STREAMDECK_DISCORD_BACKEND` accepts `auto` (default), `keyboard` or `rpc`.
-Auto selects keyboard with neither credential configured; configuring either
-credential opts into RPC and requires both. Explicit keyboard ignores credentials.
-The saved `discord/mute` and `discord/deafen` bindings work in both modes.
-An authorized application is required only for the optional
-[documented local RPC](https://docs.discord.com/developers/topics/rpc) backend.
-A bot token or a personal Discord
-session token is not an RPC OAuth access token and must not be substituted.
-This implementation accepts an existing authorized RPC OAuth access token; it
-does not implement the application's OAuth authorization/token exchange flow.
+### Connect from the studio
 
-- `STREAMDECK_DISCORD_CLIENT_ID`: authorized application's ID.
-- `STREAMDECK_DISCORD_ACCESS_TOKEN`: OAuth access token, held as `Config.Redacted`.
-- `STREAMDECK_DISCORD_PORT`: defaults to `6463`; select the local client's actual
-  port within Discord's documented `6463..6472` range.
+1. Open **Fonctionnalités → Connexion Discord** at `http://127.0.0.1:3900`.
+2. Create an application in the linked Discord Developer Portal. Make sure your
+   account has RPC tester access or the application has Discord approval.
+3. Copy **Application ID** and **OAuth2 → Client secret** into the local form,
+   then choose **Enregistrer l’application**. Never send the secret in chat.
+4. Keep Discord Desktop open and choose **Autoriser dans Discord**. Approve the
+   Discord dialog yourself. The studio sends `AUTHORIZE` with `rpc` and `identify`,
+   exchanges the returned code for tokens and enables the plugin.
 
-The plugin authenticates, reads `GET_VOICE_SETTINGS`, and serializes toggles through
-`SET_VOICE_SETTINGS`. It changes only the requested field (`mute` or `deaf`).
-In RPC mode, status reads the client's state. No credentials were requested through the action
-form or saved in the repository. Discord's local RPC was observed on port 6463,
-but authenticated RPC voice control remains unverified until access is supplied.
-Protocol tests replace the JsonSocket Layer; no real Discord voice settings changed.
+The private `<profile>.discord-connection.json` file uses mode `0600`, atomic
+writes and a Git ignore rule. No secret/token is returned in HTTP snapshots,
+SSE, action schemas or profiles. Refresh tokens renew an expiring access token
+when activating a connection. Replacing application settings invalidates the
+saved authorization. The form separates saved authorization from an active
+RPC connection; reconnecting may still fail if Discord is closed or access revoked.
+Origin/header guards protect both configuration and authorization endpoints.
+
+For scripts without the studio, existing environment configuration is supported:
+
+- `STREAMDECK_DISCORD_CLIENT_ID`: your application's ID.
+- `STREAMDECK_DISCORD_ACCESS_TOKEN`: RPC OAuth access token, `Config.Redacted`.
+- `STREAMDECK_DISCORD_IPC_PATH`: optional exact local socket path, for example a
+  sandboxed Discord installation. Otherwise discovery follows Discord's documented
+  runtime/temp directory order and tries `discord-ipc-0` through `discord-ipc-9`.
+
+A bot token or personal Discord session token is not an RPC OAuth access token.
+The old `STREAMDECK_DISCORD_PORT` setting is unnecessary with IPC.
+
+The plugin authenticates, subscribes to `VOICE_SETTINGS_UPDATE` and reads
+`GET_VOICE_SETTINGS`. Serialized toggles change only the requested `mute`/`deaf`
+field and read back actual state. External Discord changes update the cache in
+frame order; a read-only two-second poll handles missing/partial events. The
+shortcut host checks cached feedback every 250 ms and writes USB pixels only
+when the rendered state changes. Microphone/headphone icons and explicit
+**ACTIF**, **COUPÉ** or **HORS LIGNE** labels appear on the physical key and web
+preview. Deafen also marks microphone feedback as muted. No state is inferred
+from button presses.
+
+Discord documents exclusive control for `SET_VOICE_SETTINGS`, and restoration
+of preceding voice settings on RPC disconnect. Disabling/restarting the plugin
+can therefore restore those settings; keep this in mind during a real voice test.
+The real deck binding **Mute Discord** on key 36 is preserved. Authenticated
+RPC remains unverified until Manuel supplies his application and authorizes it.
+Tests use fake voice state plus a real temporary Unix socket, without accessing
+Discord or enabling a microphone.
+
+The previously validated niri/wtype backend remains explicitly selectable with
+`STREAMDECK_DISCORD_BACKEND=keyboard`; legacy `auto` is also supported. It briefly
+focuses Discord, sends its documented shortcut and restores focus. It cannot read
+voice state, so its feedback remains **HORS LIGNE**, never a guessed mute state.
 
 There is no screen-share operation in the documented RPC command catalogue.
 The separate **Discord · partage d’écran** plugin therefore uses an explicitly
@@ -143,11 +167,19 @@ to 64, expire after five seconds and are removed on cancellation. Keep secrets i
 the service Layer, not in action defaults. Use `Sources.callback` or native Streams
 for notifications; use `DeckDisplay` / `SourceView` for their React feedback.
 
-Validation: 90 Stream Deck tests and 22 keep-awake tests; both package type checks.
+Validation: 97 Stream Deck tests and 22 keep-awake tests; both package type checks.
 The added suite covers a real loopback OBS transport/authentication, failure and
 correlation, Discord state toggles, strict parameter-free actions, physical release
 after paging, stale web release, disable cleanup, partial starts, failed stops and
 literal command bridge setup/execution. No new dependencies or global settings.
-The local Discord suite adds default selection without OAuth, both shortcut
+The local Discord suite covers explicit legacy selection without OAuth, both shortcut
 chords, missing-window/focus guards, focus restoration after failure/cancel,
 user focus changes and domain error display without FiberFailure stack traces.
+
+The RPC feedback and connection suites additionally cover external state changes,
+unchanged-frame USB suppression, disable/disconnect feedback, scoped authorization,
+fragmented/coalesced IPC frames, handshake/PING/PONG on a real Unix socket,
+oversized-frame rejection, private file mode/persistence, token refresh and
+secret-free public state/errors. HTTP tests reject cross-origin connection writes
+and authorization and check sanitized schema errors. No real Discord OAuth call
+or voice-setting change was made during these tests.

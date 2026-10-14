@@ -1,5 +1,5 @@
 import { NodeHttpServer } from '@effect/platform-node';
-import { ByteSize, Console, Context, Crypto, Effect, Layer, Path, Option, PubSub, Ref, Schedule, Schema, Semaphore, Stream } from 'effect';
+import { ByteSize, Console, Context, Crypto, Effect, FileSystem, Layer, Path, Option, PubSub, Ref, Schedule, Schema, Semaphore, Stream } from 'effect';
 import { HttpIncomingMessage, HttpRouter, HttpServerRequest, HttpServerResponse as Response } from 'effect/http';
 import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
@@ -19,10 +19,14 @@ import * as PluginSettings from '../plugin-settings.ts';
 import * as Layout from '../studio-layout.ts';
 import * as Takumi from '../takumi.ts';
 import * as PersonalPlugins from '../studio-plugins.ts';
+import { DiscordConnection, DiscordOAuth, make as makeDiscordConnection } from '../discord-connection.ts';
+import { AppInput } from '../discord-contract.ts';
+import { DiscordTransport } from '../discord-ipc.ts';
 import type { RendererKind } from '../mixer-renderer.ts';
 
 export const startStudio = (options: { profile: string; mock?: boolean; renderer?: RendererKind; applications?: ReadonlyArray<ApplicationEntry>; configurePlugins?: (host: Effect.Success<typeof Plugins.make>) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope> }) => Effect.gen(function*() {
   const original = yield* StreamDeck;
+  const platform = yield* Effect.context<Crypto.Crypto | FileSystem.FileSystem | Path.Path>();
   const sessionId = yield* (yield* Crypto.Crypto).randomUUIDv4();
   const preview = yield* Preview.make(original);
   const deck = preview.device;
@@ -33,13 +37,14 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
   const renderer = Context.get(yield* Layer.build(Takumi.ReactRenderer.layer), Takumi.ReactRenderer);
   const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
   const settings = yield* PluginSettings.make(`${options.profile}.plugins.json`);
+  const discordConnection = yield* makeDiscordConnection(`${options.profile}.discord-connection.json`);
   const pluginLock = yield* Semaphore.make(1);
   const mixer = yield* host.install(AudioMixer.plugin({ renderer: options.renderer ?? 'react' })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   const audioPage = (direction: number) => mixer.use((api) => api.changePage(direction)).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error instanceof Plugins.PluginError ? error.status : 500 })));
   yield* host.install(Commands.plugin(applications));
-  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))) } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  const shortcuts = yield* host.install(Shortcuts.plugin({ profile: options.profile, applications, audioPage, pluginActions: { validate: (plugin, command, input) => host.validateAction(plugin, command, input).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: 400 }))), invoke: (plugin, command, input, context) => host.invoke(plugin, command, input, context).pipe(Effect.mapError((error) => new StudioError({ message: error.message, status: error.status }))), feedback: host.feedback } })).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
   if (options.configurePlugins) yield* options.configurePlugins(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
-  else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer));
+  else yield* PersonalPlugins.configure(host).pipe(Effect.provideService(Takumi.ReactRenderer, renderer), Effect.provideService(DiscordConnection, discordConnection));
   for (const { id } of (yield* host.snapshot).items) if (settings.initial[id] ?? ['audio-mixer', 'shortcuts', 'commands'].includes(id)) yield* host.setEnabled(id, true).pipe(Effect.catch((error) => Effect.logWarning('Plugin startup', error.id, error.message)));
   const actions = {
     save: (...args: Parameters<Shortcuts.Controller['save']>) => shortcuts.use((api) => api.save(...args)),
@@ -50,7 +55,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     navigate: (...args: Parameters<Shortcuts.Controller['navigate']>) => shortcuts.use((api) => api.navigate(...args)),
   };
   const emptyLayout = Layout.project({ version: 2, zones: [{ id: 'deck', name: 'Zone principale', keys: deck.buttons.map((key) => key.index), items: [], pinned: {} }], folders: [] }, {}, 0);
-  const fallbackView = { layout: emptyLayout.layout, keys: new Map([...emptyLayout.keys].map(([key, slot]) => [key, { ...slot, state: { count: 0, status: 'idle' as const, detail: '' } }])) };
+  const fallbackView = { layout: emptyLayout.layout, keys: new Map([...emptyLayout.keys].map(([key, slot]) => [key, { ...slot, state: { count: 0, status: 'idle' as const, detail: '', feedback: null } }])) };
   const lastActions = yield* Ref.make<Effect.Success<Shortcuts.Controller['view']>>(fallbackView);
   const binding = yield* Bindings.start({
     onEvent: (event: DeckEvent) => Effect.gen(function*() {
@@ -80,7 +85,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     const mix = Option.isSome(currentMixer) ? yield* currentMixer.value.state : undefined;
     const slots = deck.lcds[0]?.pixelSize && deck.dials.length ? slotsFor(deck.dials, deck.lcds[0]) : [];
     const appSlots = slots.slice(0, -1); const page = mix?.page ?? 0;
-    return { plugins: yield* host.snapshot, layout: actionView.layout, sessionId, model: deck.info.model, mock: options.mock ?? false,
+    return { discordConnection: yield* discordConnection.publicState, plugins: yield* host.snapshot, layout: actionView.layout, sessionId, model: deck.info.model, mock: options.mock ?? false,
       keys: deck.buttons.map((key) => {
         const slot = actionView.keys.get(key.index)!;
         return { index: key.index, row: key.row ?? 0, column: key.column ?? key.index,
@@ -88,7 +93,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
         id: Option.isSome(currentActions) ? slot.entry?.id ?? null : null, address: slot.address, zone: slot.zone, pinned: slot.pinned, navigation: slot.virtual,
         binding: Option.isSome(currentActions) ? slot.entry?.binding ?? null : null, revision: frames.get(`key/${key.index}`)?.revision ?? 0,
         pressed: inputView.pressed.has(key.index), count: slot.state.count,
-        status: slot.state.status, detail: slot.state.detail,
+        status: slot.state.status, detail: slot.state.detail, feedback: slot.state.feedback ?? null,
       }; }),
       lcds: deck.lcds.map((lcd) => ({ index: lcd.index, width: lcd.pixelSize!.width, height: lcd.pixelSize!.height, revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0 })),
       dials: slots.map((slot, i) => {
@@ -106,7 +111,15 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     yield* host.setEnabled(command.id, command.enabled);
     yield* settings.save(command.id, command.enabled).pipe(Effect.tapError(() => host.setEnabled(command.id, before.enabled).pipe(Effect.ignore)));
   }));
-  return { snapshot: readSnapshot, applications, actions, preview, plugins: host, setPlugin, rendererStats: renderer.stats,
+  const configureDiscord = (input: typeof AppInput.Type) => Semaphore.withPermits(pluginLock, 1)(Effect.gen(function*() {
+    yield* host.setEnabled('discord', false); yield* discordConnection.configure(input); yield* settings.save('discord', false);
+  }));
+  const connectDiscord = Semaphore.withPermits(pluginLock, 1)(Effect.gen(function*() {
+    yield* host.setEnabled('discord', false);
+    yield* discordConnection.connect.pipe(Effect.provide(Layer.mergeAll(DiscordTransport.layer, DiscordOAuth.layer)), Effect.provideContext(platform));
+    yield* host.setEnabled('discord', true); yield* settings.save('discord', true);
+  }));
+  return { snapshot: readSnapshot, applications, actions, preview, plugins: host, setPlugin, rendererStats: renderer.stats, configureDiscord, connectDiscord,
     inputViews: Stream.fromPubSub(inputViews),
     changePage: audioPage,
     run: binding.run,
@@ -125,6 +138,12 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
     return yield* body;
   }));
   yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+  yield* router.add('PUT', '/api/discord/connection', mutate(Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const input = yield* request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(AppInput, { onExcessProperty: 'error' })), Effect.mapError(() => new StudioError({ message: 'Identifiant, secret ou port Discord invalide.', status: 400 })));
+    yield* controller.configureDiscord(input); return json(yield* controller.snapshot);
+  })));
+  yield* router.add('POST', '/api/discord/authorize', mutate(controller.connectDiscord.pipe(Effect.andThen(controller.snapshot), Effect.map(json))));
   yield* router.add('GET', '/api/catalogue', Effect.map(controller.plugins.catalogue, (pluginActions) => json({ actions: Actions.catalogue, pluginActions, applications: controller.applications.map(({ id, name }) => ({ id, name })) })));
   yield* router.add('GET', '/api/events', Effect.succeed(Response.stream(
     Stream.merge(Stream.fromEffectSchedule(controller.snapshot, Schedule.spaced(150)), controller.inputViews).pipe(
@@ -192,7 +211,7 @@ export const studio = (options: { port: number; profile: string; mock: boolean; 
   const server = yield* Effect.acquireRelease(Effect.tryPromise(() => vite.createServer({ configFile: false, root, server: { host: '127.0.0.1', port: options.port, strictPort: true },
       plugins: [{ name: 'effect-studio-api', handleHotUpdate(context) {
         // Node watch restarts shared backend modules; Vite reconnects after readiness.
-        if (['studio-contract.ts', 'ui/key-card.ts'].some((file) => context.file === path.resolve(root, `../src/${file}`))) return [];
+        if (['studio-contract.ts', 'discord-contract.ts', 'key-feedback.ts', 'ui/key-card.ts'].some((file) => context.file === path.resolve(root, `../src/${file}`))) return [];
       }, configureServer(server) {
         server.middlewares.use((request, response, next) => request.url?.startsWith('/api/') ? handler(request, response) : next());
       } }],

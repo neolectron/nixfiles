@@ -106,6 +106,17 @@ it.live('HTTP rejects cross-origin execution and invalid configs, and saves a va
     const request = (origin: string) => HttpClientRequest.put('/api/binding').pipe(HttpClientRequest.bodyJsonUnsafe(payload), HttpClientRequest.setHeaders({ origin, 'x-streamdeck-studio': '1' }));
     assert.strictEqual((yield* client.execute(request('https://unrelated.example'))).status, 403);
     assert.strictEqual(yield* fs.exists(`${directory}/profile.json`), false);
+    const connection = HttpClientRequest.put('/api/discord/connection').pipe(HttpClientRequest.bodyJsonUnsafe({ clientId: '123456', clientSecret: 'private-test-secret' }), HttpClientRequest.setHeaders({ origin: 'http://127.0.0.1:3901', 'x-streamdeck-studio': '1' }));
+    assert.strictEqual((yield* client.execute(connection.pipe(HttpClientRequest.setHeader('origin', 'https://unrelated.example')))).status, 403);
+    const malformedConnection = yield* client.execute(connection.pipe(HttpClientRequest.bodyJsonUnsafe({ clientId: 'invalid', clientSecret: 'private-test-secret' })));
+    assert.strictEqual(malformedConnection.status, 400); assert.ok(!(yield* malformedConnection.text).includes('private-test-secret'));
+    const configuredConnection = yield* client.execute(connection); assert.strictEqual(configuredConnection.status, 200);
+    const publicConnection = yield* configuredConnection.text; assert.ok(!publicConnection.includes('private-test-secret')); assert.ok(publicConnection.includes('"configured":true'));
+    const pendingAuthorization = yield* Effect.result(controller.setPlugin({ id: 'discord', enabled: true, expected: false }));
+    assert.strictEqual(pendingAuthorization._tag, 'Failure');
+    if (pendingAuthorization._tag === 'Failure') assert.ok(pendingAuthorization.failure.message.includes('Clique Autoriser dans Discord'));
+    const unauthorized = HttpClientRequest.post('/api/discord/authorize').pipe(HttpClientRequest.setHeaders({ origin: 'https://unrelated.example', 'x-streamdeck-studio': '1' }));
+    assert.strictEqual((yield* client.execute(unauthorized)).status, 403);
     const saved = yield* client.execute(request('http://127.0.0.1:3901'));
     assert.strictEqual(saved.status, 200); assert.strictEqual((yield* controller.snapshot).keys[0]!.count, 8);
     const stale = request('http://127.0.0.1:3901').pipe(HttpClientRequest.bodyJsonUnsafe({ ...payload, expected: null }));

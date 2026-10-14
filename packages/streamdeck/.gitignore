@@ -1,1 +1,3 @@
 .studio/
+*.discord-connection.json
+*.discord-connection.json.*.tmp

@@ -2,7 +2,9 @@ import { assert, it } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Cause, ConfigProvider, Deferred, Effect, Fiber, Layer } from 'effect';
 import { DesktopKeys, makeDiscordKeys } from '../src/desktop-keys.ts';
-import { IntegrationError, JsonSocket } from '../src/json-socket.ts';
+import { IntegrationError } from '../src/json-socket.ts';
+import { DiscordTransport } from '../src/discord-ipc.ts';
+import { DiscordOAuth } from '../src/discord-connection.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import { failureMessage } from '../src/failure-message.ts';
 import * as Api from '../web/api.ts';
@@ -25,9 +27,9 @@ const desktop = (options: { missing?: boolean; failChord?: boolean; failFocus?: 
   return { layer, calls };
 };
 
-it.live('Discord defaults to local chords without OAuth and restores focus', () => Effect.scoped(Effect.gen(function*() {
+it.live('explicit legacy auto mode uses local chords without OAuth and restores focus', () => Effect.scoped(Effect.gen(function*() {
   const mock = desktop();
-  const api = yield* Discord.configured.pipe(Effect.provide(Layer.mergeAll(mock.layer, JsonSocket.layer)), Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord({})));
+  const api = yield* Discord.configured.pipe(Effect.provide(Layer.mergeAll(mock.layer, DiscordTransport.layer, DiscordOAuth.layer)), Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord({ STREAMDECK_DISCORD_BACKEND: 'auto' })));
   assert.deepStrictEqual(yield* api.current, { backend: 'keyboard', windowOpen: true, mute: null, deaf: null });
   yield* api.toggle('mute'); yield* api.toggle('deaf');
   assert.deepStrictEqual(mock.calls, ['focus 2', 'chord m', 'focus 1', 'focus 2', 'chord d', 'focus 1']);
@@ -62,9 +64,9 @@ it.live('cancelling a shortcut restores the original window through its finalize
 })));
 
 it.live('an explicitly requested RPC connection retains its configuration error', () => Effect.scoped(Effect.gen(function*() {
-  const result = yield* Effect.result(Discord.configured.pipe(Effect.provide(Layer.mergeAll(desktop().layer, JsonSocket.layer)), Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord({ STREAMDECK_DISCORD_BACKEND: 'rpc' }))));
+  const result = yield* Effect.result(Discord.configured.pipe(Effect.provide(Layer.mergeAll(desktop().layer, DiscordTransport.layer, DiscordOAuth.layer)), Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord({ STREAMDECK_DISCORD_BACKEND: 'rpc' }))));
   assert.strictEqual(result._tag, 'Failure');
-  if (result._tag === 'Failure') assert.ok(result.failure.message.includes('mode RPC nécessite'));
+  if (result._tag === 'Failure') assert.ok(result.failure.message.includes('Connexion RPC Discord à configurer'));
 })).pipe(Effect.provide(NodeServices.layer)));
 
 it.live('plugin failures expose the domain message, and the React bridge unwraps it without a stack', () => Effect.scoped(Effect.gen(function*() {

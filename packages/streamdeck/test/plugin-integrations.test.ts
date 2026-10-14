@@ -3,6 +3,7 @@ import { NodeServices, NodeSocketServer } from '@effect/platform-node';
 import { ConfigProvider, Deferred, Effect, Fiber, FileSystem, Layer, Redacted, Ref, Schedule, Schema } from 'effect';
 import { JsonSocket, IntegrationError, type Message } from '../src/json-socket.ts';
 import * as Obs from '../src/plugins/obs.ts';
+import { DiscordTransport } from '../src/discord-ipc.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import * as Talk from '../src/plugins/push-to-talk.ts';
 import { commandFromConfig } from '../src/plugins/command-bridge.ts';
@@ -58,7 +59,7 @@ it.live('a disconnected WebSocket fails in-flight OBS requests without waiting f
 
 it.live('Discord authenticates and serializes real-state toggles without changing unrelated voice fields', () => Effect.scoped(Effect.gen(function*() {
   let mute = false; let deaf = false; const sent: Array<Message> = [];
-  const layer = Layer.succeed(JsonSocket, { connect: (_url, receive) => Effect.gen(function*() {
+  const layer = Layer.succeed(DiscordTransport, { connect: (_url, receive) => Effect.gen(function*() {
     yield* receive({ evt: 'READY', data: {} });
     return { failure: Effect.never, send: (frame: Message) => Effect.gen(function*() {
       sent.push(frame); const args = frame.args as Message;
