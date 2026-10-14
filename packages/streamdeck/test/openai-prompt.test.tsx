@@ -8,6 +8,7 @@ import * as Host from '../src/plugin-host.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Mock from '../src/mock.ts';
 import { PluginTiles } from '../web/plugin-tiles.tsx';
+import * as Dot from '@nixfiles/system-control/dot-call.ts';
 
 it('OpenAI exports a ready-to-place prompt tile with multiline instructions and explicit project access', () => {
   assert.ok(OpenAI.plugin.actions!.includes(Prompt.action));
@@ -37,6 +38,13 @@ it.live(
     Effect.scoped(
       Effect.gen(function* () {
         const host = yield* Host.make;
+        const dot = yield* Dot.make.pipe(
+          Effect.provideService(Dot.DotCallBackend, {
+            read: Effect.succeed(Dot.idle),
+            call: Effect.die('Unexpected call'),
+            hangup: () => Effect.die('Unexpected hangup'),
+          }),
+        );
         let seen: unknown;
         const entered = yield* Deferred.make<void>();
         const stopped = yield* Ref.make(false);
@@ -45,6 +53,7 @@ it.live(
             ...OpenAI.plugin,
             setup: Effect.succeed({
               api: {
+                dot,
                 selection: { transform: () => Effect.die('Unexpected selection access') },
                 prompts: {
                   busy: Effect.succeed(false),

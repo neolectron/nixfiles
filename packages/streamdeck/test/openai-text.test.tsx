@@ -8,6 +8,7 @@ import * as Host from '../src/plugin-host.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as Mock from '../src/mock.ts';
 import { PluginTiles } from '../web/plugin-tiles.tsx';
+import * as Dot from '@nixfiles/system-control/dot-call.ts';
 
 it('OpenAI exports three configurable selection tiles with a multiline prompt, without executing them', () => {
   assert.strictEqual(Text.actions.length, 3);
@@ -45,11 +46,19 @@ it.live(
         let calls = 0;
         let instruction = '';
         const host = yield* Host.make;
+        const dot = yield* Dot.make.pipe(
+          Effect.provideService(Dot.DotCallBackend, {
+            read: Effect.succeed(Dot.idle),
+            call: Effect.die('Unexpected call'),
+            hangup: () => Effect.die('Unexpected hangup'),
+          }),
+        );
         yield* host.install(
           Plugin.define({
             ...OpenAI.plugin,
             setup: Effect.succeed({
               api: {
+                dot,
                 prompts: {
                   busy: Effect.succeed(false),
                   run: () => Effect.die('Unexpected prompt job'),
@@ -67,7 +76,7 @@ it.live(
           }),
         );
         const catalogue = yield* host.catalogue;
-        assert.strictEqual(catalogue.filter((action) => action.plugin === 'openai-apps').length, 6);
+        assert.strictEqual(catalogue.filter((action) => action.plugin === 'openai-apps').length, 9);
         assert.strictEqual(calls, 0);
         yield* host.validateAction('openai-apps', 'transform-selection', {
           prompt: 'Custom instruction',

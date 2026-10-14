@@ -5,10 +5,12 @@ import { TextSelection } from '@nixfiles/system-control/text-selection.ts';
 import * as Text from './openai-text.ts';
 import { CodexPrompt } from '@nixfiles/system-control/codex-prompt.ts';
 import * as Prompt from './openai-prompt.ts';
+import * as Dot from '@nixfiles/system-control/dot-call.ts';
+import * as Call from './openai-call.ts';
 
 export class OpenAIApps extends Context.Service<
   OpenAIApps,
-  AppTiles.Applications & Text.SelectionActions & Prompt.PromptActions
+  AppTiles.Applications & Text.SelectionActions & Prompt.PromptActions & Call.CallActions
 >()('@nixfiles/streamdeck/OpenAIApps') {
   static readonly layer = Layer.effect(
     OpenAIApps,
@@ -17,6 +19,7 @@ export class OpenAIApps extends Context.Service<
         desktop: yield* AppTiles.desktop,
         selection: yield* TextSelection,
         prompts: yield* CodexPrompt,
+        dot: yield* Dot.shared,
       };
     }),
   ).pipe(Layer.provide(Layer.merge(TextSelection.layer, CodexPrompt.layer)));
@@ -25,7 +28,8 @@ export class OpenAIApps extends Context.Service<
 export const plugin = Plugin.fromLayer({
   id: 'openai-apps',
   name: 'ChatGPT / Codex',
-  description: 'Applications OpenAI, prompts Codex et transformation du texte sélectionné.',
+  description:
+    'Applications OpenAI, appels du dot, prompts Codex et transformation du texte sélectionné.',
   controls: {},
   service: OpenAIApps,
   layer: OpenAIApps.layer,
@@ -33,6 +37,7 @@ export const plugin = Plugin.fromLayer({
     AppTiles.launch(AppTiles.chatgpt),
     AppTiles.launch(AppTiles.codex),
     Prompt.action,
+    ...Call.actions,
     ...Text.actions,
   ],
 });

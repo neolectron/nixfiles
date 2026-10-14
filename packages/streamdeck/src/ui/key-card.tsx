@@ -87,7 +87,7 @@ export function KeyCard({
           width: width - 18,
         }}
       >
-        {label}
+        {feedback?.label ?? label}
       </span>
       {feedback ? (
         <span
