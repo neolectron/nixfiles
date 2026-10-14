@@ -80,7 +80,7 @@ export const validate = (profile: Profile, deviceKeys: ReadonlyArray<number>) =>
     }
     for (const key of Object.keys(zone.pinned)) if (String(Number(key)) !== key || !zone.keys.includes(Number(key))) throw new Error('Une touche fixée doit appartenir à sa zone.');
     if (capacity(zone, null) < 1) throw new Error('Garde au moins une touche non fixée par zone.');
-    if (capacity(zone, null) < 2 && [...zone.items, ...Object.values(zone.pinned)].some((entry) => entry?.binding.action === 'open-folder')) throw new Error('Une zone contenant un dossier doit garder deux touches non fixées : Retour et contenu.');
+    if (capacity(zone, null) < 2 && [...zone.items, ...Object.values(zone.pinned)].some((entry) => entry?.binding.action === 'open-folder' && (!entry.binding.parameters.target || entry.binding.parameters.target === 'current' || entry.binding.parameters.target === zone.id))) throw new Error('Une zone ouvrant un dossier sur place doit garder deux touches non fixées : Retour et contenu.');
   }
   if (assigned.size !== deviceKeys.length) throw new Error('Chaque touche doit appartenir à une zone.');
   const folderIds = new Set<string>();
@@ -93,6 +93,12 @@ export const validate = (profile: Profile, deviceKeys: ReadonlyArray<number>) =>
     if (itemIds.has(entry.id) || entry.id.startsWith('navigation/')) throw new Error('Un raccourci ne peut être présent qu’à un seul emplacement.');
     itemIds.add(entry.id);
     if (entry.binding.action === 'open-folder' && !folderIds.has(entry.binding.parameters.folder)) throw new Error('Le dossier ciblé n’existe pas.');
+    if (entry.binding.action === 'open-folder' && entry.binding.parameters.target && entry.binding.parameters.target !== 'current') {
+      const targetId = entry.binding.parameters.target;
+      const target = profile.zones.find((zone) => zone.id === targetId);
+      if (!target) throw new Error('La zone du dossier n’existe pas.');
+      if (capacity(target, null) < 2) throw new Error('La zone du dossier doit garder deux touches non fixées : Retour et contenu.');
+    }
     if ((entry.binding.action === 'page-next' || entry.binding.action === 'page-previous') && !['current', 'audio', ...ids].includes(entry.binding.parameters.target)) throw new Error('La zone de pagination ciblée n’existe pas.');
   }
   const visited = new Set<string>(); const active = new Set<string>();
@@ -151,4 +157,30 @@ export const createZone = (profile: MutableProfile, id: string, name: string, se
   source.minimumPages = pages; target.minimumPages = pages;
   source.keys = source.keys.filter((key) => !keys.includes(key));
   profile.zones.push(target);
+};
+
+/** Exchange physical slots with the main zone, preserving every root page and fixed key. */
+export const resizeZone = (profile: MutableProfile, id: string, selection: ReadonlyArray<number>) => {
+  const main = profile.zones.find((zone) => zone.id === 'deck')!;
+  const target = profile.zones.find((zone) => zone.id === id);
+  if (!target || target === main) throw new Error('Redimensionne une zone dédiée ; la zone principale reçoit les touches restantes.');
+  const keys = [...new Set(selection)].sort((a, b) => a - b);
+  if (!keys.length || keys.some((key) => !target.keys.includes(key) && (!main.keys.includes(key) || main.pinned[String(key)]))) throw new Error('Choisis des touches de cette zone ou des touches non fixées de la zone principale.');
+  if (Object.keys(target.pinned).some((key) => !keys.includes(Number(key)))) throw new Error('Les touches fixées doivent rester dans leur zone.');
+  const mainKeys = [...new Set([...main.keys, ...target.keys])].filter((key) => !keys.includes(key)).sort((a, b) => a - b);
+  const free = (list: number[], pinned: Record<string, Entry>) => list.filter((key) => !pinned[String(key)]);
+  const nextMain = free(mainKeys, main.pinned); const nextTarget = free(keys, target.pinned);
+  if (!nextMain.length || !nextTarget.length) throw new Error('Garde au moins une touche non fixée dans chaque zone.');
+  const sources = [main, target].map((zone) => ({ keys: free(zone.keys, zone.pinned), items: zone.items, pages: pageCount(profile, zone, null) }));
+  main.items = []; target.items = [];
+  for (const source of sources) for (const [index, entry] of source.items.entries()) {
+    const key = source.keys[index % source.keys.length]!; const page = Math.floor(index / source.keys.length);
+    const destination = keys.includes(key) ? target : main; const positions = destination === target ? nextTarget : nextMain;
+    const slot = page * positions.length + positions.indexOf(key);
+    while (destination.items.length <= slot) destination.items.push(null);
+    destination.items[slot] = entry;
+  }
+  main.keys = mainKeys; target.keys = keys;
+  // Empty pages explicitly created by the user remain navigable after a resize.
+  main.minimumPages = target.minimumPages = Math.max(...sources.map((source) => source.pages));
 };

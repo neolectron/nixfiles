@@ -5,6 +5,7 @@ import type { ActionId, ButtonBinding, Catalogue, Snapshot } from '../src/studio
 import { KeyCard } from '../src/ui/key-card.ts';
 import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.ts';
+import { TargetPreview, zoneLabel } from './zone-map.ts';
 import './style.css';
 
 function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 'save' | 'deck'; size?: number }) {
@@ -14,7 +15,7 @@ function Icon({ name, size = 20 }: { name: 'plus' | 'left' | 'right' | 'play' | 
 type KeyView = Snapshot['keys'][number];
 type Selection = { kind: 'key' | 'dial'; index: number };
 type Draft = { action: ActionId | ''; label: string; values: Record<string, string> };
-const draftOf = (binding: ButtonBinding | null): Draft => ({ action: binding?.action ?? '', label: binding?.label ?? '', values: Object.fromEntries(Object.entries(binding?.parameters ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) });
+const draftOf = (binding: ButtonBinding | null): Draft => ({ action: binding?.action ?? '', label: binding?.label ?? '', values: Object.fromEntries(Object.entries(binding?.action === 'open-folder' ? { ...binding.parameters, target: binding.parameters.target ?? 'current' } : binding?.parameters ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)])) });
 const messageOf = (error: unknown) => error instanceof Error ? error.message : 'La requête a échoué.';
 
 function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDirty }: {
@@ -60,7 +61,7 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
       ...(definition?.fields ?? []).map((field) => h('label', { key: field.key, className: 'field' }, h('span', {}, field.label),
         field.kind === 'folder' || field.kind === 'zone' ? h('select', { 'aria-label': field.label, value: draft.values[field.key] ?? '', required: true, disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLSelectElement).value } }) },
           h('option', { value: '' }, field.kind === 'folder' ? 'Choisir un dossier' : 'Choisir une zone'),
-          ...(field.kind === 'folder' ? snapshot.layout.folders.map((folder) => h('option', { key: folder.id, value: folder.id }, folder.name)) : [h('option', { key: 'current', value: 'current' }, 'Zone de cette touche'), h('option', { key: 'audio', value: 'audio' }, 'Mixer audio LCD'), ...snapshot.layout.zones.map((zone) => h('option', { key: zone.id, value: zone.id }, zone.name))]))
+          ...(field.kind === 'folder' ? snapshot.layout.folders.map((folder) => h('option', { key: folder.id, value: folder.id }, folder.name)) : [h('option', { key: 'current', value: 'current' }, `Zone de cette touche · ${snapshot.layout.zones.find((zone) => zone.id === selected.zone)?.name}`), ...(draft.action === 'open-folder' ? [] : [h('option', { key: 'audio', value: 'audio' }, 'Mixer audio LCD')]), ...snapshot.layout.zones.map((zone) => h('option', { key: zone.id, value: zone.id }, zoneLabel(zone)))]))
         : field.kind === 'app' ? h('select', { 'aria-label': field.label, required: true, value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => {
           const app = catalogue.applications.find((app) => app.id === (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value);
           setDraft({ ...draft, label: draft.label === definition?.name ? app?.name ?? draft.label : draft.label, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } });
@@ -68,6 +69,7 @@ function KeyInspector({ selected, catalogue, snapshot, online, onSnapshot, onDir
           : field.kind === 'arguments' ? h('textarea', { 'aria-label': field.label, 'aria-describedby': field.hint ? `hint-${field.key}` : undefined, rows: 4, className: 'code-input', value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } }) })
             : h('input', { 'aria-label': field.label, 'aria-describedby': field.hint ? `hint-${field.key}` : undefined, type: field.kind === 'number' ? 'number' : 'text', required: field.key === 'executable', min: field.kind === 'number' ? -9999 : undefined, max: field.kind === 'number' ? 9999 : undefined, className: field.key === 'executable' || field.key === 'directory' ? 'code-input' : '', value: draft.values[field.key] ?? '', disabled: busy, onChange: (event) => setDraft({ ...draft, values: { ...draft.values, [field.key]: (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value } }) }),
         field.hint ? h('small', { id: `hint-${field.key}` }, field.hint) : null)),
+      draft.action === 'open-folder' || draft.action === 'page-next' || draft.action === 'page-previous' ? h(TargetPreview, { snapshot, zoneId: !draft.values.target || draft.values.target === 'current' ? selected.zone : draft.values.target, folder: draft.action === 'open-folder' }) : null,
       definition ? h('div', { className: 'draft-preview' }, h(KeyCard, { width: 112, height: 112, label: draft.label || definition.name, action: definition.id, count: draft.action === 'counter' ? Number(draft.values.start ?? 0) : 0, status: 'idle' }), h('span', {}, 'Aperçu de l’affectation')) : null,
       h('div', { className: 'form-actions' }, h('button', { type: 'submit', className: 'primary', disabled: !dirty || busy || !online || selected.status === 'running' || baselineAddress !== selected.address }, h(Icon, { name: 'save', size: 17 }), busy ? 'En cours…' : 'Enregistrer'),
         h('button', { type: 'button', disabled: !dirty || busy, onClick: () => { setDraft(draftOf(selected.binding)); setSaved(JSON.stringify(draftOf(selected.binding))); setBaseline(selected.binding); setBaselineAddress(selected.address); setError(''); setNotice(''); } }, 'Annuler')),

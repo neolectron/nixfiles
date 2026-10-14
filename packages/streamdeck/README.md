@@ -108,11 +108,19 @@ Application, command, counter, folder and navigation shortcuts all use this same
 mechanism. Folders can be nested; cycles are rejected. Double-click a navigation
 tile in the editor, or press it on the hardware, to use it. A folder reserves the
 first non-fixed key for **Retour** on every page; it cannot trap navigation.
+**Zone du dossier** chooses where it opens, independently of the key holding the
+folder shortcut. Existing folders default to their own key’s zone.
 
 A zone owns an explicit set of keys, for example `1-9` for the first row or
-`1-9, 19-27` for two rows. Creating a zone takes those keys from the main zone
+`1-9, 19-27` for two rows. Use **Créer une zone**, then click the numbered keys
+to include. **Modifier les touches** resizes an existing zone using the same
+visual selector. Creating a zone takes those keys from the main zone
 while preserving their shortcuts on every existing page. The main zone must keep
-at least one non-fixed key. Each zone navigates its own folder/page independently;
+at least one non-fixed key. Resizing exchanges keys with the main zone while
+preserving root shortcuts on every page, their stable IDs and fixed controls.
+Keys from another dedicated zone and fixed keys cannot be taken; removed keys
+return to the main zone. Resized zones return to their roots.
+Each zone navigates its own folder/page independently;
 its controls below the preview show the key ranges and breadcrumb. **Ajouter une
 page** creates a persistent empty page in that zone's current folder or root.
 
@@ -122,6 +130,10 @@ at the ends. **Fixer sur toutes les pages et dossiers de cette zone** keeps a
 shortcut at its physical key while that zone navigates. Fixed keys reduce the
 capacity available for page content; folders also reserve one key for Return.
 The LCD target uses the existing audio pagination and keeps Master pinned.
+The folder/pagination inspector shows a numbered map of the target and its
+capacity. For example, nine keys without fixed controls display nine shortcuts
+per root page, or eight shortcuts plus Return in a folder. The folder’s total
+contents can span multiple pages; its size is the target zone’s capacity.
 
 Profile version 1 is read without changing its file. The first configuration
 write saves an exact adjacent `.v1.backup` before atomically writing version 2.
