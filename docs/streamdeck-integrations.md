@@ -1,10 +1,59 @@
 # Application plugins
 
-The studio registers OBS, one Discord plugin and Dot push-to-talk.
+The studio registers OBS, one Discord plugin, Spotify and Dot push-to-talk.
 They start disabled and own no physical controls. Choose **Action d’un plugin**
 on a shortcut, select its feature/action and save it. Enable its feature once the
 corresponding connection is configured. Enabling establishes services; it does
 not start recording, streaming, screen sharing or microphone capture.
+
+## Spotify desktop on Linux
+
+`src/plugins/spotify.ts` exposes lecture/pause, next/previous, explicit play/pause/
+stop, shuffle, repeat (None → Playlist → Track), signed seek in seconds and current
+track metadata. It uses the local [MPRIS player interface](https://specifications.freedesktop.org/mpris/latest/Player_Interface.html),
+without Spotify Web API credentials, account changes or focus/key simulation.
+Spotify Desktop must run in the same desktop D-Bus session; this does not control
+the browser Web Player or a remote Spotify Connect device.
+
+`src/mpris.ts` provides a reusable Effect service and replaceable transport Layer.
+It calls `busctl` with literal argv and typed JSON replies, session bus targeting,
+bounded process lifetime and `--auto-start=no`. The standalone Nix shell includes
+`systemd` for busctl; no system daemon or global configuration is activated.
+`STREAMDECK_SPOTIFY_BUS_NAME` optionally overrides `org.mpris.MediaPlayer2.spotify`.
+Capability checks reject unavailable controls before sending a mutation. Optional
+shuffle/repeat properties degrade independently. Playback/shuffle/repeat commands
+wait for property confirmation using read-only queries; a toggle is never retried.
+
+Activation only queries state. A scoped one-second source updates cached playback
+and metadata for all assigned buttons, including changes made in Spotify itself.
+Offline state keeps the plugin enabled and shows HORS LIGNE; reopening Spotify
+recovers automatically. Disabling the plugin cancels the monitor and child process
+scope. Shared React key rendering supplies play/pause/track/shuffle/repeat icons.
+
+On Manuel's real profile, the previously free keys 12/13/14 are assigned to
+lecture/pause, previous and next respectively. The existing launch-Spotify key
+25 remains available. The real local playback toggle and its icon/state feedback
+were verified and playback restored. Next/previous/shuffle/repeat/seek and scoped
+offline recovery were tested against a deterministic MPRIS transport, without
+changing the real playlist or shuffle/repeat preferences. No new controls execute
+automatically during activation.
+
+Validation after this addition: 114 Stream Deck tests, both package typechecks,
+and `nix flake check` pass. A delayed-property regression confirms that polling
+never repeats PlayPause; lifecycle tests cover offline recovery and monitor cleanup.
+
+Effect scripts use the same service, with Node platform services supplied by the
+existing CLI/runtime:
+
+```ts
+import { Effect } from 'effect';
+import { Spotify } from '../plugins/spotify.ts';
+
+const nextTrack = Effect.gen(function*() {
+  const spotify = yield* Spotify;
+  return yield* spotify.command('Next');
+}).pipe(Effect.provide(Spotify.layer));
+```
 
 ## OBS Studio
 

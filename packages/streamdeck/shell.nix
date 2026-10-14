@@ -12,6 +12,7 @@ pkgs.mkShell {
     pkgs.usbutils
     pkgs.pulseaudio # pactl controls PipeWire's existing PulseAudio interface.
     pkgs.glib # gio launches selected installed desktop applications.
+    pkgs.systemd # busctl JSON transports local MPRIS controls; no daemon activation.
     pkgs.pkg-config
     pkgs.python3
   ];
