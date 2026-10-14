@@ -46,7 +46,7 @@ test('Master reaches 150% at the right end while 100% stays vertical; applicatio
       /<path d="M ([\d.eE+-]+) ([\d.eE+-]+) L ([\d.eE+-]+) ([\d.eE+-]+)" stroke="#F5F5EA"/,
     );
     assert.ok(pointer);
-    assert.closeTo(Number(pointer[3]), 62 + Math.cos(angle) * 27, 1e-8);
+    assert.closeTo(Number(pointer[3]), 50 + Math.cos(angle) * 27, 1e-8);
     assert.closeTo(Number(pointer[4]), 91 + Math.sin(angle) * 27, 1e-8);
     if (title && volume === 125) assert.include(svg, 'fill="rgb(255,145,30)"');
     if (title && volume === 150) assert.include(svg, 'fill="rgb(255,55,55)"');

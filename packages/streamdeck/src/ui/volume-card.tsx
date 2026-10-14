@@ -29,7 +29,7 @@ export function VolumeCard({ width, height, app, online, title, icons, iconFor }
   const muted = app?.muted ?? false;
   const active = !!app && online && !muted;
   const level = active ? Math.min(maximum, app.volume) : 0;
-  const center = width <= 180 ? 62 : 80;
+  const center = width <= 180 ? 50 : 64;
   const status = !online
     ? 'Offline'
     : !app
@@ -182,13 +182,24 @@ export function VolumeCard({ width, height, app, online, title, icons, iconFor }
           style={{
             position: 'absolute',
             top: 34,
+            left: center + 32,
             right: 11,
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            alignItems: 'baseline',
+            columnGap: 4,
           }}
         >
-          <span style={{ fontSize: 30, fontWeight: 700, color: tint, lineHeight: '33px' }}>
+          <span
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              color: tint,
+              lineHeight: '33px',
+              flexShrink: 0,
+            }}
+          >
             {app && online ? Math.round(app.volume) : '—'}
           </span>
           <span
@@ -197,6 +208,8 @@ export function VolumeCard({ width, height, app, online, title, icons, iconFor }
               fontWeight: 700,
               color: muted ? '#E7B1B8' : '#C5C6CF',
               lineHeight: '17px',
+              flexShrink: 0,
+              ...(status === '%' ? {} : { flexBasis: '100%', textAlign: 'right' }),
             }}
           >
             {status}

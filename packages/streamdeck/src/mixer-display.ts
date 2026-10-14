@@ -77,7 +77,7 @@ export const make = Effect.gen(function* () {
         ? 'Master'
         : (titleOverride ?? app?.name ?? (online ? 'No app' : 'Audio'));
       const label = yield* renderer.fit(title.replace(/\s+/g, ' ').trim(), size.width - 57, 15);
-      const center = size.width <= 180 ? 62 : 80;
+      const center = size.width <= 180 ? 50 : 64;
       const radius = 34;
       const muted = app?.muted ?? false;
       const active = !!app && online && !muted;
@@ -112,6 +112,11 @@ export const make = Effect.gen(function* () {
               : '%';
       const numberColor =
         !online || !app || muted ? '#B8BAC5' : css(volumeColor(app.volume, maximum));
+      const unitWidth = yield* renderer.measure('%', 13);
+      const inlineUnit =
+        status === '%' &&
+        (yield* renderer.measure(percent, 30)) + unitWidth + 4 <= size.width - 15 - (center + 36);
+      const numberRight = size.width - 15 - (inlineUnit ? unitWidth + 4 : 0);
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}" viewBox="0 0 ${size.width} 100">
       <defs><linearGradient id="surface" x2="0" y2="1"><stop stop-color="#41414D"/><stop offset="1" stop-color="#35353F"/></linearGradient><clipPath id="card"><rect x="4" y="4" width="${size.width - 8}" height="92" rx="7"/></clipPath></defs>
       <rect width="${size.width}" height="100" fill="#0D0D10"/>
@@ -122,8 +127,8 @@ export const make = Effect.gen(function* () {
       <path d="M ${center - 27} 91 A 27 27 0 0 1 ${center + 27} 91 Z" fill="${active ? '#4E5963' : '#44464F'}"/>
       ${nominal}${boost}
       <path d="M ${pointerA[0]} ${pointerA[1]} L ${pointerB[0]} ${pointerB[1]}" stroke="${active ? '#F5F5EA' : '#888A97'}" stroke-width="2.4" stroke-linecap="round"/>
-      <text x="${size.width - 15}" y="70" text-anchor="end" font-family="${Svg.fontFamily}" font-size="30" font-weight="700" fill="${numberColor}">${percent}</text>
-      <text x="${size.width - 15}" y="87" text-anchor="end" font-family="${Svg.fontFamily}" font-size="${status === '%' ? 13 : 11}" font-weight="700" fill="${muted ? '#E7B1B8' : '#C5C6CF'}">${status}</text>
+      <text x="${numberRight}" y="70" text-anchor="end" font-family="${Svg.fontFamily}" font-size="30" font-weight="700" fill="${numberColor}">${percent}</text>
+      <text x="${size.width - 15}" y="${inlineUnit ? 70 : 87}" text-anchor="end" font-family="${Svg.fontFamily}" font-size="${status === '%' ? 13 : 11}" font-weight="700" fill="${muted ? '#E7B1B8' : '#C5C6CF'}">${status}</text>
       </g></svg>`;
     });
   return {

@@ -75,6 +75,9 @@ The tested strip is 1200×100. Regions derive from hardware dial positions:
 168, 216, 216, 216, 216, 168 pixels. Each region has its own inset card. The name
 row begins after the icon; the semicircle occupies the lower left and the value
 occupies the right. The rightmost region remains Master on all app pages.
+The percentage unit sits beside the number on the same baseline. Shift the gauge
+left to leave room for three digits even in the 168px end regions; allow the unit
+to wrap underneath when a smaller region cannot fit it. Status labels stay below.
 
 ## Elevation & Depth
 
