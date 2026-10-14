@@ -2,13 +2,14 @@ import { invariant } from './errors.ts';
 import { Context, Data, Effect, Layer, Schema, Semaphore, Stream } from 'effect';
 import * as State from './state.ts';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
+import * as Limits from './audio-limits.ts';
 /** PulseAudio 17 / PipeWire-Pulse: 100% = 0x10000; largest valid volume = UINT32_MAX / 2. */
 export const PULSE_VOLUME_NORM = 0x10000;
 export const PULSE_VOLUME_MAX = 0x7fffffff;
 /** Mixer limit requested by Manuel; protocol validation keeps its independent raw bound. */
-export const MAX_VOLUME_PERCENT = 200;
+export const MAX_VOLUME_PERCENT = Limits.MAX_VOLUME_PERCENT;
 /** Default output ceiling matches Noctalia's supported overdrive. */
-export const MAX_MASTER_VOLUME_PERCENT = 150;
+export const MAX_MASTER_VOLUME_PERCENT = Limits.MAX_MASTER_VOLUME_PERCENT;
 export class AudioError extends Data.TaggedError('AudioError')<{
   readonly operation: string;
   readonly message: string;

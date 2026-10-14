@@ -364,12 +364,17 @@ export function KeyGrid({
                 },
               }}
             >
-              {draft && key.binding ? (
-                <svg width="100%" height="100%" viewBox="0 0 100 100" aria-hidden={true}>
-                  <foreignObject width={100} height={100}>
+              {key.binding ? (
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${key.width} ${key.height}`}
+                  aria-hidden={true}
+                >
+                  <foreignObject width={key.width} height={key.height}>
                     <KeyCard
-                      width={100}
-                      height={100}
+                      width={key.width}
+                      height={key.height}
                       label={key.binding.label}
                       action={key.binding.action}
                       count={key.count}
@@ -378,7 +383,12 @@ export function KeyGrid({
                     />
                   </foreignObject>
                 </svg>
-              ) : !draft && key.revision ? (
+              ) : !draft &&
+                key.revision &&
+                snapshot.plugins.items.some(
+                  (plugin) =>
+                    plugin.id !== 'shortcuts' && plugin.enabled && plugin.keys.includes(key.index),
+                ) ? (
                 <img
                   src={`/api/image/key/${key.index}?session=${snapshot.sessionId}&revision=${key.revision}`}
                   alt=""

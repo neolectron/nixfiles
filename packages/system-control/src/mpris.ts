@@ -12,6 +12,7 @@ import {
 } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 import { IntegrationError } from './errors.ts';
+import * as PlaybackClock from './mpris-clock.ts';
 import * as StateStore from './state.ts';
 import * as Sources from './sources.ts';
 const nextLoop = (state: State) =>
@@ -83,11 +84,7 @@ const microValue = (value: unknown) => {
 };
 /** Position has no change notifications; advance the last sample only while playing. */
 export const positionAt = (state: State, now: number) => {
-  if (state.positionMicros === null) return null;
-  const value =
-    state.positionMicros +
-    (state.status === 'Playing' ? Math.max(0, now - state.sampledAt) * 1000 * state.rate : 0);
-  return Math.max(0, state.durationMicros === null ? value : Math.min(value, state.durationMicros));
+  return PlaybackClock.positionAt(state, now);
 };
 export type Command = 'PlayPause' | 'Play' | 'Pause' | 'Stop' | 'Next' | 'Previous';
 /** Replaceable D-Bus boundary. busctl JSON avoids parsing GVariant text or invoking a shell. */

@@ -35,6 +35,8 @@ import {
 import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
+import * as PresentationAssets from '../presentation-assets.ts';
+import { webSnapshot } from '../studio-presentation.ts';
 import * as Events from '../studio-events.ts';
 import * as DesktopApps from '@nixfiles/system-control/desktop.ts';
 import * as Actions from '../studio-actions.tsx';
@@ -131,6 +133,7 @@ export const startStudio = (options: {
       Takumi.ReactRenderer,
     );
     const cards = yield* Cards.make;
+    const assets = yield* PresentationAssets.make;
     const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
     const path = yield* Path.Path;
     const persistenceServices = yield* Layer.build(
@@ -216,9 +219,11 @@ export const startStudio = (options: {
           Effect.provideService(Takumi.ReactRenderer, renderer),
           Effect.provideService(Cards.MixerCards, cards),
           Effect.provideContext(persistenceServices),
+          Effect.provideService(PresentationAssets.PresentationAssets, assets),
         );
     else
       yield* PersonalPlugins.configure(host).pipe(
+        Effect.provideService(PresentationAssets.PresentationAssets, assets),
         Effect.provideContext(persistenceServices),
         Effect.provideService(Notes.Notes, notes),
         Effect.provideService(Speech.Speech, speech),
@@ -366,6 +371,7 @@ export const startStudio = (options: {
       const currentMixer = yield* mixer.current;
       const mix = Option.isSome(currentMixer) ? yield* currentMixer.value.state : undefined;
       const regions = Option.isSome(currentMixer) ? yield* currentMixer.value.regions : [];
+      const scene = Option.isSome(currentMixer) ? yield* currentMixer.value.scene : undefined;
       const slots =
         deck.lcds[0]?.pixelSize && deck.dials.length ? slotsFor(deck.dials, deck.lcds[0]) : [];
       const appSlots = slots.slice(0, -1);
@@ -434,6 +440,7 @@ export const startStudio = (options: {
           width: invariant(lcd.pixelSize, 'studio').width,
           height: invariant(lcd.pixelSize, 'studio').height,
           revision: frames.get(`lcd/${lcd.index}`)?.revision ?? 0,
+          ...(lcd.index === 0 && scene ? { scene } : {}),
         })),
         dials,
         page,
@@ -534,6 +541,7 @@ export const startStudio = (options: {
       });
     return {
       persistentState,
+      assets,
       notes,
       speech,
       snapshot: readSnapshot,
@@ -713,7 +721,7 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
             Stream.fromEffectSchedule(controller.snapshot, Schedule.spaced(150)),
             controller.inputViews,
           ).pipe(
-            Stream.map((snapshot) => JSON.stringify(snapshot)),
+            Stream.map((snapshot) => JSON.stringify(webSnapshot(snapshot))),
             Stream.changes,
             Stream.map((data) =>
               new TextEncoder().encode(
@@ -727,6 +735,21 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
           },
         ),
       ),
+    );
+    yield* router.add(
+      'GET',
+      '/api/assets/:id',
+      Effect.gen(function* () {
+        const { id } = yield* HttpRouter.params;
+        const asset = id ? yield* controller.assets.get(id) : undefined;
+        if (!asset) return Response.empty({ status: 404 });
+        const etag = `"${asset.id}"`;
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const headers = { 'cache-control': 'private, max-age=86400, immutable', etag };
+        return request.headers['if-none-match'] === etag
+          ? Response.empty({ status: 304, headers })
+          : Response.uint8Array(asset.bytes, { contentType: asset.contentType, headers });
+      }),
     );
     yield* router.add(
       'GET',

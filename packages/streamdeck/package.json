@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./presentation": "./src/presentation.tsx",
     "./react-mixer": "./src/react-mixer.tsx",
     "./studio-actions": "./src/studio-actions.tsx",
     "./plugins/event-display": "./src/plugins/event-display.tsx",

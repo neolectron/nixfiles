@@ -188,6 +188,44 @@ Spotify keys 30–32. The saved profile was changed through the studio API with
 captured slot addresses and an expected empty binding. The real feedback selects
 `spotifast`; no playback/track mutation was used to configure the buttons.
 
+## Export a declarative web presentation
+
+`presentation.tsx` defines a portable `{ type, data }` descriptor and a schema-backed
+pairing between data and a local React component:
+
+```tsx
+import * as Presentation from '@nixfiles/streamdeck/presentation';
+
+const presentation = Presentation.define(
+  'example.card.v1',
+  Schema.Struct({ text: Schema.String }),
+  ({ value }) => <div>{value.text}</div>,
+);
+const view = yield * presentation.describe({ text: 'Hello' });
+```
+
+Keep this definition in a browser-safe module, separate from the plugin's platform
+services and Layer construction. Add it to the explicit registry in `web/lcd-view.tsx`
+so Vite includes the component. Unknown or invalid descriptors do not execute
+arbitrary code. Only JSON travels over SSE; the component stays in the client bundle.
+
+A mixer contribution returns `view` alongside its existing `stamp` and native
+`draw` Effect. The mixer supplies placement and width, snapshots carry that scene,
+and the client renders it directly. Native output continues using the shared pure
+card component through the rasterizer. Native `draw` is never invoked by the web
+renderer. Descriptors should carry source state or clock samples rather than
+frame timestamps, derived ticks or encoded screenshots.
+
+`spotify-presentation.tsx` owns Spotify's client view and Schema; `spotify-lcd.tsx`
+owns its system subscription, touch toggle and native frame. The pure
+`mpris-clock.ts` interpolation is shared with the system binding. The app's
+`PresentationAssets` service converts downloaded artwork to cached same-origin
+URLs; publishing artwork is optional and unavailable artwork remains non-blocking.
+
+Older pixel-only contributions remain supported through the PNG mirror. Normal
+keys already use the shared `KeyCard` component with live plugin feedback and
+need no custom web renderer.
+
 ## Contribute an interactive mixer card
 
 The Spotify plugin resolves Spotify and Spotifast independently and registers its

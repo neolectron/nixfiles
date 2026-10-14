@@ -37,6 +37,47 @@ Folder preview navigation and Cancel also worked. Real-deck verification prepare
 and canceled a tile edit plus drag; the personal profile stayed byte-for-byte
 unchanged. Desktop and narrow-screen Save controls were checked.
 
+## Client-rendered preview over SSE
+
+Normal keys and the mixer LCD render as React DOM in the browser. Key cards use
+their binding, count, execution status and plugin feedback; LCD regions carry
+versioned presentation descriptors `{ type, data }` and geometry. Spotify sends
+track metadata and a playback-clock sample, rather than an image of its card.
+Its client component advances progress locally at 100 ms intervals between server
+samples, freezes on pause and expires the volume overlay locally.
+
+The frontend keeps the existing single **SSE** connection to `/api/events` for
+state, with schema validation and reconnect handling. Input/configuration commands
+remain HTTP requests. The server merges immediate input notifications with sampled
+state and suppresses duplicate snapshots; pixel revisions are excluded from the
+SSE comparison for declarative controls, so a hardware redraw alone does not
+produce a browser update. Hardware pixel revisions remain available on `/api/state`
+for diagnostics. There is no frontend WebSocket and no image-refresh loop.
+
+Artwork uses bounded, scoped immutable assets at `/api/assets/:id`, with private
+cache headers and ETags. The descriptor contains the asset URL only, never its
+base64 body. An unchanged cover keeps its URL; changing playback position does not
+reload it. Bundled icons are normal static assets.
+
+The physical deck still receives raster images because that is its display
+protocol. Native cards and the browser share the same pure React presentation;
+the browser uses HTML inside a scalable SVG viewport to preserve physical
+alignment. Touch hit regions, dial gestures, live feedback and explicit layout
+Save behavior keep their existing input paths.
+
+`/api/image` remains a diagnostic mirror and a compatibility fallback for legacy
+plugins that draw pixels without exporting presentation state. Empty keys and all
+normal shortcut/mixer/Spotify views do not request these images. A pixel-only
+custom mixer contribution falls back to the mirrored LCD until it exports a view.
+No attempt is made to infer application state from bitmap pixels.
+
+Verification: 274 tests pass, covering declarative rendering, SSE decoding, pixel
+revision filtering, cached asset responses and playback clocks. A real browser
+observed 89 seconds of playback with zero `/api/image` requests and one unique
+cover URL, including a reload. Pointer/keyboard key activation, draft rearrangement
+and Cancel were checked; the saved profile hash remained unchanged. Desktop and
+390 px layouts were inspected, with no page-level horizontal overflow on mobile.
+
 ## Swappable application persistence
 
 Studio builds one `PersistentState` service and provides it to the layout,
