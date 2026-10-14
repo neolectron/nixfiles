@@ -38,7 +38,7 @@ introduced in the package. No Elgato plugin host or OpenDeck runtime is installe
 ## Verification
 
 Type checking passes for both workspace packages. The Stream Deck suite has
-84 passing tests, including exact preview pixels, partial LCD composition,
+90 passing tests, including exact preview pixels, partial LCD composition,
 persist/reload, physical and web dispatch, immediate down/up state, literal
 arguments, process output and failure feedback, cross-origin rejection, invalid
 configuration, duplicate-run guards, cancellation and owner-scope cleanup.

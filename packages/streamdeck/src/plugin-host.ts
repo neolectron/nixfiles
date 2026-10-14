@@ -3,6 +3,7 @@ import { invalid } from './errors.ts';
 import { StreamDeck, type Device } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
 import type { ActionInfo, Invocation, Controls, Definition } from './plugin.ts';
+import { failureMessage } from './failure-message.ts';
 
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string; readonly message: string; readonly status: number;
@@ -71,7 +72,7 @@ export const make = Effect.gen(function*() {
         const closing = scope; scope = undefined; active = false; api = undefined;
         if (closing) {
           const exit = yield* Scope.close(closing, Exit.void).pipe(Effect.exit);
-          cleanupDetail = Exit.isFailure(exit) ? Cause.pretty(exit.cause) : '';
+          cleanupDetail = Exit.isFailure(exit) ? failureMessage(exit.cause) : '';
           if (cleanupDetail) yield* Effect.logWarning('Plugin cleanup failed', definition.id, cleanupDetail);
           yield* clear(controls);
         }
@@ -87,7 +88,8 @@ export const make = Effect.gen(function*() {
         const device = ownedDevice(deck, controls, () => active && scope === startedScope);
         const setup = yield* restore(definition.setup.pipe(Effect.provideService(StreamDeck, device), Scope.provide(startedScope), Effect.provideContext(context))).pipe(Effect.exit);
         if (Exit.isFailure(setup)) {
-          yield* stop; const detail = Cause.pretty(setup.cause); yield* status('error', detail);
+          yield* stop; yield* Effect.logDebug('Plugin setup failed', definition.id, Cause.pretty(setup.cause));
+          const detail = failureMessage(setup.cause); yield* status('error', detail);
           return yield* Effect.fail(error(definition.id, 'Failed', detail));
         }
         api = { value: setup.value.api, device }; yield* status('enabled');
@@ -97,7 +99,7 @@ export const make = Effect.gen(function*() {
             const exit = yield* Fiber.await(fiber);
             if (Exit.isFailure(exit)) yield* locked(Effect.gen(function*() {
               if (scope !== startedScope) return;
-              yield* stop; yield* status('error', Cause.pretty(exit.cause));
+              yield* stop; yield* Effect.logDebug('Plugin source failed', definition.id, Cause.pretty(exit.cause)); yield* status('error', failureMessage(exit.cause));
             }));
           }), owner);
         }
@@ -118,7 +120,7 @@ export const make = Effect.gen(function*() {
         yield* record.validate(id, input);
         const action = declared.find((action) => action.info.id === id)!;
         const result = yield* handle.use((api) => action.execute(api, input, context)).pipe(Effect.exit);
-        if (Exit.isFailure(result)) return yield* Effect.fail(error(definition.id, 'Failed', Cause.pretty(result.cause)));
+        if (Exit.isFailure(result)) return yield* Effect.fail(error(definition.id, 'Failed', failureMessage(result.cause)));
         return result.value;
       });
       return handle;

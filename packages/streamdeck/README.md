@@ -414,3 +414,6 @@ Optional OBS, Discord and push-to-talk plugins are now registered in the studio.
 They start disabled and require their corresponding service/bridge configuration.
 See [Application plugins](../../docs/streamdeck-integrations.md) for real connection
 requirements, held actions and replacing `VoiceTarget` with your own Effect Layer.
+Discord mute/deafen now default to local niri/wtype shortcuts without OAuth;
+the optional RPC backend supplies real voice state. The existing bindings are
+preserved, and plugin/HTTP failures display their domain message without a stack.
