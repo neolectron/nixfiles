@@ -14,7 +14,10 @@ export function NowPlayingCard({
   app,
   track,
   position,
-}: Size & { app: Application; track: State; position: number | null }) {
+  cover,
+}: Size & { app: Application; track: State; position: number | null; cover?: string | undefined }) {
+  const wide = width >= 320;
+  const textLeft = cover && wide ? 94 : 10;
   const known =
     position !== null &&
     track.durationMicros !== null &&
@@ -47,12 +50,13 @@ export function NowPlayingCard({
           background: 'linear-gradient(#41414D,#35353F)',
         },
       },
+      cover && wide ? h('img', { src: cover, alt: '', width: 72, height: 72, style: { position: 'absolute', left: 10, top: 10, width: 72, height: 72, objectFit: 'cover', borderRadius: 5 } }) : null,
       h(
         'div',
         {
           style: {
             position: 'absolute',
-            left: 10,
+            left: textLeft,
             right: 10,
             top: 8,
             height: 12,
@@ -85,11 +89,11 @@ export function NowPlayingCard({
         {
           style: {
             position: 'absolute',
-            left: 10,
+            left: textLeft,
             right: 10,
             top: 25,
             height: 19,
-            fontSize: width < 180 ? 13 : 15,
+            fontSize: wide ? 18 : width < 180 ? 13 : 15,
             fontWeight: 700,
             color: '#F4F4F7',
             whiteSpace: 'nowrap',
@@ -104,11 +108,11 @@ export function NowPlayingCard({
         {
           style: {
             position: 'absolute',
-            left: 10,
+            left: textLeft,
             right: 10,
             top: 45,
             height: 15,
-            fontSize: 11,
+            fontSize: wide ? 13 : 11,
             color: '#D0D1DB',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -122,7 +126,7 @@ export function NowPlayingCard({
         {
           style: {
             position: 'absolute',
-            left: 10,
+            left: textLeft,
             right: 10,
             top: 65,
             height: 3,
@@ -146,7 +150,7 @@ export function NowPlayingCard({
         {
           style: {
             position: 'absolute',
-            left: 10,
+            left: textLeft,
             right: 10,
             top: 74,
             height: 12,

@@ -94,7 +94,7 @@ export const Snapshot = Schema.Struct({
     status: BindingStatus, detail: Schema.String, count: Schema.Int, feedback: Schema.NullOr(KeyFeedback),
   })),
   lcds: Schema.Array(Schema.Struct({ index: Schema.Int, width: Schema.Int, height: Schema.Int, revision: Schema.Int })),
-  dials: Schema.Array(Schema.Struct({ index: Schema.Int, key: Schema.NullOr(Schema.String), interaction: Schema.NullOr(Schema.String), name: Schema.NullOr(Schema.String), volume: Schema.NullOr(Schema.Number), muted: Schema.Boolean, pressed: Schema.Boolean, master: Schema.Boolean, x: Schema.Number, width: Schema.Number })),
+  dials: Schema.Array(Schema.Struct({ index: Schema.Int, key: Schema.NullOr(Schema.String), interaction: Schema.NullOr(Schema.String), cardWidth: Schema.Number, name: Schema.NullOr(Schema.String), volume: Schema.NullOr(Schema.Number), muted: Schema.Boolean, pressed: Schema.Boolean, master: Schema.Boolean, x: Schema.Number, width: Schema.Number })),
   page: Schema.Int, pages: Schema.Int, lastEvent: Schema.String, inputSequence: Schema.Int,
 });
 export type Snapshot = typeof Snapshot.Type;

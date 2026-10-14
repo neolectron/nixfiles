@@ -15,14 +15,18 @@ export interface Contribution<E, R> {
   readonly tap?: { readonly label: string; readonly run: (app: Application) => Effect.Effect<void, E, R> };
   /** Notification of a local knob adjustment; audio writes remain owned by the mixer. */
   readonly onAdjust?: (app: Application, change: Change) => Effect.Effect<void, E, R>;
+  /** The compositor offers only contiguous empty slots, never another app or Master. */
+  readonly expandIntoEmpty?: boolean;
+  /** Keep this source after ordinary app cards, independently of its selected view. */
+  readonly placement?: 'last';
 }
 
 /** The mixer owns LCD pixels and geometry; scoped contributors own their content and behavior. */
 export const make = Effect.gen(function*() {
   type Entry = { matches: Contribution<never, never>['matches']; retain: Effect.Effect<ReadonlyArray<Identity>>;
-    frame: (app: Application, size: Size) => Effect.Effect<{ stamp: string; draw: Effect.Effect<RgbImage | undefined> } | undefined>;
+    frame: (app: Application, size: Size, available?: Size) => Effect.Effect<{ stamp: string; size: Size; draw: Effect.Effect<RgbImage | undefined> } | undefined>;
     label: string | undefined; tap: (app: Application) => Effect.Effect<boolean>;
-    adjust: (app: Application, change: Change) => Effect.Effect<boolean> };
+    adjust: (app: Application, change: Change) => Effect.Effect<boolean>; placement: 'last' | undefined };
   const entries = new Map<string, Entry>(); let revision = 0;
   const register = <E, R>(contribution: Contribution<E, R>) => Effect.gen(function*() {
     if (entries.has(contribution.id)) return yield* Effect.fail(invalid('mixer-card', `Duplicate card contribution: ${contribution.id}.`));
@@ -39,10 +43,12 @@ export const make = Effect.gen(function*() {
     }).pipe(Effect.catch((error) => Effect.logWarning('Mixer card', contribution.id, error).pipe(Effect.as(undefined))));
     const entry: Entry = {
       matches: contribution.matches,
+      placement: contribution.placement,
       retain: contribution.retain ? invoke(contribution.retain).pipe(Effect.map((value) => value ?? [])) : Effect.succeed([]),
-      frame: (app, size) => Effect.gen(function*() {
-        const frame = yield* invoke(contribution.frame(app, size));
-        return frame ? { stamp: `${contribution.id}/${generation}/${frame.stamp}`, draw: invoke(frame.draw) } : undefined;
+      frame: (app, size, available) => Effect.gen(function*() {
+        const actual = contribution.expandIntoEmpty && available ? available : size;
+        const frame = yield* invoke(contribution.frame(app, actual));
+        return frame ? { stamp: `${contribution.id}/${generation}/${frame.stamp}`, size: actual, draw: invoke(frame.draw) } : undefined;
       }),
       label: contribution.tap?.label,
       tap: (app) => contribution.tap ? invoke(contribution.tap.run(app).pipe(Effect.as(true))).pipe(Effect.map((value) => value ?? false)) : Effect.succeed(false),
@@ -53,10 +59,11 @@ export const make = Effect.gen(function*() {
   });
   const find = (app: Application) => [...entries.values()].find((entry) => entry.matches(app));
   return { register,
-    frame: (app: Application, size: Size) => Effect.suspend(() => find(app)?.frame(app, size) ?? Effect.succeed(undefined)),
+    frame: (app: Application, size: Size, available?: Size) => Effect.suspend(() => find(app)?.frame(app, size, available) ?? Effect.succeed(undefined)),
     tap: (app: Application) => Effect.suspend(() => find(app)?.tap(app) ?? Effect.succeed(false)),
     adjust: (app: Application, change: Change) => Effect.suspend(() => find(app)?.adjust(app, change) ?? Effect.succeed(false)),
     label: (app: Application) => Effect.sync(() => find(app)?.label),
+    placement: (app: Application) => Effect.sync(() => find(app)?.placement),
     retain: Effect.suspend(() => Effect.forEach([...entries.values()], (entry) => entry.retain).pipe(Effect.map((groups) => groups.flat()))),
   };
 });

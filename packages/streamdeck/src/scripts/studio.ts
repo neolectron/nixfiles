@@ -86,6 +86,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
     const frames = yield* preview.frames;
     const currentMixer = yield* mixer.current;
     const mix = Option.isSome(currentMixer) ? yield* currentMixer.value.state : undefined;
+    const regions = Option.isSome(currentMixer) ? yield* currentMixer.value.regions : [];
     const slots = deck.lcds[0]?.pixelSize && deck.dials.length ? slotsFor(deck.dials, deck.lcds[0]) : [];
     const appSlots = slots.slice(0, -1); const page = mix?.page ?? 0;
     const dials = yield* Effect.forEach(slots, (slot, i) => Effect.gen(function*() {
@@ -93,7 +94,7 @@ export const startStudio = (options: { profile: string; mock?: boolean; renderer
       const app = master ? mix?.master : mix?.apps.find((app) => app.key === mix.assignments[page * appSlots.length + i]);
       const key = app && 'key' in app ? app.key : null;
       const interaction = app && 'key' in app ? (yield* cards.label(app)) ?? null : null;
-      return { index: slot.dial, key, interaction, name: master && mix ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, pressed: inputView.pressedDials.has(slot.dial), master, x: slot.x, width: slot.width };
+      return { index: slot.dial, key, interaction, cardWidth: regions.find((region) => region.dial === slot.dial)?.width ?? slot.width, name: master && mix ? 'Master' : app?.name ?? null, volume: app?.volume ?? null, muted: app?.muted ?? false, pressed: inputView.pressedDials.has(slot.dial), master, x: slot.x, width: slot.width };
     }));
     return { discordConnection: yield* discordConnection.publicState, plugins: yield* host.snapshot, layout: actionView.layout, sessionId, model: deck.info.model, mock: options.mock ?? false,
       keys: deck.buttons.map((key) => {

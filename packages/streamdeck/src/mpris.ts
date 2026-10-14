@@ -20,6 +20,7 @@ export interface State {
   readonly shuffle: boolean | null; readonly loop: 'None' | 'Track' | 'Playlist' | null;
   readonly trackId: string | null; readonly durationMicros: number | null; readonly positionMicros: number | null;
   readonly sampledAt: number; readonly rate: number;
+  readonly artUrl: string | null;
 }
 const micros = Schema.Struct({ type: Schema.Literal('x'), data: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })) });
 const microValue = (value: unknown) => { const decoded = Schema.decodeUnknownOption(micros)(value); return decoded._tag === 'Some' ? decoded.value.data : null; };
@@ -62,11 +63,13 @@ export const make = (busName: string, name = 'Lecteur') => Effect.gen(function*(
       const title = Schema.decodeUnknownOption(string)(metadata['xesam:title']);
       const artist = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('as'), data: Schema.Array(Schema.String) }))(metadata['xesam:artist']);
       const track = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('o'), data: Schema.String }))(metadata['mpris:trackid']);
+      const art = Schema.decodeUnknownOption(string)(metadata['mpris:artUrl']);
       const rate = Schema.decodeUnknownOption(Schema.Struct({ type: Schema.Literal('d'), data: Schema.Number.check(Schema.isFinite(), Schema.isGreaterThan(0)) }))(props.Rate);
       return { status: props.PlaybackStatus.data, title: title._tag === 'Some' ? title.value.data : '', artists: artist._tag === 'Some' ? artist.value.data : [],
         canControl: props.CanControl.data, canNext: props.CanGoNext.data, canPrevious: props.CanGoPrevious.data, canPlay: props.CanPlay.data, canPause: props.CanPause.data, canSeek: props.CanSeek.data,
         shuffle: props.Shuffle?.data ?? null, loop: props.LoopStatus?.data ?? null,
         trackId: track._tag === 'Some' ? track.value.data : null, durationMicros: microValue(metadata['mpris:length']), positionMicros: microValue(props.Position),
+        artUrl: art._tag === 'Some' && art.value.data ? art.value.data : null,
         rate: rate._tag === 'Some' ? rate.value.data : 1, sampledAt: yield* Clock.currentTimeMillis } satisfies State;
     })), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: `État MPRIS ${name} invalide.` })),
   );

@@ -134,6 +134,12 @@ progress. Touch again to return to volume. The knob still adjusts volume and its
 click still toggles mute. The editor's LCD preview supports the same interaction.
 Rotating the knob temporarily shows the volume gauge, then restores the selected
 track view after 1.5 seconds without rotation (within the next mixer refresh).
+Spotify/Spotifast cards stay after ordinary application cards, in both views.
+The track view expands across the remaining empty slots before Master and shows
+album artwork when available and wide enough. New audio apps insert before the
+music cards. Covers load in the background; unavailable artwork leaves the text
+and progress visible. Touching anywhere in the expanded card toggles its view;
+only the original assigned knob controls its volume.
 Track information remains visible when pausing removes the application's audio
 stream; Master stays pinned and swipes keep paging the mixer.
 
@@ -196,7 +202,8 @@ playback mute. Muted feedback shows the stored value, a crossed speaker, grey ar
 and `Muted` label. Swipe the LCD left/right for more apps
 when they exceed the available app dials (five on the + XL). When an application
 disappears, remaining cards compact left while preserving their relative order;
-new apps append to that order. Empty application slots show only the
+new apps append to that order, before cards requesting a trailing position such
+as Spotify. Empty application slots show only the
 strip background, without a placeholder card. Long names ellipsize using real font
 measurements to fit each region, including the narrow cards at the strip ends.
 

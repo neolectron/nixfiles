@@ -169,6 +169,7 @@ test('app slots compact left while preserving relative order and append new appl
   assert.deepStrictEqual(assign(['a', null, 'c'], [app('a')]), ['a']);
   assert.deepStrictEqual(assign(['a', null, 'c'], [app('c'), app('a')]), ['a', 'c']);
   assert.deepStrictEqual(assign(['a', 'b'], []), []);
+  assert.deepStrictEqual(assign(['a', 'player'], [app('player'), app('a'), app('new')], new Set(['player'])), ['a', 'new', 'player']);
   assert.strictEqual(assign([], Array.from({ length: 8 }, (_, i) => app(`app${i}`))).length, 8);
 });
 
@@ -214,6 +215,42 @@ it.effect('mixer notifies only the displayed application and redraws adjustment 
     yield* mixer.flush; assert.deepStrictEqual(changes, ['player']);
   }).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provide(Layer.mergeAll(deck.layer(), Layer.succeed(Audio, {
     list: Effect.succeed([app('player')]), change: (key) => Effect.sync(() => { changes.push(key); }), ...masterMock,
+  }))));
+})));
+
+it.effect('expanded cards use only empty slots and clear covered pixels when shrinking or receiving a new app', () => Effect.scoped(Effect.gen(function*() {
+  const deck = Mock.make(); const cards = yield* Cards.make;
+  let track = true; let applications = [app('player')];
+  yield* cards.register({ id: 'wide', matches: (app) => app.key === 'player', expandIntoEmpty: true, placement: 'last',
+    frame: (_, size) => Effect.succeed(track ? { stamp: `wide/${size.width}`, draw: Image.solid(size, [17, 23, 31]) } : undefined),
+    onAdjust: () => Effect.sync(() => { track = false; }),
+  });
+  yield* Effect.gen(function*() {
+    const mixer = yield* startMixer(); const master = (yield* mixer.regions).at(-1)!;
+    assert.strictEqual((yield* mixer.regions).length, 2);
+    assert.strictEqual((yield* mixer.regions)[0]!.width, master.x);
+    const expandedWrites = deck.writes.length;
+    yield* mixer.adjustDial(0, 1);
+    const normal = yield* mixer.regions;
+    assert.strictEqual(normal.length, 6);
+    assert.strictEqual(deck.writes.length, expandedWrites + 5); // Gauge plus four cleared empty slots, no Master rewrite.
+    track = true; yield* mixer.refresh;
+    assert.strictEqual((yield* mixer.regions).length, 2);
+    applications = [app('player'), app('other')]; yield* mixer.refresh;
+    assert.deepStrictEqual((yield* mixer.state).assignments, ['other', 'player']);
+    const positioned = yield* mixer.regions;
+    assert.strictEqual(positioned.length, 3);
+    assert.strictEqual(positioned[0]!.width, normal[0]!.width);
+    assert.strictEqual(positioned[1]!.width, master.x - positioned[1]!.x);
+    yield* mixer.adjustDial(1, 1);
+    assert.deepStrictEqual((yield* mixer.state).assignments, ['other', 'player']);
+    assert.strictEqual((yield* mixer.regions).length, 6);
+    track = true;
+    applications = [app('player')]; yield* mixer.refresh;
+    assert.strictEqual((yield* mixer.regions)[0]!.width, master.x);
+    assert.deepStrictEqual((yield* mixer.regions).at(-1), master);
+  }).pipe(Effect.provideService(Cards.MixerCards, cards), Effect.provide(Layer.mergeAll(deck.layer(), Layer.succeed(Audio, {
+    list: Effect.sync(() => applications), change: () => Effect.void, ...masterMock,
   }))));
 })));
 

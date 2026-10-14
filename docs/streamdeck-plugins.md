@@ -128,6 +128,24 @@ to temporarily yield its track view back to the normal volume card, with no time
 fiber or application-specific logic in the mixer.
 Returning no frame uses the mixer's normal volume card. A frame supplies a change
 stamp and a lazy RGB render Effect; unchanged stamps avoid rendering and USB writes.
+`expandIntoEmpty: true` offers the frame the width of contiguous unoccupied slots
+to its right, stopping before another application or Master. When a frame is
+absent (including temporary volume feedback), it returns to the base slot. The
+compositor clears previously covered slots when shrinking, and publishes the
+actual rendered regions for physical touch and the web preview's hit areas.
+`placement: 'last'` keeps a source after ordinary applications regardless of its
+current frame. Spotify requests both options: an arriving Discord stream inserts
+before it instead of cutting off its expansion. This ordering is applied to the
+application list before pagination; it does not pin music onto every page.
+
+The Spotify artwork boundary lives in `src/plugins/spotify-artwork.ts`, separate
+from metadata and the pure React card. It reads the optional
+[MPRIS `mpris:artUrl`](https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/),
+supports local files and HTTP(S) PNG/JPEG/WebP covers, and supplies a data URI to
+the renderer. Loads run in the plugin scope in the background, with a three-second
+deadline, a one-MiB body limit, two concurrent requests and eight cached covers.
+Unavailable or invalid covers fall back to text; progress and audio controls do
+not wait for downloads. `SpotifyArtwork` is replaceable through an Effect service.
 Optional `retain` identities keep cards present while their audio streams disappear;
 aliases preserve their application identity and relative order during compaction.
 
