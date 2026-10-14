@@ -113,9 +113,19 @@ and track view; the latter displays title, artists, elapsed time, duration and
 progress. Knob rotation and clicks continue to use the audio mixer. MPRIS timing
 is sampled every second and advances according to playback rate only while playing;
 paused tracks keep a fixed position. Missing timing is shown as unknown.
+While the track view is selected, rotating its knob immediately reveals the normal
+volume gauge. Each rotation extends a 1.5-second deadline; the next mixer refresh
+after expiry restores the track. This temporary feedback preserves the user's
+selected view and is independent for Spotify and Spotifast. Touching the card
+explicitly changes its selected view and clears the temporary feedback.
 
 `src/mixer-cards.ts` is a generic scoped extension point. A contribution declares
 `matches(app)`, `frame(app, size)` and an optional labeled `tap.run(app)` Effect.
+Optional `onAdjust(app, change)` receives local knob adjustments before the mixer
+flushes audio changes; its resulting content is rendered immediately. This is
+a scoped notification, not a second volume writer. Spotify uses `Clock` and `Ref`
+to temporarily yield its track view back to the normal volume card, with no timer
+fiber or application-specific logic in the mixer.
 Returning no frame uses the mixer's normal volume card. A frame supplies a change
 stamp and a lazy RGB render Effect; unchanged stamps avoid rendering and USB writes.
 Optional `retain` identities keep cards present while their audio streams disappear;
