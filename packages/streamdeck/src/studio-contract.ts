@@ -2,6 +2,7 @@ import { Schema } from 'effect';
 import { KeyFeedback } from './key-feedback.ts';
 import { PublicConnection } from '@nixfiles/system-control/discord-contract.ts';
 import { KeyTrigger } from './press-trigger.ts';
+import { Region } from './presentation.tsx';
 
 const shortText = Schema.String.check(Schema.isMaxLength(80));
 const argument = Schema.String.check(Schema.isMaxLength(4096));
@@ -367,6 +368,7 @@ export const Snapshot = Schema.Struct({
       width: Schema.Int,
       height: Schema.Int,
       revision: Schema.Int,
+      scene: Schema.optionalKey(Schema.UndefinedOr(Schema.Array(Region))),
     }),
   ),
   dials: Schema.Array(

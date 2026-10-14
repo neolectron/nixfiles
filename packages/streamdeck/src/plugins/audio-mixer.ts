@@ -13,6 +13,8 @@ import * as Display from '../mixer-renderer.ts';
 import { volumeColor } from '../volume-gauge.ts';
 import * as Plugin from '../plugin.ts';
 import { MixerCards } from '../mixer-cards.ts';
+import type { Region } from '../presentation.tsx';
+import { presentation as volumePresentation } from '../ui/volume-presentation.tsx';
 export interface MixerOptions {
   readonly step?: number;
   readonly refreshMillis?: number;
@@ -124,11 +126,14 @@ export const make = (options: MixerOptions = {}) =>
     const screen = yield* Semaphore.make(1);
     const cache = new Map<number, string>();
     const regions = yield* Ref.make<ReadonlyArray<Slot>>(slots);
+    const scene = yield* Ref.make<ReadonlyArray<Region> | undefined>(undefined);
     const render = (next: MixerState) =>
       Effect.gen(function* () {
         let changed = false;
         let coveredUntil = 0;
         const drawn: Slot[] = [];
+        const views: Region[] = [];
+        let pixelOnly = false;
         for (const [i, slot] of slots.entries()) {
           if (slot.x < coveredUntil) {
             cache.delete(i);
@@ -163,6 +168,26 @@ export const make = (options: MixerOptions = {}) =>
               : undefined;
           const region = { ...slot, width: custom?.size.width ?? slot.width };
           drawn.push(region);
+          if (custom && !custom.view) pixelOnly = true;
+          views.push({
+            ...region,
+            view:
+              custom?.view ??
+              (yield* volumePresentation.describe({
+                width: region.width,
+                height: region.height,
+                online,
+                title: isMaster ? 'MASTER' : null,
+                app: app
+                  ? {
+                      name: app.name,
+                      volume: app.volume,
+                      muted: app.muted,
+                      mixedMute: 'mixedMute' in app ? app.mixedMute : false,
+                    }
+                  : null,
+              })),
+          });
           coveredUntil = region.x + region.width;
           const stamp = JSON.stringify([
             region,
@@ -186,6 +211,7 @@ export const make = (options: MixerOptions = {}) =>
           changed = true;
         }
         yield* Ref.set(regions, drawn);
+        yield* Ref.set(scene, pixelOnly ? undefined : views);
         yield* Ref.set(state, next); // Routing changes only after matching feedback is written.
         if (changed)
           yield* Console.log(
@@ -441,6 +467,7 @@ export const make = (options: MixerOptions = {}) =>
     return {
       state: Ref.get(state),
       regions: Ref.get(regions),
+      scene: Ref.get(scene),
       refresh,
       flush,
       changePage,

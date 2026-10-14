@@ -5,6 +5,7 @@ import { HeldAction } from './held-action.tsx';
 import { Effect, Fiber, Schedule } from 'effect';
 import type { ActionId, Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { KeyCard } from '../src/ui/key-card.tsx';
+import { LcdView } from './lcd-view.tsx';
 import * as Api from './api.ts';
 import { LayoutControls, ShortcutOrganization } from './layout-controls.tsx';
 import { TargetPreview, zoneLabel } from './zone-map.tsx';
@@ -731,13 +732,7 @@ function App() {
                     style={{ aspectRatio: `${lcd.width}/${lcd.height}` }}
                     aria-label="Écran LCD du mixer audio"
                   >
-                    {lcd.revision ? (
-                      <img
-                        src={`/api/image/lcd/${lcd.index}?session=${snapshot?.sessionId}&revision=${lcd.revision}`}
-                        alt="Affichage actuel du mixer et des cartes des applications"
-                        draggable={false}
-                      />
-                    ) : null}
+                    <LcdView lcd={lcd} sessionId={snapshot?.sessionId ?? ''} />
                     {(lcd.index === 0 ? (snapshot?.dials ?? []) : [])
                       .filter((dial) => dial.interaction)
                       .map((dial) => (

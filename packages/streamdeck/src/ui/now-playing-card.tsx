@@ -1,6 +1,5 @@
 import { invariant } from '../errors.ts';
 import type { Size } from '../model.ts';
-import type { Application } from '@nixfiles/system-control/audio.ts';
 import type { State } from '@nixfiles/system-control/mpris.ts';
 import { VolumeOverlay } from './volume-overlay.tsx';
 export const timestamp = (micros: number | null) =>
@@ -17,8 +16,8 @@ export function NowPlayingCard({
   cover,
   volumeOverlay = false,
 }: Size & {
-  app: Application;
-  track: State;
+  app: { name: string; volume: number; muted: boolean; hasAudio: boolean };
+  track: Pick<State, 'title' | 'artists' | 'status' | 'durationMicros'>;
   position: number | null;
   cover?: string | undefined;
   volumeOverlay?: boolean;
@@ -97,7 +96,7 @@ export function NowPlayingCard({
                 ? 'PAUSE'
                 : track.status === 'Stopped'
                   ? 'ARRÊT'
-                  : app.streams.length
+                  : app.hasAudio
                     ? `${Math.round(app.volume)} %`
                     : 'LECTURE'}
           </span>

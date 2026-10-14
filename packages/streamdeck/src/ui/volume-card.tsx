@@ -1,16 +1,20 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Size } from '../model.ts';
 import type { Feedback } from '../mixer-display.ts';
-import { MAX_MASTER_VOLUME_PERCENT, MAX_VOLUME_PERCENT } from '@nixfiles/system-control/audio.ts';
+import {
+  MAX_MASTER_VOLUME_PERCENT,
+  MAX_VOLUME_PERCENT,
+} from '@nixfiles/system-control/audio-limits.ts';
 import { arc, css, point, volumeColor } from '../volume-gauge.ts';
 interface CardProps extends Size {
   readonly app: Feedback | undefined;
   readonly online: boolean;
   readonly title: string | undefined;
   readonly icons: Readonly<Record<string, string>>;
+  readonly iconFor?: (key: string, online: boolean) => ReactNode;
 }
 /** Pure React presentation: Effect owns the state and physical event handlers. */
-export function VolumeCard({ width, height, app, online, title, icons }: CardProps) {
+export function VolumeCard({ width, height, app, online, title, icons, iconFor }: CardProps) {
   const master = title === 'MASTER' || title === 'Master';
   const style: CSSProperties = {
     width,
@@ -90,7 +94,15 @@ export function VolumeCard({ width, height, app, online, title, icons }: CardPro
         {muted ? <path d="M 14 7 L 23 17 M 23 7 L 14 17" stroke="#F1ADB1" strokeWidth={2} /> : null}
       </svg>
     ) : (
-      <img alt="" src={icons[key]} width={19} height={19} style={{ opacity: online ? 1 : 0.45 }} />
+      (iconFor?.(key, online) ?? (
+        <img
+          alt=""
+          src={icons[key]}
+          width={19}
+          height={19}
+          style={{ opacity: online ? 1 : 0.45 }}
+        />
+      ))
     );
   return (
     <div style={style}>

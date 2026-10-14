@@ -3,6 +3,7 @@ import type { Application, Change } from '@nixfiles/system-control/audio.ts';
 import type { RgbImage } from './image.ts';
 import type { Size } from './model.ts';
 import { invalid } from './errors.ts';
+import type { View } from './presentation.tsx';
 export interface Identity {
   readonly key: string;
   readonly name: string;
@@ -11,6 +12,8 @@ export interface Identity {
 export interface Frame<E = never, R = never> {
   readonly stamp: string;
   readonly draw: Effect.Effect<RgbImage, E, R>;
+  /** Portable JSON paired with a plugin-owned React renderer. Optional for legacy pixel-only cards. */
+  readonly view?: View;
 }
 export interface Contribution<E, R> {
   readonly id: string;
@@ -42,6 +45,7 @@ export const make = Effect.sync(() => {
       | {
           stamp: string;
           size: Size;
+          view?: View;
           draw: Effect.Effect<RgbImage | undefined>;
         }
       | undefined
@@ -95,6 +99,7 @@ export const make = Effect.sync(() => {
               ? {
                   stamp: `${contribution.id}/${generation}/${frame.stamp}`,
                   size: actual,
+                  ...(frame.view ? { view: frame.view } : {}),
                   draw: invoke(frame.draw),
                 }
               : undefined;

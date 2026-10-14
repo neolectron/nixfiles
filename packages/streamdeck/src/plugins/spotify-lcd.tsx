@@ -1,4 +1,4 @@
-import { invariant } from '../errors.ts';
+import { invariant, invalid } from '../errors.ts';
 import { Clock, Effect, Option, Ref } from 'effect';
 import { MixerCards } from '../mixer-cards.ts';
 import * as Mpris from '@nixfiles/system-control/mpris.ts';
@@ -7,6 +7,8 @@ import { NowPlayingCard } from '../ui/now-playing-card.tsx';
 import type { Controller } from '@nixfiles/system-control/spotify.ts';
 import { keyForApplication } from '@nixfiles/system-control/spotify.ts';
 import * as Artwork from './spotify-artwork.ts';
+import { PresentationAssets } from '../presentation-assets.ts';
+import { presentation } from './spotify-presentation.tsx';
 const volumeFeedbackMillis = 1500;
 /** Registers content, not hardware claims. The mixer remains the sole LCD compositor. */
 export const register = (api: Controller) =>
@@ -15,6 +17,7 @@ export const register = (api: Controller) =>
     const renderer = yield* Takumi.current;
     const supplied = yield* Effect.serviceOption(Artwork.SpotifyArtwork);
     const artwork = Option.isSome(supplied) ? supplied.value : yield* Artwork.live;
+    const assets = Option.getOrUndefined(yield* Effect.serviceOption(PresentationAssets));
     const visible = yield* Ref.make<ReadonlySet<string>>(new Set());
     const volumeUntil = yield* Ref.make<ReadonlyMap<string, number>>(new Map());
     const state = (key: string) => (api.forApplication ? api.forApplication(key) : api.state);
@@ -67,7 +70,31 @@ export const register = (api: Controller) =>
           const position = sampled === null ? null : Math.floor(sampled / 1000000) * 1000000;
           const cover =
             size.width >= 320 || volumeOverlay ? yield* artwork.current(track.artUrl) : undefined;
+          const viewApp = {
+            name: app.name,
+            volume: app.volume,
+            muted: app.muted,
+            hasAudio: app.streams.length > 0,
+          };
+          const view = yield* presentation
+            .describe({
+              ...size,
+              app: viewApp,
+              track: {
+                title: track.title,
+                artists: track.artists,
+                status: track.status,
+                durationMicros: track.durationMicros,
+                positionMicros: track.positionMicros,
+                sampledAt: track.sampledAt,
+                rate: track.rate,
+              },
+              cover: assets ? ((yield* assets.publish(cover)) ?? null) : null,
+              volumeUntil: (yield* Ref.get(volumeUntil)).get(key) ?? 0,
+            })
+            .pipe(Effect.mapError((error) => invalid('spotify-presentation', error.message)));
           return {
+            view,
             stamp: JSON.stringify([
               size,
               track.title,
@@ -87,7 +114,7 @@ export const register = (api: Controller) =>
               .rgb(
                 <NowPlayingCard
                   {...size}
-                  app={app}
+                  app={viewApp}
                   track={track}
                   position={position}
                   cover={cover}
@@ -100,7 +127,7 @@ export const register = (api: Controller) =>
                   renderer.rgb(
                     <NowPlayingCard
                       {...size}
-                      app={app}
+                      app={viewApp}
                       track={track}
                       position={position}
                       volumeOverlay={volumeOverlay}
