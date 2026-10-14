@@ -9,6 +9,9 @@ const mediaIcons: Partial<Record<KeyFeedback['icon'], string>> = {
   shuffle: 'M3 7h3c5 0 7 10 12 10h3m-4-4 4 4-4 4M3 17h3c2 0 3-1 4-3m4-4c1-2 2-3 4-3h3m-4-4 4 4-4 4',
   repeat: 'm17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3',
   music: 'M9 18V5l12-2v13M9 8l12-2M9 18a3 3 0 1 1-3-3h3Zm12-2a3 3 0 1 1-3-3h3Z',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5',
+  moon: 'M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z',
+  theme: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0v18m0-14a5 5 0 0 0 0 10',
 };
 export function FeedbackIcon({
   feedback,

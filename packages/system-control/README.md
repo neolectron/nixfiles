@@ -148,3 +148,25 @@ applications without PRIMARY/conventional paste support are unsupported. It cann
 identify caret changes that do not alter PRIMARY within the same window. Calls are
 serialized by rejection, never queued against a later selection. Scope closure
 cancels pending work and revokes the retained API.
+
+## System appearance
+
+`SystemAppearance.layer` in `appearance.ts` exposes `set('dark' | 'light')`,
+`toggle`, `state`, `snapshot`, `observe` and `refresh`, independently of USB.
+Commands serialize against a fresh desktop read. The scoped one-second monitor
+follows external preference changes, publishes typed unavailability/recovery and
+stops on scope close; retained operations are revoked. Acquiring or observing the
+service never changes the theme.
+
+The default backend calls Noctalia's `darkMode.setDark` / `setLight` IPC, allowing
+the shell to manage its own palette/templates, then publishes
+`org.gnome.desktop.interface color-scheme` through `gsettings`. Desktop portals
+expose this as `org.freedesktop.appearance/color-scheme` for applications following
+the system preference. Applications with a forced theme keep that override. The
+standard `default` preference resolves to light. No per-app settings or global
+Nix configuration are rewritten.
+
+`STREAMDECK_APPEARANCE_BACKEND=gsettings` selects preference-only control for a
+desktop without Noctalia. Tests or other desktops can inject `AppearanceBackend`
+into `SystemAppearance.serviceLayer`. This optional service is acquired by the
+appearance plugin only when enabled, unless explicitly shared by its caller.
