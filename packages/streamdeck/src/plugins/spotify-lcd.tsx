@@ -21,6 +21,13 @@ export const register = (api: Controller) =>
     const visible = yield* Ref.make<ReadonlySet<string>>(new Set());
     const volumeUntil = yield* Ref.make<ReadonlyMap<string, number>>(new Map());
     const state = (key: string) => (api.forApplication ? api.forApplication(key) : api.state);
+    const showVolume = (application: string) =>
+      Effect.gen(function* () {
+        const until = (yield* Clock.currentTimeMillis) + volumeFeedbackMillis;
+        yield* Ref.update(volumeUntil, (before) =>
+          new Map(before).set(invariant(keyForApplication(application), 'spotify-lcd'), until),
+        );
+      });
     yield* cards.register({
       id: 'spotify-now-playing',
       matches: (app) => keyForApplication(app.key) !== undefined,
@@ -50,14 +57,8 @@ export const register = (api: Controller) =>
             });
           }),
       },
-      onAdjust: (app, change) =>
-        Effect.gen(function* () {
-          if (!change.delta) return;
-          const until = (yield* Clock.currentTimeMillis) + volumeFeedbackMillis;
-          yield* Ref.update(volumeUntil, (before) =>
-            new Map(before).set(invariant(keyForApplication(app.key), 'spotify-lcd'), until),
-          );
-        }),
+      onAdjust: (app, change) => (change.delta ? showVolume(app.key) : Effect.void),
+      onChange: (app) => showVolume(app.key),
       frame: (app, size) =>
         Effect.gen(function* () {
           const key = invariant(keyForApplication(app.key), 'spotify-lcd');

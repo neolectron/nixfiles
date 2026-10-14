@@ -1,7 +1,7 @@
 import * as AudioModule from '@nixfiles/system-control/audio.ts';
 import { assert, expect, it, test } from '@effect/vitest';
 import { NodeServices } from '@effect/platform-node';
-import { Deferred, Effect, Fiber, Layer } from 'effect';
+import { Deferred, Effect, Fiber, Layer, Schedule } from 'effect';
 import {
   Audio,
   AudioError,
@@ -691,6 +691,60 @@ test('encoder events route through the Effect binding runner', async () => {
   assert.strictEqual(changeKey, 'spotify');
   assert.strictEqual(deck.closes, 1);
 });
+
+it.live(
+  'service observations update mixer values, plugin callbacks and the UI without a knob event',
+  () => {
+    const deck = Mock.make();
+    const f = fixture([input(1, 'Spotifast', [32768])]);
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const cards = yield* Cards.make;
+        const changes: Array<{ volume: number; muted: boolean; previous: number }> = [];
+        yield* cards.register({
+          id: 'observed-player',
+          matches: (application) => application.key === 'spotifast',
+          onChange: (application, before) =>
+            Effect.sync(() => {
+              changes.push({
+                volume: application.volume,
+                muted: application.muted,
+                previous: before.volume,
+              });
+            }),
+          frame: () => Effect.succeed(undefined),
+        });
+        yield* Effect.gen(function* () {
+          const mixer = yield* startMixer({ refreshMillis: 60_000 });
+          yield* mixer.run.pipe(Effect.forkScoped);
+          const writes = deck.writes.length;
+          f.set([input(1, 'Spotifast', [81920], true)]);
+          yield* Effect.gen(function* () {
+            const current = (yield* mixer.state).apps[0];
+            if (current?.volume !== 125 || !current.muted)
+              return yield* Effect.fail('Waiting for service observation');
+          }).pipe(Effect.retry(Schedule.spaced(10)), Effect.timeout('2 seconds'));
+          assert.deepStrictEqual(changes, [{ volume: 125, muted: true, previous: 50 }]);
+          assert.deepStrictEqual(f.commands, []);
+          assert.ok(deck.writes.length > writes);
+          yield* mixer.refresh;
+          assert.strictEqual(changes.length, 1);
+          const scene = yield* mixer.scene;
+          expect(scene?.[0]?.view.data).toMatchObject({
+            online: true,
+            title: null,
+            app: { name: 'Spotifast', volume: 125, muted: true, mixedMute: false },
+          });
+          // The next local adjustment starts from the external value, not a stale UI value.
+          yield* mixer.adjustDial(0, 1);
+          yield* mixer.flush;
+          assert.ok(Math.abs(((yield* mixer.state).apps[0]?.volume ?? 0) - 127) < 0.01);
+          assert.strictEqual((yield* mixer.state).apps[0]?.muted, true);
+        }).pipe(Effect.provideService(Cards.MixerCards, cards));
+      }),
+    ).pipe(Effect.provide(Layer.mergeAll(deck.layer(), f.layer)));
+  },
+);
 
 it.live('CLI mock mixer runs with neither pactl nor native HID available and validates step', () =>
   Effect.gen(function* () {

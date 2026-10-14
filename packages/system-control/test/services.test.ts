@@ -109,6 +109,33 @@ it.effect(
 );
 
 it.effect(
+  'audio broadcasts external volume and mute changes for an existing stream without writing back',
+  () => {
+    const fake = audio([input(1, 'Spotifast', [32768, 16384])]);
+    return Effect.gen(function* () {
+      const service = yield* Audio;
+      const changed = yield* Stream.runHead(
+        service.observe.pipe(
+          Stream.filter(
+            (value) => Result.isSuccess(value) && value.success.applications[0]?.muted === true,
+          ),
+        ),
+      ).pipe(Effect.forkScoped);
+      fake.set([input(1, 'Spotifast', [81920, 40960], true)]);
+      yield* TestClock.adjust(500);
+      yield* Fiber.join(changed);
+      const current = (yield* service.state).applications[0];
+      assert.ok(current);
+      assert.strictEqual(current.key, 'spotifast');
+      assert.strictEqual(current.volume, 125);
+      assert.strictEqual(current.muted, true);
+      assert.deepStrictEqual(current.streams[0]?.channels, [81920, 40960]);
+      assert.deepStrictEqual(fake.commands, []);
+    }).pipe(Effect.provide(fake.layer));
+  },
+);
+
+it.effect(
   'Spotify Layer publishes metadata and command state without a consumer starting a monitor',
   () =>
     Effect.gen(function* () {

@@ -1,4 +1,15 @@
-import { Console, Context, Effect, Layer, Option, Ref, Schema, Semaphore } from 'effect';
+import {
+  Console,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Result,
+  Schema,
+  Semaphore,
+  Stream,
+} from 'effect';
 import {
   Audio,
   type Application,
@@ -129,6 +140,20 @@ export const make = (options: MixerOptions = {}) =>
     const scene = yield* Ref.make<ReadonlyArray<Region> | undefined>(undefined);
     const render = (next: MixerState) =>
       Effect.gen(function* () {
+        const previous = yield* Ref.get(state);
+        if (extensions)
+          for (const app of next.apps) {
+            const before = previous.apps.find((candidate) => candidate.key === app.key);
+            if (
+              before &&
+              before.streams.length &&
+              app.streams.length &&
+              (before.volume !== app.volume ||
+                before.muted !== app.muted ||
+                before.mixedMute !== app.mixedMute)
+            )
+              yield* extensions.changed(app, before);
+          }
         let changed = false;
         let coveredUntil = 0;
         const drawn: Slot[] = [];
@@ -237,13 +262,19 @@ export const make = (options: MixerOptions = {}) =>
             }),
           );
       });
-    const refresh = Semaphore.withPermits(
+    // Always take the latest service snapshot inside the screen lock. An older queued
+    // notification must not overwrite the feedback from a more recent command.
+    const synchronize = Semaphore.withPermits(
       screen,
       1,
     )(
       Effect.gen(function* () {
         const before = yield* Ref.get(state);
-        let apps = yield* audio.list.pipe(
+        const snapshot = yield* audio.snapshot;
+        const applications = Result.isSuccess(snapshot)
+          ? Effect.succeed(snapshot.success.applications)
+          : audio.list;
+        let apps = yield* applications.pipe(
           Effect.map((values) => [...values]),
           Effect.catch((error) =>
             Effect.gen(function* () {
@@ -272,7 +303,11 @@ export const make = (options: MixerOptions = {}) =>
               });
             }
         }
-        const master = yield* audio.master.pipe(
+        // Preserve independent app/output availability when the combined read fails.
+        const output = Result.isSuccess(snapshot)
+          ? Effect.succeed(snapshot.success.master)
+          : audio.master;
+        const master = yield* output.pipe(
           Effect.map((value) => ({ value, online: true })),
           Effect.catch((error) =>
             Effect.gen(function* () {
@@ -301,6 +336,7 @@ export const make = (options: MixerOptions = {}) =>
         });
       }),
     );
+    const refresh = audio.refresh.pipe(Effect.ignore, Effect.andThen(synchronize));
     const enqueue = (dial: number, delta: number, toggles: number, origin?: InputOrigin) =>
       Semaphore.withPermits(
         screen,
@@ -476,7 +512,9 @@ export const make = (options: MixerOptions = {}) =>
       toggleDial: (dial: number) => enqueue(dial, 0, 1),
       run: Effect.raceAllFirst([
         binding.run,
-        Effect.forever(Effect.sleep(pollMillis).pipe(Effect.andThen(refresh))),
+        Stream.runForEach(audio.observe, () => synchronize),
+        // Presentation clocks and plugin activation can change without an audio event.
+        Effect.forever(Effect.sleep(pollMillis).pipe(Effect.andThen(synchronize))),
         Effect.forever(Effect.sleep(flushMillis).pipe(Effect.andThen(flush))),
       ]),
     };

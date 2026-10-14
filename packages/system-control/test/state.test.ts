@@ -54,3 +54,37 @@ it.effect('canceling a caller stops its operation without closing the shared ser
     }),
   ),
 );
+
+it.effect('overlapping refreshes cannot publish an old snapshot after a newer read', () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      let source = 0;
+      let reads = 0;
+      const store = yield* State.polling(
+        Effect.gen(function* () {
+          const value = source;
+          if (++reads === 2) {
+            yield* Deferred.succeed(started, undefined);
+            yield* Deferred.await(release);
+          }
+          return value;
+        }),
+        '1 minute',
+        new IntegrationError({ message: 'Offline' }),
+      );
+      source = 1;
+      const first = yield* store.refresh.pipe(Effect.forkScoped);
+      yield* Deferred.await(started);
+      source = 2;
+      const second = yield* store.refresh.pipe(Effect.forkScoped);
+      yield* Effect.yieldNow;
+      assert.strictEqual(reads, 2);
+      yield* Deferred.succeed(release, undefined);
+      yield* Fiber.join(first);
+      yield* Fiber.join(second);
+      assert.strictEqual(yield* store.state, 2);
+    }),
+  ),
+);
