@@ -1,6 +1,9 @@
 import { Context, Effect, Layer, Schema, Stream, type Scope } from 'effect';
 import type { Device, StreamDeck } from './stream-deck.ts';
 import type { KeyFeedback } from './key-feedback.ts';
+import * as Bindings from './bindings.ts';
+import type { PressContext } from './press-gestures.ts';
+import { invalid } from './errors.ts';
 
 export interface Controls {
   readonly keys?: ReadonlyArray<number>;
@@ -24,8 +27,8 @@ export interface Definition<Api, E, R> {
 /** Inference preserves the API and dependencies; setup may provide one or more Layers. */
 export const define = <Api, E, R>(definition: Definition<Api, E, R>): Definition<Api, E, R> => definition;
 
-/** Connect any Effect Stream. Ordering and backpressure are retained; failure reaches the host. */
-export const listen = <A, E, R, E2, R2>(source: Stream.Stream<A, E, R>, consume: (event: A) => Effect.Effect<unknown, E2, R2>) => Stream.runForEach(source, consume);
+/** Connect any Stream to an Effect callback or the same declared-action handlers as controls. */
+export const listen = <A, E, R, E2, R2>(source: Stream.Stream<A, E, R>, consume: Bindings.Handler<A, E2, R2>) => Bindings.listen(source, consume);
 
 /** Build services in the activation scope, keeping Layer finalizers alive until disable. */
 export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(options: Omit<Definition<Api, E | E2, R | R2>, 'setup'> & {
@@ -50,22 +53,35 @@ export interface Invocation {
 }
 /** Strict parameter-free action schema, also represented as an empty browser form. */
 export const NoInput = Schema.Record(Schema.String, Schema.Never);
-export interface Action<Api> {
-  readonly info: ActionInfo;
+export interface Action<Api, Input = unknown, E = unknown, R = StreamDeck | Scope.Scope> {
+  readonly info: ActionInfo & { readonly defaults: Input };
   readonly validate: (input: unknown) => Effect.Effect<void, unknown>;
-  readonly execute: (api: Api, input: unknown, context: Invocation) => Effect.Effect<unknown, unknown, StreamDeck | Scope.Scope>;
-  readonly feedback?: (api: Api, input: unknown) => Effect.Effect<KeyFeedback, unknown, StreamDeck | Scope.Scope>;
+  readonly execute: (api: Api, input: unknown, context: Invocation) => Effect.Effect<unknown, E | Schema.SchemaError, R>;
+  readonly feedback?: (api: Api, input: unknown) => Effect.Effect<KeyFeedback, E | Schema.SchemaError, R>;
   readonly unavailable?: KeyFeedback;
 }
+/** Reuse a declared action on any control/gesture, without studio or timer code.
+ * Execution is supervised by Bindings and canceled with the binding/plugin scope.
+ */
+const isPress = (event: unknown): event is PressContext => typeof event === 'object' && event !== null && 'released' in event && Effect.isEffect(event.released)
+  && 'gesture' in event && (event.gesture === 'press' || event.gesture === 'short-press' || event.gesture === 'long-press' || event.gesture === 'double-tap');
+export const mapHandler = <Api, Input, E, R, Event>(action: Action<Api, Input, E, R>, api: Api, input: (event: Event) => NoInfer<Input>, output: Invocation['output'] = (text) => Effect.logInfo(text)) =>
+  Bindings.background((event: Event) => Effect.scoped(Effect.gen(function*() {
+    const press = isPress(event) ? event : undefined;
+    if (action.info.interaction === 'hold' && (!press || press.gesture === 'short-press' || press.gesture === 'double-tap')) return yield* Effect.fail(invalid('plugin', 'A hold action requires onPress or onLongPress on a key or dial.'));
+    return yield* action.execute(api, input(event), { output, ...(press ? { released: press.released } : {}) });
+  })));
+export const handler = <Api, Input, E, R>(action: Action<Api, Input, E, R>, api: Api, input: NoInfer<Input> = action.info.defaults, output?: Invocation['output']) =>
+  mapHandler<Api, Input, E, R, unknown>(action, api, () => input, output);
 /** Schema is the single source for decoded input, browser fields and runtime validation. */
-export const action = <Api, Input, Encoded, E>(options: {
+export const action = <Api, Input, Encoded, E, R>(options: {
   readonly id: string; readonly name: string; readonly description: string;
   readonly input: Schema.Codec<Input, Encoded>; readonly defaults: Encoded;
   readonly interaction?: 'press' | 'hold';
-  readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, StreamDeck | Scope.Scope>;
+  readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, R>;
   readonly unavailable?: KeyFeedback;
-  readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, StreamDeck | Scope.Scope>;
-}): Action<Api> => ({
+  readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, R>;
+}): Action<Api, Encoded, E, R> => ({
   info: { id: options.id, name: options.name, description: options.description, schema: Schema.toJsonSchemaDocument(options.input), defaults: options.defaults, interaction: options.interaction ?? 'press' },
   validate: (input) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.asVoid),
   execute: (api, input, context) => Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(Effect.flatMap((value) => options.run(api, value, context))),

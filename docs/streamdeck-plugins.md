@@ -59,7 +59,9 @@ without HID or real audio. All entry points use Effect CLI and Node's native TS.
 
 `Sources.poll` returns an ordinary Effect `Stream`. Apply `Stream.map`, `filter`,
 `merge`, `changes`, `debounce`, or explicit retry/recovery before consumption.
-`Plugin.listen(source, handler)` preserves ordering and backpressure. A finite
+`Plugin.listen(source, handler)` preserves ordering and backpressure for ordinary
+Effect callbacks. Declared-action/background handlers explicitly allow concurrent
+execution; a finite source waits for their dispatched tasks before completing. A finite
 source can finish while the plugin remains active; a failure stops that plugin,
 releases its controls and exposes the error. It can be retried by re-enabling it.
 
@@ -108,6 +110,102 @@ controls. Independent subscribers remain broadcasts. `Bindings.start` handles
 button/knob/touch routing and feedback in those controls. The host retains global
 brightness/reset ownership. Claims prevent accidental conflicting writes; local
 plugin code executes with the same OS privileges as the application.
+
+## Bind gestures and actions
+
+Business actions don't recognize input, schedule timers or know about the editor.
+`Bindings` routes controls; `press-gestures.ts` recognizes presses. Keys and
+encoders share `onShortPress`, `onLongPress` and `onDoubleTap`, and can bind all
+three at once. `onPress` is an immediate down callback independent of the
+semantic gestures. `onRelease` remains a raw release callback.
+
+```ts
+const binding = yield* Bindings.start({
+  buttons: {
+    0: {
+      onShortPress: Plugin.handler(increase, feature, { amount: 1 }),
+      onLongPress: Plugin.handler(increase, feature, { amount: 10 }),
+      onDoubleTap: Plugin.handler(increase, feature, { amount: 100 }),
+      longPressMs: 700,
+      doubleTapMs: 300,
+    },
+  },
+  knobs: {
+    0: {
+      onShortPress: Plugin.handler(increase, feature), // action defaults
+      onRotate: Plugin.mapHandler(increase, feature,
+        (event: DialRotate) => ({ amount: event.delta })),
+    },
+  },
+  touch: { 0: { onSwipe: Plugin.handler(increase, feature, { amount: 100 }) } },
+});
+// Return { api: feature, run: binding.run } from plugin setup.
+```
+
+`Plugin.handler` uses static parameters; `Plugin.mapHandler` derives parameters
+from the typed event. Both preserve the action's encoded parameter types,
+errors and dependencies, validate through its Schema, and run as supervised background
+tasks. They can be assigned to key, dial and touch handlers. `Bindings.background`
+does the same for a plain Effect or callback that isn't a catalogue action.
+Ordinary handlers stay sequential, so small state changes keep their input order.
+Background handlers explicitly allow overlap; serialize or debounce a feature's
+commands in its service when its transport needs that.
+
+Short fires on release. With a double handler, short waits until the double tap
+window expires (350 ms by default). Double fires on the second release; a long
+press fires once while held (600 ms by default) and suppresses short/double for
+that press. Both releases must fit within the double window following the first
+release. A second press held to the long threshold consumes the first pending
+tap. Long intervals accept integer milliseconds from 100 to 10000, and double
+intervals from 100 to 1000. The persisted `trigger + onPress` mode remains
+available for a single chosen gesture; combining it with semantic handlers is
+rejected rather than giving ambiguous behavior.
+
+Every press handler receives the original event plus `gesture` and `released`.
+A `hold` action bound using `Plugin.handler` receives `released` automatically;
+bind it to `onPress` or `onLongPress`. Completed short/double/touch events cannot
+start a hold action. Release still reaches its original invocation after page
+navigation. Cancel and scope shutdown also release held inputs; stopping a plugin
+interrupts background tasks and runs their finalizers. Recover action errors
+deliberately in the feature if they shouldn't stop its runner.
+
+The [executable gesture example](../packages/streamdeck/src/scripts/gesture-playground.ts)
+declares two actions once and reuses them on keys, encoders and touch. Its hold
+only logs; it never opens a microphone. Run it with `pnpm cli gestures --mock
+--duration 3` from the Stream Deck package.
+
+For a custom event source, use `Sources.callback`/`Sources.poll` or any Effect
+Stream. A source of raw down/up events can feed `Gestures.make().down/up/cancel`
+directly: its channel string is independent of HID, and identity/context isolate
+sources and obsolete bindings. Race source consumption with `gestures.failure`
+in the same scope. A source already providing semantic events can directly use
+`Plugin.listen(source, handler)` without recognizing them again. Reuse the same
+declared action for any domain event, including sources that have no device:
+
+```ts
+yield* Plugin.listen(myStream,
+  Plugin.mapHandler(increase, feature,
+    (event: { amount: number }) => ({ amount: event.amount })));
+```
+
+Source errors cancel outstanding actions and run their finalizers. Background
+action errors also fail the source consumer, including when an action completed
+before the finite source ended. A static `Plugin.handler` accepts any event type.
+
+| Module | Responsibility |
+| --- | --- |
+| `press-trigger.ts` | Serializable trigger Schema, timing ranges and defaults; also used by the browser. |
+| `press-gestures.ts` | Input-independent press state, arbitration, scoped timers and release signals. |
+| `task-runner.ts` | Supervised background actions, failure propagation and task scopes. |
+| `bindings.ts` | Device control validation, event routing, page ownership and initial feedback. |
+| `plugin.ts` | Layer/definition/action API and typed action-to-handler adapters. |
+| `plugin-host.ts` | Activation scopes, control claims, source/task lifetime and action catalogue. |
+| `studio-input.ts` | Web/physical source isolation and captured address/revision adapter. |
+| `studio-actions.ts` | Persisted shortcut/layout orchestration, jobs and action feedback. |
+
+The studio uses the same gesture engine, with one recognition pass per input.
+Its editor currently chooses one gesture per saved shortcut; composing several
+different gesture actions is available in the scripting/plugin API.
 
 ## Render a React view
 
