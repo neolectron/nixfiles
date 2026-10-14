@@ -45,7 +45,9 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
   const actions = [Discord.plugin, Spotify.plugin, Obs.plugin, OpenAIApps.plugin].flatMap(
     (plugin) =>
       plugin
-        .actions!.filter((action) => action.info.tile)
+        .actions!.filter(
+          (action) => action.info.tile && ['launch', 'chatgpt', 'codex'].includes(action.info.id),
+        )
         .map((action) => ({ ...action.info, plugin: plugin.id, pluginName: plugin.name })),
   );
   const catalogue = Schema.decodeUnknownSync(Catalogue)({

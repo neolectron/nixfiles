@@ -127,3 +127,24 @@ and SurfaceHost are subsequent stages of the
 [architecture plan](../../docs/system-control-streamdeck-plan.md).
 LCD tiles, artwork, gestures and navigation remain in Stream Deck presentation
 code for this first migration stage.
+
+## Text transformation and selection
+
+`TextTransform.layer` offers `transform({ text, prompt })`; inject `TextModel` into
+`TextTransform.serviceLayer` to use another backend. The default Codex adapter uses
+existing CLI authentication, `gpt-6-luna`, ephemeral structured output and scoped
+process/temp-file cleanup. `STREAMDECK_CODEX_MODEL` and `STREAMDECK_CODEX_COMMAND`
+are optional overrides. It disables discovered MCP servers and shell/apps/plugins
+for each call and never changes global Codex settings. Selected text travels through
+stdin, not command arguments, profiles or logs.
+
+`TextSelection.layer` offers `transform(prompt, output?)` for the current editable
+Wayland selection. Its `serviceLayer` accepts `SelectionBackend` and `TextTransform`.
+The default boundary needs `niri`, `wl-paste`, `wl-copy`, `wtype` and `codex` on PATH.
+It reads PRIMARY, checks window/selection identity before replacement, then pastes
+through Ctrl+V with a scoped clipboard publisher. The result stays on the clipboard.
+The caller must keep the editable selection active; read-only selections and
+applications without PRIMARY/conventional paste support are unsupported. It cannot
+identify caret changes that do not alter PRIMARY within the same window. Calls are
+serialized by rejection, never queued against a later selection. Scope closure
+cancels pending work and revokes the retained API.

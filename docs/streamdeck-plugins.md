@@ -564,3 +564,45 @@ the supervised `run` effect. The source may be a system service, game state,
 notification or HTTP/MCP-driven state. There is no browser or USB dependency in the
 selector. Failure, interruption and plugin disable release its presentation through
 Effect Scope; a finite source keeps its last selection until disable.
+
+## Transform selected text with OpenAI
+
+The existing **ChatGPT / Codex** plugin exports **Traduire · EN**, **Corriger** and
+**Transformer** tiles alongside its launch actions. Drag a tile onto a key, edit its
+multiline **Prompt**, then click **Enregistrer**. Preparing or saving a tile never
+reads the selection, calls a model or sends keyboard input.
+
+To use it, select text **in an editable field**, keep that window and selection
+active, then press the physical key. The result replaces the selection through
+Ctrl+V; no Return is synthesized, including for multiline results. The transformed
+text is also the new clipboard content. Keep the target selection untouched during
+generation. If the window or primary selection changes, the action refuses to paste.
+A browser click on Studio changes focus: configure there, use the physical key in
+the target application. Read-only text, password fields, terminals with alternate
+paste shortcuts, and applications that do not export Wayland primary selection
+are not supported by this adapter. Window/primary checks cannot detect every caret
+move inside the same window; the target field must stay selected until replacement.
+
+This first backend uses the authenticated **Codex CLI**, with `gpt-6-luna` and low
+reasoning effort for short transformations. Optional environment overrides are
+`STREAMDECK_CODEX_MODEL` and `STREAMDECK_CODEX_COMMAND`; login is owned by Codex
+(`codex login status`). It uses the account's Codex allowance. This does not reuse
+the Dot microphone bridge or a ChatGPT conversation. No API key or OAuth token is
+stored in the key profile. The selected text and prompt are sent to the model only
+when the action is invoked. Codex runs in an ephemeral empty working directory,
+with structured output, no shell/plugins/apps/web tools and all discovered MCP
+servers disabled for that invocation. Temporary response/instruction files and
+child processes belong to Effect scopes; no detached Codex daemon is launched.
+The Wayland clipboard publisher is foreground and managed by the plugin's scope,
+and exits when clipboard ownership changes or the plugin/server stops.
+
+`system-control/TextTransform` is independent of USB and accepts an injected
+`TextModel`. `system-control/TextSelection` combines it with an injected
+`SelectionBackend`; `wayland()` separates focus/selection checks from process I/O.
+A single in-flight action is allowed, with immediate rejection of additional presses.
+Cancellation/disable stops generation and prevents later replacement. Errors and empty
+responses preserve the selected text; logs and inspector output contain status only.
+Other interfaces can consume the same services, including another model backend.
+
+Official references: [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode)
+and [available models](https://learn.chatgpt.com/docs/models).
