@@ -29,19 +29,19 @@ export class MprisTransport extends Context.Service<MprisTransport, {
     const run = (args: ReadonlyArray<string>) => Effect.scoped(Effect.gen(function*() {
       const handle = yield* processes.spawn(ChildProcess.make('busctl', args, { stdin: 'ignore' }));
       const [out, err, code] = yield* Effect.all([Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr)), handle.exitCode], { concurrency: 'unbounded' });
-      if (code !== 0) return yield* Effect.fail(new IntegrationError({ message: `Spotify/MPRIS indisponible : ${err.trim().slice(-600) || 'ouvre Spotify Desktop dans cette session.'}` }));
+      if (code !== 0) return yield* Effect.fail(new IntegrationError({ message: `MPRIS indisponible : ${err.trim().slice(-600) || 'ouvre un lecteur dans cette session.'}` }));
       return out;
-    })).pipe(Effect.timeout('3 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'busctl indisponible ou D-Bus ne répond pas. Utilise le shell Nix du projet et ouvre Spotify Desktop.' })));
+    })).pipe(Effect.timeout('3 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'busctl indisponible ou D-Bus ne répond pas. Utilise le shell Nix du projet.' })));
     return { ready: run(['--version']).pipe(Effect.asVoid), run };
   }));
 }
 
 /** One player per service; queries/toggles are serialized and the cache survives app restarts. */
-export const make = (busName: string) => Effect.gen(function*() {
+export const make = (busName: string, name = 'Lecteur') => Effect.gen(function*() {
   if (busName.length > 255 || !/^org\.mpris\.MediaPlayer2\.[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*$/.test(busName)) return yield* Effect.fail(new IntegrationError({ message: 'Nom D-Bus MPRIS invalide.' }));
   const transport = yield* MprisTransport; yield* transport.ready;
   const lock = yield* Semaphore.make(1);
-  const cached = yield* Ref.make<Result.Result<State, IntegrationError>>(Result.fail(new IntegrationError({ message: 'Ouvre Spotify Desktop pour lire son état.' })));
+  const cached = yield* Ref.make<Result.Result<State, IntegrationError>>(Result.fail(new IntegrationError({ message: `Ouvre ${name} pour lire son état.` })));
   // --auto-start=no: merely enabling the plugin never launches an application or changes playback.
   const run = (args: ReadonlyArray<string>) => transport.run(['--user', '--json=short', '--timeout=2s', '--auto-start=no', ...args]);
   const read = run(['call', busName, path, properties, 'GetAll', 's', player]).pipe(
@@ -53,17 +53,17 @@ export const make = (busName: string) => Effect.gen(function*() {
       return { status: props.PlaybackStatus.data, title: title._tag === 'Some' ? title.value.data : '', artists: artist._tag === 'Some' ? artist.value.data : [],
         canControl: props.CanControl.data, canNext: props.CanGoNext.data, canPrevious: props.CanGoPrevious.data, canPlay: props.CanPlay.data, canPause: props.CanPause.data, canSeek: props.CanSeek.data,
         shuffle: props.Shuffle?.data ?? null, loop: props.LoopStatus?.data ?? null };
-    }), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'État MPRIS Spotify invalide.' })),
+    }), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: `État MPRIS ${name} invalide.` })),
   );
   const refresh = Effect.gen(function*() { const result = yield* Effect.result(read); yield* Ref.set(cached, result); return yield* Effect.fromResult(result); });
   const current = Semaphore.withPermits(lock, 1)(refresh);
   const mutate = (allowed: (state: State) => boolean, args: (state: State) => ReadonlyArray<string>, description: string, confirmed?: (before: State, after: State) => boolean) => Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
     const before = yield* refresh;
-    if (!before.canControl || !allowed(before)) return yield* Effect.fail(new IntegrationError({ message: `Spotify ne permet pas ${description} actuellement.` }));
+    if (!before.canControl || !allowed(before)) return yield* Effect.fail(new IntegrationError({ message: `${name} ne permet pas ${description} actuellement.` }));
     yield* run(args(before));
     // Spotify can acknowledge D-Bus before updating its properties. Query only; never resend a toggle.
     return yield* confirmed ? Effect.repeat(refresh, { until: (after) => confirmed(before, after), schedule: Schedule.spaced(50) }).pipe(
-      Effect.timeout('2 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: 'Commande envoyée, mais Spotify n’a pas confirmé le nouvel état. Vérifie la lecture avant de réessayer.' })),
+      Effect.timeout('2 seconds'), Effect.mapError((cause) => cause instanceof IntegrationError ? cause : new IntegrationError({ message: `Commande envoyée, mais ${name} n’a pas confirmé le nouvel état. Vérifie la lecture avant de réessayer.` })),
     ) : refresh;
   }));
   const call = (method: string, ...args: ReadonlyArray<string>) => ['call', busName, path, player, method, ...args];

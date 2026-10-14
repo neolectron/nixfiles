@@ -4,7 +4,7 @@ import * as Plugin from '../plugin.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 
 export class Spotify extends Context.Service<Spotify, Mpris.Controller>()('@nixfiles/streamdeck/Spotify') {
-  static readonly layer = Layer.effect(Spotify, Effect.flatMap(Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.withDefault('org.mpris.MediaPlayer2.spotify')), Mpris.make)).pipe(Layer.provide(Mpris.MprisTransport.layer));
+  static readonly layer = Layer.effect(Spotify, Effect.flatMap(Config.String('STREAMDECK_SPOTIFY_BUS_NAME').pipe(Config.withDefault('org.mpris.MediaPlayer2.spotify')), (name) => Mpris.make(name, 'Spotify'))).pipe(Layer.provide(Mpris.MprisTransport.layer));
 }
 type Icon = KeyFeedback['icon'];
 const unavailable = (icon: Icon): KeyFeedback => ({ icon, text: 'HORS LIGNE', tone: 'neutral' });

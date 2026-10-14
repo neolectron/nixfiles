@@ -122,6 +122,12 @@ Effect, `Plugin.listen` for any Stream, `Sources.callback` for SDK events or
 See the [plugin guide](../../docs/streamdeck-plugins.md) for typed scripting,
 source adapters, control ownership and complete lifecycle behavior.
 
+**Touches média** exposes standard previous/play-pause/next/play/pause/stop
+actions through desktop MPRIS. It selects the playing player across applications,
+keeps the selected player on pause and switches when another starts. Key feedback
+shows the selected application and its playback state. Choose this plugin for
+global media commands, or **Spotify** to target that application specifically.
+
 ## Folders and partial pagination
 
 Below the preview, open **Organiser les dossiers et les zones**. Select a free

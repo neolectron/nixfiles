@@ -81,6 +81,30 @@ commands. For replaceable snapshots such as live levels, pass
 `{ capacity: 1, latest: true }`. An existing HTTP/SSE, socket, MQTT or PubSub Stream
 can be used directly; transport-specific dependencies belong to its own Layer.
 
+## Standard desktop media controls
+
+The **Touches média** plugin (`media`) declares `previous`, `play-pause`, `next`,
+`play`, `pause` and `stop`, with no parameters. These are global media commands
+over Linux MPRIS rather than commands bound to Spotify's particular D-Bus name.
+`media.ts` discovers players using the existing `MprisTransport` Layer and reuses
+the per-player controller for capability checks and serialized commands. It
+selects one player per action; it never broadcasts a toggle to every application.
+
+Playing players take priority over paused/stopped players. A player observed
+starting playback takes priority within that group; otherwise selection stays
+stable, with D-Bus name order as the initial tie-breaker. A paused selected player
+remains selected when no other player is playing. Reopening/closing applications
+updates the selection. Discovery and feedback are read-only, use
+`--auto-start=no`, and recover from missing players without disabling the plugin.
+The key shows the selected application and a play/pause icon matching its state.
+The monitor closes with the plugin activation scope.
+
+On Manuel's current deck the plugin is enabled and standard Previous,
+Play/Pause and Next were placed on keys 21–23, directly above the corresponding
+Spotify keys 30–32. The saved profile was changed through the studio API with
+captured slot addresses and an expected empty binding. The real feedback selects
+`spotifast`; no playback/track mutation was used to configure the buttons.
+
 ## Define a feature using a Layer
 
 `Plugin.fromLayer` builds the supplied Layer **inside the activation scope**.
