@@ -43,7 +43,6 @@ export function DialControl({
       aria-label={`Potard ${dial.index + 1} · ${dial.name ?? 'aucune application'}`}
       disabled={disabled}
       title="Glisser à droite pour augmenter, à gauche pour diminuer. Molette ou flèches ← →."
-      aria-describedby="dial-help"
       {...handlers}
     >
       <svg viewBox="0 0 64 64" className="knob" aria-hidden={true}>
