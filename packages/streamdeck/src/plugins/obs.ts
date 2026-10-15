@@ -7,6 +7,7 @@ import { Context, Effect, Layer, Option, Schema } from 'effect';
 import * as Plugin from '../plugin.ts';
 import * as AppTiles from './application-tiles.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
+import * as SystemAction from '../system-action.ts';
 export const authentication = Rpc.authentication;
 export const make = Rpc.make;
 export type Controller = SystemController & AppTiles.Applications;
@@ -31,14 +32,41 @@ const simple = (
   { icon = 'obs', label = name }: { icon?: KeyFeedback['icon']; label?: string } = {},
 ) =>
   Plugin.action({
+    ...(id !== 'status' ? { systemAction: `obs.${id}` } : {}),
     id,
     name,
     description,
     input: empty,
     defaults: {},
     tile: { label, icon },
-    run: (api: Controller) => api.request(request),
-    feedback: (api) => api.state.pipe(Effect.as({ icon, text: 'PRÊT', tone: 'neutral' } as const)),
+    run: (api: Controller) =>
+      id === 'status'
+        ? api.request(request)
+        : SystemAction.invoke(`obs.${id}`, {}, api.request(request)),
+    feedback: (api) =>
+      api.state.pipe(
+        Effect.map((state): KeyFeedback => {
+          if (id === 'status' || id.includes('record'))
+            return {
+              icon,
+              text: state.paused ? 'PAUSE' : state.recording ? 'REC' : 'ARRÊT',
+              tone: state.recording ? 'danger' : 'neutral',
+            };
+          const active =
+            id.includes('stream') || id === 'stream'
+              ? state.streaming
+              : id.includes('camera')
+                ? state.virtualCamera
+                : id.includes('replay')
+                  ? state.replayBuffer
+                  : undefined;
+          return {
+            icon,
+            text: active === undefined ? 'PRÊT' : active ? 'ACTIF' : 'ARRÊT',
+            tone: active ? 'positive' : 'neutral',
+          };
+        }),
+      ),
     unavailable: { icon, text: 'HORS LIGNE', tone: 'neutral' },
   });
 export const plugin = Plugin.fromLayer({
@@ -165,18 +193,30 @@ export const plugin = Plugin.fromLayer({
     ),
     Plugin.action({
       id: 'scene',
+      systemAction: 'obs.scene',
       name: 'Changer de scène',
       description: 'Sélectionne la scène du programme.',
       input: Schema.Struct({ sceneName: Schema.NonEmptyString.annotate({ title: 'Scène' }) }),
       defaults: { sceneName: 'Scène' },
       tile: { label: 'Changer de scène', icon: 'window' },
-      run: (api: Controller, input) => api.request('SetCurrentProgramScene', input),
-      feedback: (api) =>
-        api.state.pipe(Effect.as({ icon: 'window', text: 'PRÊT', tone: 'neutral' } as const)),
+      run: (api: Controller, input) =>
+        SystemAction.invoke('obs.scene', input, api.request('SetCurrentProgramScene', input)),
+      feedback: (api, input) =>
+        api.state.pipe(
+          Effect.map(
+            (state): KeyFeedback => ({
+              icon: 'window',
+              text:
+                state.currentScene === input.sceneName ? 'ACTIVE' : (state.currentScene ?? 'PRÊT'),
+              tone: state.currentScene === input.sceneName ? 'positive' : 'neutral',
+            }),
+          ),
+        ),
       unavailable: { icon: 'window', text: 'HORS LIGNE', tone: 'neutral' },
     }),
     Plugin.action({
       id: 'mute-input',
+      systemAction: 'obs.mute-input',
       name: 'Mute d’une source',
       description: 'Bascule le mute de la source audio OBS.',
       input: Schema.Struct({
@@ -184,9 +224,23 @@ export const plugin = Plugin.fromLayer({
       }),
       defaults: { inputName: 'Mic/Aux' },
       tile: { label: 'Mute source OBS', icon: 'microphone' },
-      run: (api: Controller, input) => api.request('ToggleInputMute', input),
-      feedback: (api) =>
-        api.state.pipe(Effect.as({ icon: 'microphone', text: 'PRÊT', tone: 'neutral' } as const)),
+      run: (api: Controller, input) =>
+        SystemAction.invoke('obs.mute-input', input, api.request('ToggleInputMute', input)),
+      feedback: (api, input) =>
+        api.state.pipe(
+          Effect.map(
+            (state): KeyFeedback => ({
+              icon: 'microphone',
+              text:
+                state.inputMute?.[input.inputName] === undefined
+                  ? 'PRÊT'
+                  : state.inputMute[input.inputName]
+                    ? 'MUET'
+                    : 'ACTIF',
+              tone: state.inputMute?.[input.inputName] ? 'danger' : 'neutral',
+            }),
+          ),
+        ),
       unavailable: { icon: 'microphone', text: 'HORS LIGNE', tone: 'neutral' },
     }),
   ],

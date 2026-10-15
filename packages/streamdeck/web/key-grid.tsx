@@ -1,3 +1,4 @@
+import { commandFor } from '../src/navigation.ts';
 import { invariant } from '../src/errors.ts';
 import {
   useEffect,
@@ -37,6 +38,20 @@ const isOutside = (event: PointerEvent<HTMLButtonElement>) => {
 const draftNavigation = (key: Key): Navigate | null => {
   const binding = key.binding;
   if (!binding) return null;
+  if (binding.action === 'plugin') {
+    const command = commandFor({
+      plugin: binding.parameters.plugin,
+      action: binding.parameters.command,
+      input: binding.parameters.input,
+    });
+    return command?.surface === 'keys'
+      ? {
+          zone: command.zone === 'current' ? key.zone : command.zone,
+          operation: command.operation,
+          ...(command.operation === 'open' ? { folder: command.folder } : {}),
+        }
+      : null;
+  }
   if (binding.action === 'go-back') return { zone: key.zone, operation: 'back' };
   if (
     binding.action !== 'open-folder' &&

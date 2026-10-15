@@ -93,11 +93,31 @@ export const ButtonBinding = Schema.Union([
 ]);
 export type ButtonBinding = typeof ButtonBinding.Type;
 export type ActionId = ButtonBinding['action'];
+export const GestureBindings = Schema.Struct({
+  press: Schema.optionalKey(ButtonBinding),
+  longPress: Schema.optionalKey(ButtonBinding),
+  doubleTap: Schema.optionalKey(ButtonBinding),
+});
+export type GestureBindings = typeof GestureBindings.Type;
+export const ContextRule = Schema.Struct({
+  id: Schema.NonEmptyString,
+  name: Schema.NonEmptyString,
+  applications: Schema.Array(Schema.NonEmptyString),
+  priority: Schema.Int,
+  keys: Schema.Record(Schema.String, Schema.NullOr(ButtonBinding)),
+  lcd: Schema.optionalKey(LcdLayout.Configuration),
+});
+export type ContextRule = typeof ContextRule.Type;
 export const LegacyProfile = Schema.Struct({
   version: Schema.Literal(1),
   buttons: Schema.Record(Schema.String, ButtonBinding),
 });
-export const Entry = Schema.Struct({ id: Schema.NonEmptyString, binding: ButtonBinding });
+export const Entry = Schema.Struct({
+  id: Schema.NonEmptyString,
+  binding: ButtonBinding,
+  stateVersion: Schema.optionalKey(Schema.NonEmptyString),
+  gestures: Schema.optionalKey(GestureBindings),
+});
 export type Entry = typeof Entry.Type;
 const minimumPages = Schema.optional(
   Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 4096 })),
@@ -105,6 +125,7 @@ const minimumPages = Schema.optional(
 const items = Schema.Array(Schema.NullOr(Entry)).check(Schema.isMaxLength(4096));
 export const Profile = Schema.Struct({
   version: Schema.Literal(2),
+  contexts: Schema.optionalKey(Schema.Array(ContextRule)),
   lcd: Schema.optionalKey(LcdLayout.Configuration),
   zones: Schema.Array(
     Schema.Struct({
@@ -255,7 +276,7 @@ export interface ActionDefinition {
   readonly defaults: ButtonBinding['parameters'];
   readonly schema: unknown;
 }
-export const Catalogue = Schema.Struct({
+const CatalogueBase = Schema.Struct({
   actions: Schema.Array(
     Schema.Struct({
       id: Schema.Literals([
@@ -284,6 +305,8 @@ export const Catalogue = Schema.Struct({
   ),
   pluginActions: Schema.Array(
     Schema.Struct({
+      systemAction: Schema.optionalKey(Schema.String),
+      templateId: Schema.optionalKey(Schema.String),
       plugin: Schema.String,
       pluginName: Schema.String,
       id: Schema.String,
@@ -305,6 +328,10 @@ export const Catalogue = Schema.Struct({
     }),
   ),
   applications: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })),
+});
+export const Catalogue = Schema.Struct({
+  ...CatalogueBase.fields,
+  pluginTiles: Schema.optionalKey(CatalogueBase.fields.pluginActions),
 });
 export type Catalogue = typeof Catalogue.Type;
 const BindingStatus = Schema.Literals(['idle', 'running', 'success', 'error']);
@@ -338,6 +365,7 @@ const PluginStatus = Schema.Struct({
   lcds: Schema.Array(Schema.Int),
 });
 export const Snapshot = Schema.Struct({
+  stateRevision: Schema.optionalKey(Schema.Int),
   lcdLayout: Schema.optionalKey(LcdLayout.View),
   configuration: Configuration,
   discordConnection: PublicConnection,
@@ -366,6 +394,7 @@ export const Snapshot = Schema.Struct({
         ),
       ),
       binding: Schema.NullOr(ButtonBinding),
+      gestures: Schema.optionalKey(GestureBindings),
       revision: Schema.Int,
       pressed: Schema.Boolean,
       status: BindingStatus,

@@ -342,3 +342,63 @@ owned by the external application and survive observer/plugin shutdown; only an
 explicit hangup changes that lifecycle. This differs from hold-to-talk's temporary
 capture session. No audio processing, microphone permissions, credentials or
 private OpenAI app storage are managed by this service.
+
+## Shared action catalogue and transports
+
+`actions.ts` defines an Effect `ActionCatalog` with input/output Schemas,
+capabilities, dynamic field choices and an error contract. `system-actions.ts`
+registers adapters without executing commands. Capture services at the application
+root, then reuse the catalogue for plugins, scripts and transports:
+
+```ts
+const actions = yield * Actions.make;
+yield * SystemActions.install(actions); // Provide the system services to this Effect.
+const descriptors = yield * actions.catalogue;
+const capability = yield * actions.capability('obs.scene');
+const scenes = yield * actions.choices('obs.scene', 'sceneName');
+// Explicit operation, only in response to the caller's request:
+// yield* actions.invoke('obs.scene', { sceneName: 'Desktop' });
+```
+
+`define` registers custom actions with Schemas, `run`, optional `available` and
+`choices`. Calls reject excess/invalid input and validate encoded output. Each
+invocation has its own resource scope and is also owned by the catalogue scope.
+Diagnostics retain the last 256 action identifiers, timing, outcome and error
+codes, without prompts, arguments, tokens or results.
+
+Studio mounts this same catalogue on its loopback server:
+
+| Endpoint                                                   | Contract                                                               |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `GET /api/system/actions`                                  | Action descriptors and input/output/error JSON Schemas                 |
+| `GET /api/system/choices?action=obs.scene&field=sceneName` | Dynamic choices; free text remains possible offline                    |
+| `POST /api/system/invoke`                                  | `{ action, input }` → `{ result }`; typed error code on failure        |
+| `GET /api/system/diagnostics`                              | Bounded operation diagnostics                                          |
+| `GET/POST /api/system/integrations`                        | Independent persisted integration activation                           |
+| `/mcp`                                                     | Effect's Streamable HTTP MCP adapter over these exact action instances |
+
+Browser mutations require the allowed `Origin` and `x-streamdeck-studio: 1`.
+MCP validates browser origins and uses its standard client negotiation/headers;
+non-browser MCP clients can use `http://127.0.0.1:3900/mcp`. Nothing edits a client
+configuration automatically. Tools wrap their declared output in `{ result }`.
+No second audio, desktop or media runtime is started by connecting a client.
+
+## Integration activation and reference state
+
+`IntegrationControl` stores audio/media/desktop/discord/obs/appearance/dot/codex/text
+activation through `PersistentState`. Supply it before constructing system Layers.
+Disabling a presentation only closes that presentation; disabling an integration
+suspends polls, closes sessions and interrupts in-flight operations. Re-enabling
+uses the same stable service API and resumes recovery. The Diagnostic tab exposes
+these controls separately from the plugin toggles.
+
+`runtime.integrationsLayer` now composes Spotify, media, Discord, Desktop, OBS,
+appearance, Dot calls, Codex prompts and text transforms. Its `MprisRegistry`
+shares one managed controller per D-Bus player. OBS follows output, scene and
+input mute events rather than deriving recording state from connection state.
+
+`Counters.make(key)` is the reference stateful system service. `initial(id, start,
+version?)` reads the hydrated cache; `increment` atomically persists before
+publishing its new count. Studio injects the same instance into native shortcuts,
+the counter plugin and the action catalogue. Configuration epochs prevent a reset
+from reviving an older value, without requiring a multi-document transaction.

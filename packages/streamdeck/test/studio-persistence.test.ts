@@ -270,6 +270,22 @@ it.live(
           assert.strictEqual((yield* actions.states).get(8)?.count, 8);
           assert.strictEqual((yield* actions.states).get(8)?.status, 'success');
           assert.strictEqual((yield* actions.states).get(8)?.detail, '');
+          // Reset is a single configuration write, even if runtime-state writes are unavailable.
+          reject = true;
+          yield* actions.save(8, { label: 'Reset', action: 'counter', parameters: { start: 10 } });
+          assert.strictEqual((yield* actions.states).get(8)?.count, 10);
+          const restored = yield* Actions.makeWithState(
+            yield* StreamDeck,
+            '/unused/profile.json',
+            [],
+          );
+          assert.strictEqual((yield* restored.states).get(8)?.count, 10);
+          yield* restored.save(8, {
+            label: 'Reset back',
+            action: 'counter',
+            parameters: { start: 7 },
+          });
+          assert.strictEqual((yield* restored.states).get(8)?.count, 7);
         }).pipe(
           Effect.provide(
             Layer.mergeAll(

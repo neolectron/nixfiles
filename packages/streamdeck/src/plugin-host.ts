@@ -22,6 +22,8 @@ import * as Overlays from './deck-overlays.ts';
 import type { RgbImage } from './image.ts';
 import { View } from './presentation.tsx';
 import { supports } from './tile-capabilities.ts';
+import { SurfaceHost, make as makeSurfaces } from './surface-host.ts';
+import { manifest as pluginManifest } from './plugin.ts';
 export class PluginError extends Data.TaggedError('PluginError')<{
   readonly id: string;
   readonly message: string;
@@ -48,7 +50,10 @@ export interface Handle<Api> {
   ) => Effect.Effect<
     A,
     E | PluginError,
-    Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, Scope.Scope>
+    Exclude<
+      Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, SurfaceHost>,
+      Scope.Scope
+    >
   >;
 }
 const error = (id: string, reason: PluginError['reason'], message: string) =>
@@ -123,7 +128,15 @@ const ownedDevice = (deck: Device, controls: Controls, active: () => boolean): D
 };
 export const make = Effect.gen(function* () {
   const deck = yield* StreamDeck;
-  const overlays = yield* Overlays.make(deck.buttons.map((key) => key.index));
+  const sharedSurfaces = yield* Effect.serviceOption(SurfaceHost);
+  const surfaces = Option.isSome(sharedSurfaces)
+    ? sharedSurfaces.value
+    : yield* makeSurfaces(
+        deck.buttons.map((key) => key.index),
+        deck.lcds.flatMap((lcd) => (lcd.pixelSize ? [{ ...lcd.pixelSize, index: lcd.index }] : [])),
+        deck.dials.map((dial) => dial.index),
+      );
+  const overlays = surfaces.keys;
   const owner = yield* Effect.scope;
   const lock = yield* Semaphore.make(1);
   type Record = {
@@ -137,14 +150,22 @@ export const make = Effect.gen(function* () {
       input: unknown,
       context: Invocation,
     ) => Effect.Effect<unknown, PluginError>;
-    feedback?: (action: string, input: unknown) => Effect.Effect<KeyFeedback | null>;
+    feedback?: (
+      action: string,
+      input: unknown,
+      context?: Pick<Invocation, 'instanceId'>,
+    ) => Effect.Effect<KeyFeedback | null>;
     lcd?: (
       action: string,
       input: unknown,
       size: Size,
-    ) => Effect.Effect<{ view: View; image: RgbImage } | undefined, PluginError>;
+    ) => Effect.Effect<
+      { view: View; stamp: string; draw: Effect.Effect<RgbImage, PluginError> } | undefined,
+      PluginError
+    >;
   };
   const records = new Map<string, Record>();
+  const manifests: Array<ReturnType<typeof pluginManifest>> = [];
   let revision = 0;
   const locked = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     Semaphore.withPermits(lock, 1)(effect);
@@ -171,7 +192,10 @@ export const make = Effect.gen(function* () {
     Effect.gen(function* () {
       const context =
         yield* Effect.context<
-          Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, Scope.Scope>
+          Exclude<
+            Exclude<Exclude<Exclude<R, StreamDeck>, Overlays.DeckOverlays>, SurfaceHost>,
+            Scope.Scope
+          >
         >();
       return yield* locked(
         Effect.gen(function* () {
@@ -198,6 +222,29 @@ export const make = Effect.gen(function* () {
               );
           }
           const declared = definition.actions ?? [];
+          const manifest = pluginManifest(definition);
+          if (new Set(manifest.tiles.map((tile) => tile.id)).size !== manifest.tiles.length)
+            return yield* error(
+              definition.id,
+              'Conflict',
+              'Tile IDs must be unique within the plugin.',
+            );
+          for (const template of manifest.tiles) {
+            const action = declared.find((entry) => entry.info.id === template.action);
+            if (!action)
+              return yield* error(
+                definition.id,
+                'Unknown',
+                `Action inconnue pour la tile ${template.id}.`,
+              );
+            yield* action
+              .validate(template.input)
+              .pipe(
+                Effect.mapError(() =>
+                  error(definition.id, 'Failed', `Paramètres de tile invalides : ${template.id}.`),
+                ),
+              );
+          }
           if (
             new Set(declared.map((action) => action.info.id)).size !== declared.length ||
             declared.some((action) => !/^[a-z][a-z0-9.-]*$/.test(action.info.id))
@@ -323,6 +370,10 @@ export const make = Effect.gen(function* () {
                   definition.setup.pipe(
                     Effect.provideService(StreamDeck, device),
                     Effect.provideService(Overlays.DeckOverlays, presentations),
+                    Effect.provideService(SurfaceHost, {
+                      ...surfaces,
+                      ...surfaces.forOwner(definition.id, () => active && scope === startedScope),
+                    }),
                     Scope.provide(startedScope),
                     Effect.provideContext(context),
                   ),
@@ -345,6 +396,10 @@ export const make = Effect.gen(function* () {
                     setup.value.run.pipe(
                       Effect.provideService(StreamDeck, device),
                       Effect.provideService(Overlays.DeckOverlays, presentations),
+                      Effect.provideService(SurfaceHost, {
+                        ...surfaces,
+                        ...surfaces.forOwner(definition.id, () => active && scope === startedScope),
+                      }),
                       Scope.provide(startedScope),
                       Effect.provideContext(context),
                       Effect.andThen(Effect.never),
@@ -374,6 +429,7 @@ export const make = Effect.gen(function* () {
               }),
             );
           records.set(definition.id, record);
+          manifests.push(manifest);
           revision++;
           const handle = {
             id: definition.id,
@@ -397,6 +453,10 @@ export const make = Effect.gen(function* () {
                       Effect.suspend(() => f(current.value)).pipe(
                         Effect.provideService(StreamDeck, current.device),
                         Effect.provideService(Overlays.DeckOverlays, current.presentations),
+                        Effect.provideService(SurfaceHost, {
+                          ...surfaces,
+                          ...surfaces.forOwner(definition.id, () => active),
+                        }),
                         Scope.provide(scope),
                         Effect.provideContext(context),
                       ),
@@ -440,13 +500,17 @@ export const make = Effect.gen(function* () {
                 );
               return result.value;
             });
-          record.feedback = (id, input) =>
+          record.feedback = (id, input, presentationContext) =>
             Effect.suspend(() => {
               const action = declared.find((currentAction) => currentAction.info.id === id);
               if (!action?.feedback) return Effect.succeed(null);
               return handle
                 .use((candidateApi) =>
-                  invariant(action.feedback, 'plugin-host')(candidateApi, input),
+                  invariant(action.feedback, 'plugin-host')(
+                    candidateApi,
+                    input,
+                    presentationContext,
+                  ),
                 )
                 .pipe(
                   Effect.flatMap(Schema.decodeUnknownEffect(KeyFeedback)),
@@ -471,7 +535,14 @@ export const make = Effect.gen(function* () {
                   if (!frame.view) return undefined;
                   return {
                     view: yield* Schema.decodeUnknownEffect(View)(frame.view),
-                    image: yield* frame.draw,
+                    stamp: frame.stamp,
+                    draw: handle
+                      .use(() => frame.draw)
+                      .pipe(
+                        Effect.catchCause((cause) =>
+                          Effect.fail(error(definition.id, 'Failed', failureMessage(cause))),
+                        ),
+                      ),
                   };
                 }),
               )
@@ -487,7 +558,34 @@ export const make = Effect.gen(function* () {
     });
   return {
     overlays,
+    surfaces,
     install,
+    manifests: Effect.sync(() => [...manifests]),
+    templates: Effect.sync(() =>
+      manifests.flatMap((manifest) =>
+        manifest.tiles.flatMap((tile) => {
+          const action = manifest.actions.find((candidate) => candidate.id === tile.action);
+          return action
+            ? [
+                {
+                  ...action,
+                  plugin: manifest.id,
+                  pluginName: manifest.name,
+                  templateId: tile.id,
+                  name: tile.name ?? action.name,
+                  defaults: tile.input,
+                  tile: {
+                    label: tile.label,
+                    icon: tile.icon,
+                    ...(tile.surfaces ? { surfaces: tile.surfaces } : {}),
+                    ...(tile.width ? { width: tile.width } : {}),
+                  },
+                },
+              ]
+            : [];
+        }),
+      ),
+    ),
     catalogue: Effect.sync(() =>
       [...records.values()].flatMap((record) =>
         record.actions.map((action) => ({
@@ -526,11 +624,28 @@ export const make = Effect.gen(function* () {
           records.get(plugin)?.invoke(action, input, context) ??
           Effect.fail(error(plugin, 'Unknown', 'Plugin introuvable.')),
       ),
-    feedback: (plugin: string, action: string, input: unknown) =>
-      Effect.suspend(() => records.get(plugin)?.feedback?.(action, input) ?? Effect.succeed(null)),
+    feedback: (
+      plugin: string,
+      action: string,
+      input: unknown,
+      context?: Pick<Invocation, 'instanceId'>,
+    ) =>
+      Effect.suspend(
+        () => records.get(plugin)?.feedback?.(action, input, context) ?? Effect.succeed(null),
+      ),
+    lcdPresentation: (plugin: string, action: string, input: unknown, size: Size) =>
+      Effect.suspend(
+        () => records.get(plugin)?.lcd?.(action, input, size) ?? Effect.succeed(undefined),
+      ),
     lcdFrame: (plugin: string, action: string, input: unknown, size: Size) =>
       Effect.suspend(
         () => records.get(plugin)?.lcd?.(action, input, size) ?? Effect.succeed(undefined),
+      ).pipe(
+        Effect.flatMap((frame) =>
+          frame
+            ? frame.draw.pipe(Effect.map((image) => ({ view: frame.view, image })))
+            : Effect.succeed(undefined),
+        ),
       ),
     snapshot: Effect.sync(() => ({
       revision,

@@ -2,6 +2,8 @@ import { Effect, Result, Stream } from 'effect';
 import { Desktop, type Window } from '@nixfiles/system-control/desktop.ts';
 import type { KeyOverlay } from '../deck-overlays.ts';
 import * as Plugin from '../plugin.ts';
+import { SurfaceHost } from '../surface-host.ts';
+import * as Rules from '../context-rules.ts';
 
 export interface Rule {
   /** Exact compositor app IDs, case insensitive; no shell commands or guessed title matching. */
@@ -54,3 +56,32 @@ export const fromSource = <A, E, R>(options: {
       return { api: {}, run };
     }),
   });
+/** Studio updates configuration and focus; this activation scope owns all temporary claims. */
+export const configured = Plugin.define({
+  id: 'context-layout',
+  name: 'Layouts contextuels',
+  description: 'Layouts selon l’application active.',
+  controls: {},
+  setup: Effect.gen(function* () {
+    const surfaces = yield* SurfaceHost;
+    const presentation = yield* surfaces.open('foreground');
+    return {
+      api: {
+        update: (rules: ReadonlyArray<Rules.Rule>, application: string | null) =>
+          Effect.gen(function* () {
+            const rule = Rules.select(rules, application);
+            yield* presentation.update(
+              rule
+                ? {
+                    name: rule.name,
+                    priority: rule.priority,
+                    keys: { name: rule.name, keys: rule.keys },
+                  }
+                : null,
+            );
+            return rule;
+          }),
+      },
+    };
+  }),
+});

@@ -109,7 +109,7 @@ export function PluginTiles({
     <div className="plugin-tile-list">
       {tiles.map((action) => (
         <PaletteTile
-          key={`${action.plugin}/${action.id}`}
+          key={`${action.plugin}/${action.templateId ?? action.id}`}
           action={action}
           busy={busy}
           canChoose={canChoose}

@@ -155,6 +155,7 @@ export const make = Effect.gen(function* () {
   const lock = yield* Semaphore.make(1);
   const state = yield* State.make<boolean, IntegrationError>(
     new IntegrationError({ message: 'Le service Codex est fermé.' }),
+    'codex',
   );
   yield* state.publish(Result.succeed(false));
   return {

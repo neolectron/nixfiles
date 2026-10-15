@@ -1,6 +1,7 @@
 import { Data, Effect, Result, Schedule, Schema, Stream } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http';
 import { Sse } from 'effect/encoding';
+import * as Sync from '../src/studio-sync.ts';
 import { Note, Update as NoteUpdate } from '@nixfiles/system-control/notes-contract.ts';
 import { Activity } from '@nixfiles/system-control/speech-contract.ts';
 import { Catalogue, Snapshot, type DialInput, type UpdateProfile } from '../src/studio-contract.ts';
@@ -51,6 +52,39 @@ export const dialInput = (input: typeof DialInput.Type) =>
   json('/api/dial-input', 'POST', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
 export const catalogue = json('/api/catalogue').pipe(
   Effect.flatMap(Schema.decodeUnknownEffect(Catalogue)),
+);
+export const choices = (action: string, field: string) =>
+  json(
+    `/api/system/choices?action=${encodeURIComponent(action)}&field=${encodeURIComponent(field)}`,
+  ).pipe(
+    Effect.flatMap(
+      Schema.decodeUnknownEffect(
+        Schema.Array(Schema.Struct({ value: Schema.String, label: Schema.String })),
+      ),
+    ),
+  );
+const IntegrationList = Schema.Array(Schema.Struct({ id: Schema.String, enabled: Schema.Boolean }));
+export const integrations = json('/api/system/integrations').pipe(
+  Effect.flatMap(Schema.decodeUnknownEffect(IntegrationList)),
+);
+export const setIntegration = (id: string, enabled: boolean) =>
+  json('/api/system/integrations', 'POST', { id, enabled }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(IntegrationList)),
+  );
+export const diagnostics = json('/api/system/diagnostics').pipe(
+  Effect.flatMap(
+    Schema.decodeUnknownEffect(
+      Schema.Array(
+        Schema.Struct({
+          sequence: Schema.Int,
+          action: Schema.String,
+          startedAt: Schema.Number,
+          durationMs: Schema.Number,
+          outcome: Schema.Literals(['success', 'failure', 'cancelled']),
+        }),
+      ),
+    ),
+  ),
 );
 export const saveProfile = (input: typeof UpdateProfile.Type) =>
   json('/api/profile', 'PUT', input).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Snapshot)));
@@ -108,11 +142,22 @@ export const authorizeDiscord = json('/api/discord/authorize', 'POST').pipe(
 /** Browser fetch/SSE, schema validation, reconnection and cancellation all use Effect. */
 export const observe = (onSnapshot: (snapshot: Snapshot) => void, onOffline: () => void) =>
   Effect.scoped(
-    HttpClientResponse.stream(HttpClient.get('/api/events')).pipe(
-      Stream.decodeText,
-      Stream.pipeThroughChannel(Sse.decodeDataSchema(Snapshot)),
-      Stream.runForEach(({ data }) => Effect.sync(() => onSnapshot(data))),
-    ),
+    Effect.suspend(() => {
+      let previous: Snapshot | undefined;
+      return HttpClientResponse.stream(HttpClient.get('/api/events')).pipe(
+        Stream.decodeText,
+        Stream.pipeThroughChannel(Sse.decodeDataSchema(Sync.Event)),
+        Stream.runForEach(({ data }) =>
+          Effect.try({
+            try: () => {
+              previous = Sync.apply(previous, data);
+              onSnapshot(previous);
+            },
+            catch: () => new RequestError({ message: 'Resynchronisation du deck.' }),
+          }),
+        ),
+      );
+    }),
   ).pipe(
     Effect.andThen(Effect.fail(new RequestError({ message: 'Connexion interrompue.' }))),
     Effect.tapError(() => Effect.sync(onOffline)),

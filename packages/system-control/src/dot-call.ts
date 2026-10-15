@@ -119,6 +119,7 @@ export const make = Effect.gen(function* () {
     backend.read.pipe(Effect.flatMap(validate)),
     '1 second',
     new IntegrationError({ message: 'État de l’appel du dot indisponible.' }),
+    'dot',
   );
   const execute = (operation: 'call' | 'hangup' | 'toggle') =>
     store.guard(

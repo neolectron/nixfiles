@@ -104,7 +104,7 @@ export const materialize = (
       if (!located || located[1].virtual) throw new Error('Cette touche a changé de page.');
       const [index, slot] = located;
       const binding = bindingOf(form.value, catalogue);
-      const entry = binding ? { id: form.id, binding } : null;
+      const entry = binding ? { ...slot.entry, id: form.id, binding } : null;
       const zone = invariant(
         profile.zones.find((candidateZone) => candidateZone.id === slot.zone),
         'profile-draft',
@@ -155,8 +155,31 @@ export const navigate = (
     navigation: Layout.navigate(prepared.profile, prepared.navigation, command),
   };
 };
+export const editGestures = (
+  state: ProfileDraft,
+  catalogue: Catalogue,
+  key: Key,
+  gestures: NonNullable<Key['gestures']>,
+): ProfileDraft => {
+  const prepared = materialize(state, catalogue);
+  const profile = Layout.copy(prepared.profile);
+  const slot = Layout.project(profile, prepared.navigation, 0).keys.get(key.index);
+  if (!slot?.entry || slot.virtual || key.overlay)
+    throw new Error('Cette touche ne peut pas être modifiée.');
+  Layout.replace(profile, prepared.navigation, key.index, { ...slot.entry, gestures });
+  return { ...prepared, profile };
+};
 const keyIdentity = (key: Key | undefined) =>
-  key && [key.id, key.address, key.zone, key.pinned, key.navigation, key.binding, key.overlay];
+  key && [
+    key.id,
+    key.address,
+    key.zone,
+    key.pinned,
+    key.navigation,
+    key.binding,
+    key.gestures,
+    key.overlay,
+  ];
 /** Only configuration identity matters; live feedback, presses and counters remain usable. */
 export const pendingKeys = (
   state: ProfileDraft,
@@ -222,6 +245,7 @@ export const project = (
         pinned: slot.pinned,
         navigation: slot.virtual,
         binding: slot.entry?.binding ?? null,
+        gestures: slot.entry?.gestures ?? {},
         count:
           same && running
             ? running.count

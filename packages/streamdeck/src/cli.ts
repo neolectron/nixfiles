@@ -102,21 +102,16 @@ const runDevice = (
                 const fallback = yield* path.fromFileUrl(
                   new URL('../.studio/profile.json', import.meta.url),
                 );
-                return module
-                  .studio({
-                    port: options.port ?? 3900,
-                    profile: Option.getOrElse(options.profile ?? Option.none(), () => fallback),
-                    ...(options.storage === 'memory'
-                      ? { persistence: StateStorage.layerMemory }
-                      : {}),
-                    mock: options.mock,
-                    renderer: options.renderer ?? 'react',
-                  })
-                  .pipe(
-                    Effect.provide(
-                      options.mock || options.mockAudio ? Audio.demoLayer : Audio.layer,
-                    ),
-                  );
+                return module.studio({
+                  port: options.port ?? 3900,
+                  profile: Option.getOrElse(options.profile ?? Option.none(), () => fallback),
+                  ...(options.storage === 'memory'
+                    ? { persistence: StateStorage.layerMemory }
+                    : {}),
+                  mock: options.mock,
+                  audio: options.mock || options.mockAudio ? 'demo' : 'live',
+                  renderer: options.renderer ?? 'react',
+                });
               })
             : undefined;
         const run =

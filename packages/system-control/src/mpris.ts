@@ -342,6 +342,7 @@ export class MprisPlayer extends Context.Service<
           raw.current,
           '1 second',
           new IntegrationError({ message: 'Media player unavailable.' }),
+          'media',
         );
         const { monitor: _monitor, ...api } = raw;
         return {

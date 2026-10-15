@@ -26,7 +26,7 @@ const offline = () => new IntegrationError({ message: 'Discord RPC hors ligne.' 
 export const make = <R>(options: Effect.Effect<Options, IntegrationError, R>) =>
   Effect.gen(function* () {
     const context = yield* Effect.context<R | Crypto.Crypto | DiscordTransport>();
-    const store = yield* StateStore.make<VoiceState, IntegrationError>(offline());
+    const store = yield* StateStore.make<VoiceState, IntegrationError>(offline(), 'discord');
     let active: Effect.Success<ReturnType<typeof Rpc.make>> | undefined;
     let restart: Deferred.Deferred<void> | undefined;
     const session = Effect.scoped(
@@ -47,7 +47,9 @@ export const make = <R>(options: Effect.Effect<Options, IntegrationError, R>) =>
             api.failure,
             Deferred.await(requested).pipe(Effect.andThen(Effect.fail(offline()))),
           ),
-          Stream.runForEach(api.observe, store.publish),
+          Stream.runForEach(api.observe, () =>
+            Effect.flatMap(Effect.result(api.voice), store.publish),
+          ),
         );
       }),
     ).pipe(
@@ -55,7 +57,7 @@ export const make = <R>(options: Effect.Effect<Options, IntegrationError, R>) =>
       Effect.catch((error) => store.publish(Result.fail(error))),
     );
     yield* Effect.forkScoped(
-      Effect.forever(session.pipe(Effect.andThen(Effect.sleep('1 second')))),
+      Effect.forever(store.session(session).pipe(Effect.andThen(Effect.sleep('1 second')))),
     );
     const connected = <A>(
       operation: (api: NonNullable<typeof active>) => Effect.Effect<A, IntegrationError>,

@@ -3,6 +3,8 @@ import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
 import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
 import * as FileStorage from '@nixfiles/system-control/state-storage-file.ts';
 import * as Notes from '@nixfiles/system-control/notes.ts';
+import * as Counters from '@nixfiles/system-control/counters.ts';
+import { initialize as initializeClients } from '../plugin-clients.ts';
 import { Update as NoteUpdate } from '@nixfiles/system-control/notes-contract.ts';
 import * as Speech from '@nixfiles/system-control/speech.ts';
 import * as NotesPlugin from '../plugins/notes.ts';
@@ -21,7 +23,6 @@ import {
   Option,
   PubSub,
   Ref,
-  Schedule,
   Schema,
   Semaphore,
   Stream,
@@ -36,7 +37,6 @@ import { Sse } from 'effect/encoding';
 import * as Bindings from '../bindings.ts';
 import * as Preview from '../deck-preview.ts';
 import * as PresentationAssets from '../presentation-assets.ts';
-import { webSnapshot } from '../studio-presentation.ts';
 import * as Events from '../studio-events.ts';
 import * as DesktopApps from '@nixfiles/system-control/desktop.ts';
 import * as Actions from '../studio-actions.tsx';
@@ -78,6 +78,19 @@ import * as LcdSurface from '../lcd-surface.tsx';
 import * as LcdLayout from '../lcd-layout.ts';
 import { LcdSpace } from '../lcd-space.ts';
 import { Desktop as SystemDesktop } from '@nixfiles/system-control/desktop.ts';
+import * as SharedState from '../studio-state.ts';
+import * as StudioSync from '../studio-sync.ts';
+import * as ContextLayouts from '../plugins/context-layout.ts';
+import { Navigation } from '../navigation.ts';
+import { ActionCatalog, make as makeActions } from '@nixfiles/system-control/actions.ts';
+import * as SystemAudio from '@nixfiles/system-control/audio.ts';
+import * as SystemActions from '@nixfiles/system-control/system-actions.ts';
+import * as SystemHttp from '../system-http.ts';
+import { SurfaceHost, make as makeSurfaces } from '../surface-host.ts';
+import {
+  IntegrationControl,
+  make as makeIntegrationControl,
+} from '@nixfiles/system-control/integration-control.ts';
 const json = (body: unknown) =>
   Response.jsonUnsafe(body, { headers: { 'cache-control': 'no-store' } });
 const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -99,6 +112,7 @@ const recover = <A extends Response.HttpServerResponse, E, R>(effect: Effect.Eff
     ),
   );
 export const startStudio = (options: {
+  audio?: 'live' | 'demo';
   profile: string;
   mock?: boolean;
   renderer?: RendererKind;
@@ -115,6 +129,7 @@ export const startStudio = (options: {
   ) => Effect.Effect<unknown, unknown, import('effect').Scope.Scope | PersistentState>;
 }) =>
   Effect.gen(function* () {
+    initializeClients();
     const original = yield* StreamDeck;
     const platform = yield* Effect.context<Crypto.Crypto | FileSystem.FileSystem | Path.Path>();
     const sessionId = yield* (yield* Crypto.Crypto).randomUUIDv4();
@@ -124,7 +139,14 @@ export const startStudio = (options: {
       yield* Layer.build(Takumi.ReactRenderer.layer),
       Takumi.ReactRenderer,
     );
-    const lcdSurface = yield* LcdSurface.make(preview.device, renderer);
+    const surfaces = yield* makeSurfaces(
+      original.buttons.map((key) => key.index),
+      original.lcds.flatMap((lcd) =>
+        lcd.pixelSize ? [{ ...lcd.pixelSize, index: lcd.index }] : [],
+      ),
+      original.dials.map((dial) => dial.index),
+    );
+    const lcdSurface = yield* LcdSurface.make(preview.device, renderer, surfaces);
     const deck = lcdSurface.device;
     const applications = options.applications ?? (yield* DesktopApps.discover);
     const input = yield* Ref.make<{
@@ -139,7 +161,11 @@ export const startStudio = (options: {
     const lastEvent = yield* Ref.make('');
     const cards = yield* Cards.make;
     const assets = yield* PresentationAssets.make;
-    const host = yield* Plugins.make.pipe(Effect.provideService(StreamDeck, deck));
+    const host = yield* Plugins.make.pipe(
+      Effect.provideService(StreamDeck, deck),
+      Effect.provideService(SurfaceHost, surfaces),
+    );
+    const contexts = yield* host.install(ContextLayouts.configured);
     const path = yield* Path.Path;
     const persistenceServices = yield* Layer.build(
       PersistentState.layer.pipe(
@@ -147,8 +173,27 @@ export const startStudio = (options: {
       ),
     );
     const persistentState = Context.get(persistenceServices, PersistentState);
+    const integrations = yield* makeIntegrationControl(
+      `${path.basename(options.profile)}.integrations.json`,
+    ).pipe(Effect.provideContext(persistenceServices));
+    const counters = yield* Counters.make(`${path.basename(options.profile)}.counters.json`).pipe(
+      Effect.provideContext(persistenceServices),
+    );
     const notes = yield* Notes.makeWithState().pipe(Effect.provideContext(persistenceServices));
     const speech = Context.get(yield* Layer.build(Speech.Speech.layer), Speech.Speech);
+    const injectedAudio = yield* Effect.serviceOption(SystemAudio.Audio);
+    const audio =
+      Option.isSome(injectedAudio) && !options.audio
+        ? injectedAudio.value
+        : Context.get(
+            yield* Layer.build(
+              (options.audio === 'demo' || options.mock
+                ? SystemAudio.demoLayer
+                : SystemAudio.layer
+              ).pipe(Layer.provide(Layer.succeed(IntegrationControl, integrations))),
+            ),
+            SystemAudio.Audio,
+          );
     const noteOpener = yield* NotesPlugin.opener(options.origin ?? 'http://127.0.0.1:3900');
     const settings = yield* PluginSettings.makeWithState(
       `${path.basename(options.profile)}.plugins.json`,
@@ -162,7 +207,9 @@ export const startStudio = (options: {
       .pipe(
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideService(Cards.MixerCards, cards),
+
         Effect.provideService(LcdSpace, lcdSurface.space),
+        Effect.provideService(SystemAudio.Audio, audio),
       );
     const audioPage = (direction: number) =>
       mixer
@@ -209,6 +256,7 @@ export const startStudio = (options: {
       .pipe(
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideContext(persistenceServices),
+        Effect.provideService(Counters.Counters, counters),
       );
     const systemServices =
       options.configurePlugins || options.mock
@@ -216,8 +264,18 @@ export const startStudio = (options: {
         : yield* Layer.build(
             SystemRuntime.integrationsLayer.pipe(
               Layer.provide(Layer.succeed(DiscordConnection, discordConnection)),
+              Layer.provideMerge(Layer.succeed(IntegrationControl, integrations)),
             ),
           );
+    const systemActions = yield* makeActions.pipe(
+      Effect.provideService(IntegrationControl, integrations),
+    );
+    yield* SystemActions.install(systemActions).pipe(
+      Effect.provideContext(systemServices),
+      Effect.provideService(Notes.Notes, notes),
+      Effect.provideService(Counters.Counters, counters),
+      Effect.provideService(SystemAudio.Audio, audio),
+    );
     if (options.configurePlugins)
       yield* options
         .configurePlugins(host)
@@ -236,6 +294,49 @@ export const startStudio = (options: {
         Effect.provideService(Speech.Speech, speech),
         Effect.provideService(NotesPlugin.NoteOpener, noteOpener),
         Effect.provideContext(systemServices),
+        Effect.provideService(ActionCatalog, systemActions),
+        Effect.provideService(Counters.Counters, counters),
+        Effect.provideService(Navigation, {
+          navigate: (command, currentZone) =>
+            Effect.gen(function* () {
+              const profile = yield* shortcuts.use((api) => api.profile);
+              const zone =
+                !command.zone || command.zone === 'current'
+                  ? (currentZone ??
+                    (command.surface === 'keys' ? 'deck' : (profile.lcd?.zones[0]?.id ?? '')))
+                  : command.zone;
+              if (command.surface === 'audio') {
+                if (command.operation !== 'next' && command.operation !== 'previous')
+                  return yield* new StudioError({
+                    status: 400,
+                    message: 'Le mixer accepte uniquement la pagination.',
+                  });
+                return yield* audioPage(command.operation === 'previous' ? -1 : 1);
+              }
+              if (command.surface === 'keys')
+                return yield* shortcuts.use((api) =>
+                  api.navigate({
+                    zone,
+                    operation: command.operation,
+                    ...(command.operation === 'open' ? { folder: command.folder } : {}),
+                  }),
+                );
+              yield* lcdSurface
+                .navigate({
+                  zone,
+                  operation: command.operation,
+                  ...(command.operation === 'open' ? { folder: command.folder } : {}),
+                })
+                .pipe(
+                  Effect.mapError(
+                    (error) => new StudioError({ message: error.message, status: 400 }),
+                  ),
+                );
+              yield* refreshSurface;
+            }).pipe(
+              Effect.mapError((error) => new StudioError({ message: error.message, status: 400 })),
+            ),
+        }),
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideService(DiscordConnection, discordConnection),
         Effect.provideService(Cards.MixerCards, cards),
@@ -258,6 +359,8 @@ export const startStudio = (options: {
             args[0],
           );
           yield* lcdSurface.validate(candidate.lcd ?? LcdLayout.empty, host);
+          for (const rule of candidate.contexts ?? [])
+            if (rule.lcd) yield* lcdSurface.validate(rule.lcd, host);
           yield* shortcuts.use((api) => api.saveProfile(...args));
           yield* refreshSurface;
         }),
@@ -391,13 +494,18 @@ export const startStudio = (options: {
         ? yield* current.value.profile
         : (yield* Ref.get(lastActions)).configuration.profile;
       const before = yield* lcdSurface.snapshot;
-      yield* lcdSurface.refresh(profile.lcd ?? LcdLayout.empty, host, yield* focusedApplication);
+      const focus = yield* focusedApplication;
+      const context = yield* contexts.current;
+      const rule = Option.isSome(context)
+        ? yield* context.value.update(profile.contexts ?? [], focus)
+        : undefined;
+      yield* lcdSurface.refresh(rule?.lcd ?? profile.lcd ?? LcdLayout.empty, host, focus);
       if ((yield* lcdSurface.snapshot).revision !== before.revision) {
         const currentMixer = yield* mixer.current;
         if (Option.isSome(currentMixer)) yield* currentMixer.value.redraw;
       }
     }).pipe(Effect.catch((cause) => Effect.logWarning('LCD surface', cause)));
-    const readSnapshot: Effect.Effect<Snapshot> = Effect.gen(function* () {
+    const collectSnapshot: Effect.Effect<Snapshot> = Effect.gen(function* () {
       const inputView = yield* Ref.get(input);
       const currentActions = yield* shortcuts.current;
       const actionView = Option.isSome(currentActions)
@@ -477,6 +585,7 @@ export const startStudio = (options: {
             navigation: slot.virtual,
             overlay: 'overlay' in slot ? slot.overlay : undefined,
             binding: Option.isSome(currentActions) ? (slot.entry?.binding ?? null) : null,
+            ...(slot.entry?.gestures ? { gestures: slot.entry.gestures } : {}),
             revision: frames.get(`key/${key.index}`)?.revision ?? 0,
             pressed: inputView.pressed.has(key.index),
             count: slot.state.count,
@@ -496,6 +605,8 @@ export const startStudio = (options: {
         inputSequence: inputView.sequence,
       } satisfies Snapshot;
     });
+    const sharedState = yield* SharedState.make(collectSnapshot);
+    const readSnapshot = sharedState.refresh;
     const setPlugin = (command: typeof UpdatePlugin.Type) =>
       Semaphore.withPermits(
         pluginLock,
@@ -585,10 +696,14 @@ export const startStudio = (options: {
       });
     return {
       persistentState,
+      systemActions,
+      integrations,
+      changes: sharedState.observe,
       assets,
       notes,
       speech,
       snapshot: readSnapshot,
+      cachedSnapshot: sharedState.cached,
       keyInput,
       dialInput: (body: typeof DialInput.Type) =>
         Effect.gen(function* () {
@@ -642,6 +757,7 @@ export const startStudio = (options: {
       run: Effect.all(
         [
           binding.run,
+          sharedState.run,
           Effect.forever(refreshSurface.pipe(Effect.andThen(Effect.sleep(250)))),
           Stream.runForEach(deck.connectionChanges ?? Stream.empty, (connected) =>
             connected
@@ -663,6 +779,7 @@ export type Controller = Effect.Success<ReturnType<typeof startStudio>>;
 export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const router = yield* HttpRouter.make;
+    yield* SystemHttp.register(router, controller.systemActions, origins, controller.integrations);
     const mutate = <E, R>(body: Effect.Effect<Response.HttpServerResponse, E, R>) =>
       recover(
         Effect.gen(function* () {
@@ -678,7 +795,7 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
           return yield* body;
         }),
       );
-    yield* router.add('GET', '/api/state', Effect.map(controller.snapshot, json));
+    yield* router.add('GET', '/api/state', Effect.map(controller.cachedSnapshot, json));
     yield* router.add(
       'POST',
       '/api/lcd-input',
@@ -795,28 +912,38 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
     yield* router.add(
       'GET',
       '/api/catalogue',
-      Effect.map(controller.plugins.catalogue, (pluginActions) =>
-        json({
+      Effect.gen(function* () {
+        const pluginActions = yield* controller.plugins.catalogue;
+        return json({
           actions: Actions.catalogue,
           pluginActions,
+          pluginTiles: yield* controller.plugins.templates,
           applications: controller.applications.map(({ id, name }) => ({ id, name })),
-        }),
-      ),
+        });
+      }),
+    );
+    yield* router.add(
+      'GET',
+      '/api/plugins/manifests',
+      Effect.map(controller.plugins.manifests, json),
     );
     yield* router.add(
       'GET',
       '/api/events',
       Effect.succeed(
         Response.stream(
-          Stream.merge(
-            Stream.fromEffectSchedule(controller.snapshot, Schedule.spaced(150)),
-            controller.inputViews,
-          ).pipe(
-            Stream.map((snapshot) => JSON.stringify(webSnapshot(snapshot))),
-            Stream.changes,
-            Stream.map((data) =>
+          controller.changes.pipe(
+            StudioSync.events,
+            Stream.map((event) =>
               new TextEncoder().encode(
-                Sse.encoder.write({ _tag: 'Event', event: 'snapshot', data, id: undefined }),
+                Sse.encoder.write({
+                  _tag: 'Event',
+                  event: event.kind,
+                  data: JSON.stringify(event),
+                  id: String(
+                    event.kind === 'snapshot' ? event.snapshot.stateRevision : event.stateRevision,
+                  ),
+                }),
               ),
             ),
           ),
@@ -1021,6 +1148,7 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
   });
 /** Vite serves the frontend on demand; Effect platform owns each API request. */
 export const studio = (options: {
+  audio?: 'live' | 'demo';
   port: number;
   profile: string;
   mock: boolean;

@@ -1455,3 +1455,65 @@ button.zone-edit-link {
     font-size: 20px;
   }
 }
+/* Runtime diagnostics share the property inspector's typography and surfaces. */
+.diagnostic-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  margin: 16px 0 24px;
+  font-variant-numeric: tabular-nums;
+}
+.diagnostic-summary dd {
+  margin: 0;
+  color: var(--text-muted, #acadb8);
+}
+.diagnostic-events {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.diagnostic-events li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid #35363d;
+}
+.diagnostic-events span {
+  color: #acadb8;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.integration-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+}
+.context-rule {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #35363d;
+}
+.context-keys {
+  padding-left: 18px;
+  color: #acadb8;
+  font-size: 12px;
+}
+
+.lcd-surface-hit {
+  position: absolute;
+  z-index: 4;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.lcd-surface-hit:hover,
+.lcd-surface-hit:active {
+  background: transparent;
+}
+.context-rule > button[aria-pressed='true'] {
+  color: var(--accent);
+}

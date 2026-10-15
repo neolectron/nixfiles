@@ -8,6 +8,8 @@ import * as OpenAIApps from './plugins/openai-apps.ts';
 import * as Appearance from './plugins/appearance.ts';
 import * as NotesPlugin from './plugins/notes.ts';
 import * as System from './plugins/system.tsx';
+import * as Counter from './plugins/counter.ts';
+import * as Navigation from './plugins/navigation.ts';
 
 /** Register personal plugins here. New plugins start disabled unless saved otherwise. */
 export const configure = (host: Effect.Success<typeof make>) =>
@@ -20,4 +22,6 @@ export const configure = (host: Effect.Success<typeof make>) =>
     yield* host.install(Appearance.plugin);
     yield* host.install(NotesPlugin.plugin);
     yield* host.install(System.plugin);
+    yield* host.install(Counter.plugin);
+    yield* host.install(Navigation.plugin);
   });

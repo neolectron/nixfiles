@@ -183,7 +183,9 @@ it.live(
           );
           const line = data.split('\n').find((line) => line.startsWith('data:'));
           assert.ok(line);
-          const snapshot = Schema.decodeUnknownSync(Snapshot)(JSON.parse(line!.slice(5).trim()));
+          const snapshot = Schema.decodeUnknownSync(Snapshot)(
+            JSON.parse(line!.slice(5).trim()).snapshot,
+          );
           assert.strictEqual(snapshot.lcds[0]?.revision, 0);
           assert.strictEqual(snapshot.keys[0]?.revision, 0);
           assert.ok(snapshot.lcds[0]?.scene?.length);

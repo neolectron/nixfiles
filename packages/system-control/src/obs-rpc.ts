@@ -24,6 +24,7 @@ export const authentication = (
 export const make = (options: {
   readonly url: string;
   readonly password: Redacted.Redacted<string>;
+  readonly onEvent?: (type: string, data: Message) => Effect.Effect<void>;
 }) =>
   Effect.gen(function* () {
     const transport = yield* JsonSocket;
@@ -38,7 +39,11 @@ export const make = (options: {
         );
         if (frame.op === 0) yield* Deferred.succeed(hello, frame.d);
         else if (frame.op === 2) yield* Deferred.succeed(ready, undefined);
-        else if (frame.op === 7) {
+        else if (frame.op === 5 && typeof frame.d.eventType === 'string') {
+          const data = frame.d.eventData;
+          if (options.onEvent && typeof data === 'object' && data !== null)
+            yield* options.onEvent(frame.d.eventType, data as Message);
+        } else if (frame.op === 7) {
           const response = yield* Schema.decodeUnknownEffect(responseSchema)(frame.d).pipe(
             Effect.mapError(invalid),
           );
@@ -66,7 +71,7 @@ export const make = (options: {
       op: 1,
       d: {
         rpcVersion: 1,
-        eventSubscriptions: 0,
+        eventSubscriptions: 1 | 4 | 8 | 64,
         ...(auth
           ? { authentication: yield* authentication(options.password, auth.salt, auth.challenge) }
           : {}),

@@ -15,6 +15,17 @@ voir [la livraison et ses preuves](system-control-implementation.md).
 Les étapes suivantes sont livrées par incréments, dont les surfaces LCD configurables ;
 la progression et les limites sont précisées dans ce même suivi.
 
+## Consolidation livrée le 15 octobre
+
+Le catalogue typé HTTP/MCP, les manifests et templates, les scènes scoped
+(touches/LCD/potards), la navigation en plugin, les règles contextuelles avec
+aperçu, les diagnostics et l'activation distincte des intégrations sont maintenant
+implémentés. Les profils existants restent compatibles via les adaptateurs de
+`TileInstance`. La persistance du compteur et la synchronisation HTTP/SSE sont
+couvertes par des tests de régression. Voir le [suivi détaillé](system-control-implementation.md#consolidation-du-15-octobre-2026)
+pour le découpage effectif, les garanties et les limites ; les sections suivantes
+conservent la vision et le point de départ de la migration.
+
 ## État de départ
 
 Le point de départ est le commit `6df85fa`, dans le checkout isolé

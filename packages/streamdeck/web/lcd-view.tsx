@@ -1,14 +1,10 @@
 import type { Snapshot } from '../src/studio-contract.ts';
-import { registry, View } from '../src/presentation.tsx';
-import { presentation as volume } from '../src/ui/volume-presentation.tsx';
-import { presentation as spotify } from '../src/plugins/spotify-presentation.tsx';
-import { presentation as activeWindow } from '../src/plugins/system-presentation.tsx';
-import { presentation as action } from '../src/ui/action-presentation.tsx';
+import { View } from '../src/presentation.tsx';
+import { render as renderView } from '../src/plugin-clients.ts';
 import { Schema } from 'effect';
 import type { ReactNode } from 'react';
 
 /** Explicit client entry points keep system services out of the browser bundle. */
-const renderView = registry([volume, spotify, activeWindow, action]);
 const Clip = Schema.Struct({
   view: View,
   left: Schema.Number,

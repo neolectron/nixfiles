@@ -10,8 +10,11 @@ import { invalid, invariant } from './errors.ts';
 import type { Controller as Host } from './plugin-host.ts';
 import * as Takumi from './takumi.ts';
 import { ActionCard, presentation as actionPresentation } from './ui/action-presentation.tsx';
+import type { Controller as Surfaces } from './surface-host.ts';
+import * as Tiles from './tile-instance.ts';
 
-type Provider = Pick<Host, 'invoke' | 'feedback' | 'lcdFrame' | 'catalogue'>;
+type Provider = Pick<Host, 'invoke' | 'feedback' | 'lcdFrame' | 'catalogue'> &
+  Partial<Pick<Host, 'lcdPresentation'>>;
 type Part = { x: number; y: number; image: RgbImage; view: Region };
 /** Copy a clipped source region into logical RGB pixels. No HID orientation enters layout code. */
 export const blit = (target: RgbImage, source: RgbImage, x: number, y: number) => {
@@ -33,7 +36,11 @@ const failure = (cause: unknown) =>
 /** Composes configured LCD regions over the existing producer, serializing both writers.
  * The mixer keeps its knob ownership. Covered touch areas belong exclusively to this surface.
  */
-export const make = (original: Device, renderer: Effect.Success<typeof Takumi.make>) =>
+export const make = (
+  original: Device,
+  renderer: Effect.Success<typeof Takumi.make>,
+  surfaces?: Surfaces,
+) =>
   Effect.gen(function* () {
     const owner = yield* Effect.scope;
     const lock = yield* Semaphore.make(1);
@@ -51,6 +58,7 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
     let closed = false;
     const jobs = new Map<string, Fiber.Fiber<unknown, never>>();
     const errors = new Map<string, string>();
+    const rendered = new Map<string, { stamp: string; image: RgbImage }>();
     const sizeFor = (index: number) => original.lcds.find((lcd) => lcd.index === index)?.pixelSize;
     const geometry = () =>
       original.lcds.flatMap((lcd) =>
@@ -112,7 +120,22 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
         event._tag === 'TouchSwipe' ? event.from.y : event.position.y,
       );
     const subscribe = Effect.map(original.subscribe, (events) =>
-      events.pipe(Stream.filter((event) => !claimed(event))),
+      events.pipe(
+        Stream.filterEffect((event) => {
+          if (claimed(event)) return Effect.succeed(false);
+          if (surfaces && (event._tag === 'DialDown' || event._tag === 'DialRotate'))
+            return surfaces.knobCovered(event.dial).pipe(Effect.map((covered) => !covered));
+          if (
+            !surfaces ||
+            (event._tag !== 'TouchTap' && event._tag !== 'TouchHold' && event._tag !== 'TouchSwipe')
+          )
+            return Effect.succeed(true);
+          const position = event._tag === 'TouchSwipe' ? event.from : event.position;
+          return surfaces
+            .covered(event.lcd, position.x, position.y)
+            .pipe(Effect.map((covered) => !covered));
+        }),
+      ),
     );
     const device: Device = {
       ...original,
@@ -152,6 +175,7 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
         const job = current
           .invoke(tile.plugin, tile.action, tile.input, {
             output: () => Effect.void,
+            instanceId: tile.id,
             surface: { kind: 'lcd', zone },
             gesture: hold ? 'long-press' : 'short-press',
           })
@@ -172,6 +196,11 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
     ) =>
       Effect.gen(function* () {
         const view = zoneAt(lcd, x, y);
+        if (
+          surfaces &&
+          (yield* surfaces.touch({ lcd, kind, x, y, ...(toX !== undefined ? { toX } : {}) }))
+        )
+          return;
         if (!view) return;
         if (kind === 'swipe')
           return yield* navigate({
@@ -191,17 +220,19 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
     yield* Effect.forkIn(
       Stream.runForEach(nativeEvents, (event) => {
         const task =
-          event._tag === 'TouchTap' || event._tag === 'TouchHold'
-            ? input(
-                event.lcd,
-                event._tag === 'TouchTap' ? 'tap' : 'hold',
-                event.position.x,
-                event.position.y,
-              )
-            : event._tag === 'TouchSwipe' &&
-                Math.abs(event.to.x - event.from.x) > Math.abs(event.to.y - event.from.y)
-              ? input(event.lcd, 'swipe', event.from.x, event.from.y, event.to.x)
-              : Effect.void;
+          'dial' in event && surfaces
+            ? surfaces.knob(event)
+            : event._tag === 'TouchTap' || event._tag === 'TouchHold'
+              ? input(
+                  event.lcd,
+                  event._tag === 'TouchTap' ? 'tap' : 'hold',
+                  event.position.x,
+                  event.position.y,
+                )
+              : event._tag === 'TouchSwipe' &&
+                  Math.abs(event.to.x - event.from.x) > Math.abs(event.to.y - event.from.y)
+                ? input(event.lcd, 'swipe', event.from.x, event.from.y, event.to.x)
+                : Effect.void;
         return task.pipe(Effect.catch((cause) => Effect.logWarning('LCD input', cause)));
       }).pipe(Effect.catch((cause) => Effect.logWarning('LCD source', cause))),
       owner,
@@ -213,6 +244,9 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
       )(
         Effect.gen(function* () {
           if (closed) return;
+          const overlays = yield* (
+            surfaces?.snapshot ?? Effect.succeed({ revision: 0, entries: [] })
+          );
           provider = host;
           if (!Equal.equals(config, next)) {
             yield* Effect.try({ try: () => Layout.validate(next, geometry()), catch: failure });
@@ -258,14 +292,29 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
             });
             for (const entry of view.tiles.filter((candidate) => candidate.width > 0)) {
               const tile = entry.tile;
+              const instance = Tiles.fromLcd(tile);
               const tileSize = { width: tile.width, height: size.height };
-              const custom = yield* host
-                .lcdFrame(tile.plugin, tile.action, tile.input, tileSize)
-                .pipe(Effect.orElseSucceed(() => undefined));
-              const feedback = yield* host.feedback(tile.plugin, tile.action, tile.input);
+              const custom = yield* (
+                host.lcdPresentation
+                  ? host.lcdPresentation(tile.plugin, tile.action, tile.input, tileSize)
+                  : host.lcdFrame(tile.plugin, tile.action, tile.input, tileSize).pipe(
+                      Effect.map((frame) =>
+                        frame
+                          ? {
+                              view: frame.view,
+                              stamp: JSON.stringify(frame.view),
+                              draw: Effect.succeed(frame.image),
+                            }
+                          : undefined,
+                      ),
+                    )
+              ).pipe(Effect.orElseSucceed(() => undefined));
+              const feedback = yield* host.feedback(tile.plugin, tile.action, tile.input, {
+                instanceId: tile.id,
+              });
               const value = {
                 ...tileSize,
-                label: tile.label,
+                label: instance.label,
                 count: 0,
                 feedback: errors.has(tile.id)
                   ? { icon: 'plugin' as const, tone: 'danger' as const, text: 'ERREUR' }
@@ -273,12 +322,17 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
               };
               const frame = custom ?? {
                 view: yield* actionPresentation.describe(value),
-                image: yield* renderer.rgb(<ActionCard value={value} />, tileSize),
+                stamp: JSON.stringify(value),
+                draw: renderer.rgb(<ActionCard value={value} />, tileSize),
               };
+              const imageStamp = JSON.stringify([tileSize, frame.stamp, frame.view]);
+              const cached = rendered.get(tile.id);
+              const image = cached?.stamp === imageStamp ? cached.image : yield* frame.draw;
+              rendered.set(tile.id, { stamp: imageStamp, image });
               if (
-                !Image.validate(frame.image) ||
-                frame.image.width !== tile.width ||
-                frame.image.height !== size.height
+                !Image.validate(image) ||
+                image.width !== tile.width ||
+                image.height !== size.height
               )
                 continue;
               const clipped = {
@@ -286,7 +340,7 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
                 height: size.height,
                 data: new Uint8Array(entry.width * size.height * 3),
               };
-              blit(clipped, frame.image, -entry.left, 0);
+              blit(clipped, image, -entry.left, 0);
               const x = view.zone.x + Math.max(0, entry.x);
               const description: View = {
                 type: 'lcd.clip.v1',
@@ -305,10 +359,40 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
               });
             }
           }
+          for (const overlay of overlays.entries)
+            for (const claim of overlay.lcd) {
+              const r = claim.region;
+              const cacheKey = `surface:${overlay.token}:${claim.lcd}:${r.x}:${r.y}`;
+              const imageStamp = JSON.stringify([r, claim.frame.stamp, claim.frame.view]);
+              const cached = rendered.get(cacheKey);
+              const image = cached?.stamp === imageStamp ? cached.image : yield* claim.frame.draw;
+              rendered.set(cacheKey, { stamp: imageStamp, image });
+              if (!Image.validate(image) || image.width !== r.width || image.height !== r.height)
+                continue;
+              const current = nextParts.get(claim.lcd) ?? [];
+              current.push({
+                x: r.x,
+                y: r.y,
+                image,
+                view: { ...r, view: claim.frame.view, interactive: true },
+              });
+              nextParts.set(claim.lcd, current);
+            }
+          if (surfaces && (yield* surfaces.snapshot).revision !== overlays.revision) return;
+          const visible = new Set(
+            nextViews.flatMap((view) => view.tiles.map((entry) => entry.tile.id)),
+          );
+          for (const overlay of overlays.entries)
+            for (const claim of overlay.lcd)
+              visible.add(
+                `surface:${overlay.token}:${claim.lcd}:${claim.region.x}:${claim.region.y}`,
+              );
+          for (const id of rendered.keys()) if (!visible.has(id)) rendered.delete(id);
           const currentStamp = JSON.stringify([
             config,
             navigation,
             focus,
+            [...rendered].map(([id, frame]) => [id, frame.stamp]),
             [...nextParts].map(([lcd, entries]) => [lcd, entries.map((entry) => entry.view)]),
           ]);
           if (stamp === currentStamp) return;
@@ -328,6 +412,7 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
         closed = true;
         parts.clear();
         base.clear();
+        rendered.clear();
       }),
     );
     return {

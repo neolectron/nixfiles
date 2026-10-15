@@ -232,7 +232,14 @@ export class TextSelection extends Context.Service<TextSelection, Controller>()(
   '@nixfiles/system-control/TextSelection',
 ) {
   static readonly serviceLayer = Layer.effect(TextSelection, make);
-  static readonly layer = TextSelection.serviceLayer.pipe(
-    Layer.provide(Layer.merge(SelectionBackend.layer, TextTransform.layer)),
-  );
+  static readonly layer = Layer.effect(
+    TextSelection,
+    Effect.gen(function* () {
+      const shared = yield* Effect.serviceOption(TextTransform);
+      const transform = Option.isSome(shared)
+        ? shared.value
+        : Context.get(yield* Layer.build(TextTransform.layer), TextTransform);
+      return yield* make.pipe(Effect.provideService(TextTransform, transform));
+    }),
+  ).pipe(Layer.provide(SelectionBackend.layer));
 }

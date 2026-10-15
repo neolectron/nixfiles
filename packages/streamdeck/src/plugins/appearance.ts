@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect';
 import { SystemAppearance, type Controller } from '@nixfiles/system-control/appearance.ts';
 import * as Plugin from '../plugin.ts';
+import * as SystemAction from '../system-action.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 
 const action = (
@@ -17,8 +18,10 @@ const action = (
     defaults: {},
     tile: { label, icon },
     run: (api: Controller) =>
-      (id === 'toggle' ? api.toggle : api.set(id)).pipe(
-        Effect.map((state) => (state.mode === 'dark' ? 'Thème sombre.' : 'Thème clair.')),
+      SystemAction.invoke(
+        id === 'toggle' ? 'appearance.toggle' : 'appearance.set',
+        id === 'toggle' ? {} : { mode: id },
+        id === 'toggle' ? api.toggle : api.set(id),
       ),
     feedback: (api: Controller) =>
       Effect.map(

@@ -2,6 +2,7 @@ import { useRef, type ReactNode, type PointerEvent } from 'react';
 import { Effect } from 'effect';
 import type { Snapshot, Catalogue } from '../src/studio-contract.ts';
 import * as Layout from '../src/lcd-layout.ts';
+import { commandFor } from '../src/navigation.ts';
 import { LcdView } from './lcd-view.tsx';
 import { ActionCard } from '../src/ui/action-presentation.tsx';
 import * as Api from './api.ts';
@@ -61,8 +62,8 @@ export function LcdCanvas({
   ) => {
     if (disabled) return;
     const view = views.find((entry) => x >= entry.zone.x && x < entry.zone.x + entry.zone.width);
-    if (!view) return;
     if (draft) {
+      if (!view) return;
       if (kind === 'swipe')
         onNavigate({ zone: view.zone.id, operation: 'scroll', delta: Math.round(x - (toX ?? x)) });
       else {
@@ -72,26 +73,13 @@ export function LcdCanvas({
             x - view.zone.x >= Math.max(0, entry.x) &&
             x - view.zone.x < Math.min(view.zone.width, entry.x + entry.tile.width),
         );
-        if (hit?.tile.plugin === 'system') {
-          const input = hit.tile.input;
-          const folder =
-            typeof input === 'object' && input && !Array.isArray(input) && 'folder' in input
-              ? String(input.folder)
-              : '';
-          const operations: Readonly<Record<string, Layout.Command['operation']>> = {
-            'lcd-next': 'next',
-            'lcd-previous': 'previous',
-            'lcd-back': 'back',
-            'lcd-folder': 'open',
-          };
-          const operation = operations[hit.tile.action];
-          if (operation)
-            onNavigate({
-              zone: view.zone.id,
-              operation,
-              ...(operation === 'open' ? { folder } : {}),
-            });
-        }
+        const command = hit ? commandFor(hit.tile) : undefined;
+        if (command?.surface === 'lcd')
+          onNavigate({
+            zone: command.zone === 'current' ? view.zone.id : command.zone,
+            operation: command.operation,
+            ...(command.operation === 'open' ? { folder: command.folder } : {}),
+          });
       }
       return;
     }
@@ -137,7 +125,17 @@ export function LcdCanvas({
         )
           return;
         const p = point(event);
-        if (!views.some((view) => p.x >= view.zone.x && p.x < view.zone.x + view.zone.width))
+        if (
+          !views.some((view) => p.x >= view.zone.x && p.x < view.zone.x + view.zone.width) &&
+          !lcd.scene?.some(
+            (region) =>
+              region.interactive &&
+              p.x >= region.x &&
+              p.x < region.x + region.width &&
+              p.y >= region.y &&
+              p.y < region.y + region.height,
+          )
+        )
           return;
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -174,6 +172,27 @@ export function LcdCanvas({
     >
       <LcdView lcd={background} sessionId={snapshot.sessionId} />
       {children}
+      {(lcd.scene ?? [])
+        .filter((region) => region.interactive)
+        .map((region, index) => (
+          <button
+            type="button"
+            className="lcd-surface-hit"
+            key={`${region.x}/${region.y}/${region.width}/${region.height}/${region.view.type}`}
+            aria-label={`Présentation LCD ${index + 1}`}
+            disabled={disabled || draft}
+            style={{
+              left: `${(region.x / lcd.width) * 100}%`,
+              top: `${(region.y / lcd.height) * 100}%`,
+              width: `${(region.width / lcd.width) * 100}%`,
+              height: `${(region.height / lcd.height) * 100}%`,
+            }}
+            onClick={(event) => {
+              if (event.detail === 0)
+                send('tap', region.x + 1, region.y + 1, snapshot.lcdLayout?.revision ?? 0);
+            }}
+          />
+        ))}
       {views.map((view) => (
         <div
           className="lcd-zone-hit"

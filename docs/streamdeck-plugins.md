@@ -839,3 +839,105 @@ La découverte des fenêtres/titres et des icônes appartient aux services syst�
 `Desktop` et `DesktopIcons`. Ils ne dépendent pas du deck. Le plugin adapte ces
 services au rendu ; la conversion des SVG et son cache restent dans son scope.
 Les icônes passent par le cache d’assets HTTP, sans base64 ni captures LCD dans SSE.
+
+## Manifests and multiple templates
+
+`Plugin.manifest(definition)` exports versioned, JSON-compatible metadata. Studio
+serves all manifests at `GET /api/plugins/manifests`, even while plugins are off.
+An action is an operation; a template is a ready-to-place preset of that operation.
+Declare `tiles` explicitly to export several presets for one action:
+
+```ts
+const plugin = Plugin.define({
+  id: 'example',
+  name: 'Example',
+  description: '',
+  controls: {},
+  setup: Effect.succeed({ api: {} }),
+  actions: [myAction],
+  tiles: [
+    {
+      id: 'small',
+      action: 'add',
+      name: 'Add one',
+      label: '+1',
+      icon: 'plugin',
+      input: { amount: 1 },
+    },
+    {
+      id: 'large',
+      action: 'add',
+      name: 'Add ten',
+      label: '+10',
+      icon: 'plugin',
+      input: { amount: 10 },
+    },
+  ],
+});
+```
+
+Template identifiers and inputs are validated at installation. Without an explicit
+`tiles` array, action-level `tile` metadata remains the compatibility shorthand.
+`TileInstance` in `tile-instance.ts` is the portable identity/action model;
+`fromKey`, `toKey`, `fromLcd`, `toLcd` adapt existing persisted placements.
+An invocation receives `instanceId`, `surface`, `gesture`, release and cancellation
+signals where the input surface supports them. Feedback receives `instanceId` too.
+The `counter` plugin is a small reference for per-instance persistent state.
+
+Additional gestures are stored on a key entry as `gestures.longPress` and
+`gestures.doubleTap` (each a complete binding). The primary press becomes an
+exclusive short press when other gestures are present. Gesture arbitration,
+timing and cancellation live in `press-gestures.ts`; plugins do not implement timers.
+LCD hardware exposes tap/hold/swipe but no reliable release, so held microphone
+actions remain restricted to key surfaces.
+
+## Unified scoped scenes
+
+`SurfaceHost` adds LCD and knob claims to the existing key arbiter. It is supplied
+with the plugin's identity and activation scope:
+
+```ts
+const surfaces = yield * SurfaceHost;
+const scene = yield * surfaces.open('detail');
+yield *
+  scene.update({
+    name: 'Detail',
+    priority: 20,
+    keys: { name: 'Detail', keys: { '0': backBinding } },
+    lcd: [
+      {
+        lcd: 0,
+        region: { x: 0, y: 0, width: 1200, height: 100 },
+        frame: { stamp, view, draw },
+        onTouch: (event) => handleTouch(event),
+      },
+    ],
+    knobs: [{ dial: 0, onInput: (event) => handleKnob(event) }],
+  });
+// Hide this scene, preserving the handle for a later presentation:
+yield * scene.update(null);
+```
+
+Geometry is validated against the connected/virtual deck. Higher priority wins;
+activation order breaks ties. The same LCD region routes native and browser
+input. Claims mask covered lower touch/rotation handlers. Release/cancellation
+still reaches existing lower encoder owners for cleanup. Scene closure or plugin
+disable revokes claims and cancels scoped work, including an in-flight raster.
+Render stamps must change whenever pixels change, even if the declarative view
+stays equal. Unchanged LCD frames are cached. Callbacks can hide/update their own
+scene; returning to the underlying layout does not write a profile.
+
+## Client assets and system actions
+
+A plugin's `*-client.tsx` module contains only React components, JSON presentation
+code and icons. Export a `Client` and register it in `plugin-clients.ts`, which is
+shared by the browser and physical renderer. Use a namespaced icon identifier for
+new icons; no change to `KeyFeedback` or the generic renderer is necessary.
+`plugins/spotify-client.tsx` demonstrates this boundary.
+
+The system action catalogue belongs to `@nixfiles/system-control/actions.ts`.
+Use `systemAction` metadata on a plugin action to connect editor fields to live
+choices (for example OBS scenes or inputs), and `SystemAction.invoke` to use the
+root catalogue with an injected standalone fallback. System commands and state
+schemas contain no key, LCD, tile or React types. See the system package README
+for HTTP/MCP and direct Effect composition.

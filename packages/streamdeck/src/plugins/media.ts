@@ -3,17 +3,19 @@ import { Context, Effect, Layer } from 'effect';
 import * as Media from '@nixfiles/system-control/media.ts';
 import * as Mpris from '@nixfiles/system-control/mpris.ts';
 import * as Plugin from '../plugin.ts';
+import * as SystemAction from '../system-action.ts';
 import type { KeyFeedback } from '../key-feedback.ts';
 
 const action = (id: string, name: string, method: Mpris.Command, icon: KeyFeedback['icon']) =>
   Plugin.action({
     id,
+    systemAction: `media.${id}`,
     name,
     description: 'Commande média standard du lecteur actif, sans changer le focus.',
     input: Plugin.NoInput,
     defaults: {},
     tile: { label: name, icon },
-    run: (api: Media.Controller) => api.command(method),
+    run: (api: Media.Controller) => SystemAction.invoke(`media.${id}`, {}, api.command(method)),
     unavailable: { icon, text: 'AUCUN MÉDIA', tone: 'neutral' },
     feedback: (api) =>
       Effect.map(

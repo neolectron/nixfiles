@@ -1,6 +1,9 @@
 import { invariant } from '../src/errors.ts';
 import type { Catalogue, Snapshot } from '../src/studio-contract.ts';
 import * as Fields from '../src/plugin-fields.ts';
+import { useEffect, useId, useState } from 'react';
+import { Effect, Fiber } from 'effect';
+import * as Api from './api.ts';
 export function PluginFields({
   catalogue,
   snapshot,
@@ -21,6 +24,26 @@ export function PluginFields({
   const info = catalogue.pluginActions.find(
     (action) => action.plugin === values.plugin && action.id === values.command,
   );
+  const listId = useId();
+  const [choices, setChoices] = useState<
+    Record<string, ReadonlyArray<{ value: string; label: string }>>
+  >({});
+  useEffect(() => {
+    setChoices({});
+    if (!info?.systemAction) return;
+    const action = info.systemAction;
+    const fiber = Effect.runFork(
+      Effect.forEach(Fields.fields(info.schema), (field) =>
+        Api.choices(action, field.key).pipe(
+          Effect.map((items) => [field.key, items] as const),
+          Effect.orElseSucceed(() => [field.key, []] as const),
+        ),
+      ).pipe(Effect.tap((entries) => Effect.sync(() => setChoices(Object.fromEntries(entries))))),
+    );
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [info?.systemAction, info?.schema]);
   const plugins = [
     ...new Map(
       catalogue.pluginActions.map((action) => [action.plugin, action.pluginName]),
@@ -167,29 +190,39 @@ export function PluginFields({
               }
             />
           ) : (
-            <input
-              aria-label={field.label}
-              aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
-              title={field.hint || undefined}
-              type={field.kind === 'number' ? 'number' : 'text'}
-              step="any"
-              min={field.min}
-              max={field.max}
-              minLength={field.minLength}
-              maxLength={field.maxLength}
-              required={field.required && (field.kind === 'number' || (field.minLength ?? 0) > 0)}
-              disabled={busy}
-              value={values[`input:${field.key}`] ?? ''}
-              onChange={(event) =>
-                onChange(
-                  {
-                    ...values,
-                    [`input:${field.key}`]: (event.currentTarget as HTMLInputElement).value,
-                  },
-                  label,
-                )
-              }
-            />
+            <>
+              <input
+                list={choices[field.key]?.length ? `${listId}-${field.key}` : undefined}
+                aria-label={field.label}
+                aria-describedby={field.hint ? `plugin-hint-${field.key}` : undefined}
+                title={field.hint || undefined}
+                type={field.kind === 'number' ? 'number' : 'text'}
+                step="any"
+                min={field.min}
+                max={field.max}
+                minLength={field.minLength}
+                maxLength={field.maxLength}
+                required={field.required && (field.kind === 'number' || (field.minLength ?? 0) > 0)}
+                disabled={busy}
+                value={values[`input:${field.key}`] ?? ''}
+                onChange={(event) =>
+                  onChange(
+                    {
+                      ...values,
+                      [`input:${field.key}`]: (event.currentTarget as HTMLInputElement).value,
+                    },
+                    label,
+                  )
+                }
+              />
+              <datalist id={`${listId}-${field.key}`}>
+                {(choices[field.key] ?? []).map((choice) => (
+                  <option key={choice.value} value={choice.value}>
+                    {choice.label}
+                  </option>
+                ))}
+              </datalist>
+            </>
           )}
         </label>
       ))}

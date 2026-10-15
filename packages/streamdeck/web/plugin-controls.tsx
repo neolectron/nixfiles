@@ -28,7 +28,10 @@ function PluginPanels({
   readonly children: ReactNode;
   readonly surface: 'key' | 'lcd';
 }) {
-  const actions = catalogue?.pluginActions.filter((action) => action.plugin === plugin.id) ?? [];
+  const actions =
+    (catalogue?.pluginTiles ?? catalogue?.pluginActions)?.filter(
+      (action) => action.plugin === plugin.id,
+    ) ?? [];
   const [selected, setSelected] = useState<'tiles' | 'settings' | null>(null);
   return (
     <Tabs

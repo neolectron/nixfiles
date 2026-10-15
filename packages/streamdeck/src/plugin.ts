@@ -8,6 +8,7 @@ import { invalid, invariant } from './errors.ts';
 import { DeckOverlays, type KeyOverlay } from './deck-overlays.ts';
 import type { Size } from './model.ts';
 import type { Frame } from './mixer-cards.ts';
+import { SurfaceHost, type Scene } from './surface-host.ts';
 export interface Controls {
   readonly keys?: ReadonlyArray<number>;
   readonly dials?: ReadonlyArray<number>;
@@ -24,11 +25,12 @@ export interface Definition<Api, E, R> {
   readonly description: string;
   readonly controls: Controls | ((deck: Device) => Controls);
   readonly actions?: ReadonlyArray<Action<Api>>;
+  readonly tiles?: ReadonlyArray<TileTemplate>;
   readonly supported?: (deck: Device) => boolean;
   readonly setup: Effect.Effect<
     Instance<Api, E, R>,
     E,
-    R | StreamDeck | DeckOverlays | Scope.Scope
+    R | StreamDeck | DeckOverlays | SurfaceHost | Scope.Scope
   >;
 }
 /** Inference preserves the API and dependencies; setup may provide one or more Layers. */
@@ -37,7 +39,7 @@ export const define = <Api, E = never, R = never, SetupE = never, SetupR = never
     readonly setup: Effect.Effect<
       Instance<Api, E, R>,
       SetupE,
-      SetupR | StreamDeck | DeckOverlays | Scope.Scope
+      SetupR | StreamDeck | DeckOverlays | SurfaceHost | Scope.Scope
     >;
   },
 ): Definition<Api, E | SetupE, R | SetupR> => definition;
@@ -60,6 +62,9 @@ export const presentFrom = <A, E, R, E2, R2>(
     const presentation = yield* overlays.open(id);
     return listen(source, (event: A) => Effect.flatMap(select(event), presentation.update));
   });
+/** One scoped presentation can override keys and any LCD region together. */
+export const present = <E, R>(id: string, scene: Scene<E, R>) =>
+  Effect.flatMap(SurfaceHost, (host) => host.open(id, scene));
 /** Build services in the activation scope, keeping Layer finalizers alive until disable. */
 export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(
   options: Omit<Definition<Api, E | E2, R | R2>, 'setup'> & {
@@ -77,6 +82,7 @@ export const fromLayer = <S, Api, E, R, E2 = never, R2 = never>(
     }),
   });
 export interface ActionInfo {
+  readonly systemAction?: string;
   readonly id: string;
   readonly name: string;
   readonly description: string;
@@ -93,14 +99,45 @@ export interface Tile {
   readonly surfaces?: ReadonlyArray<'key' | 'lcd'>;
   readonly width?: number;
 }
+export interface TileTemplate extends Tile {
+  readonly id: string;
+  readonly action: string;
+  readonly input: unknown;
+  readonly name?: string;
+}
+export const manifest = <Api, E, R>(plugin: Definition<Api, E, R>) => ({
+  id: plugin.id,
+  name: plugin.name,
+  description: plugin.description,
+  apiVersion: 1 as const,
+  actions: (plugin.actions ?? []).map((action) => action.info),
+  tiles:
+    plugin.tiles ??
+    (plugin.actions ?? []).flatMap((action) =>
+      action.info.tile
+        ? [
+            {
+              ...action.info.tile,
+              id: action.info.id,
+              action: action.info.id,
+              input: action.info.defaults,
+              name: action.info.name,
+            },
+          ]
+        : [],
+    ),
+});
 export interface Invocation {
+  readonly instanceId?: string;
   readonly output: (text: string) => Effect.Effect<void>;
   /** Completes on the original physical key's release, even after navigation. */
   readonly released?: Effect.Effect<void>;
   /** Completes only for an abandoned press (pointer cancellation, lost focus). */
   readonly cancelled?: Effect.Effect<void>;
   readonly gesture?: PressContext['gesture'];
-  readonly surface?: { readonly kind: 'lcd'; readonly zone: string };
+  readonly surface?:
+    | { readonly kind: 'lcd'; readonly zone: string }
+    | { readonly kind: 'key'; readonly zone: string; readonly key: number };
 }
 /** Shared tap/hold arbitration. A preclassified long press does not wait twice. */
 export const tapOrHold = <A, E, R, B, E2, R2>(
@@ -141,6 +178,7 @@ export interface Action<Api, Input = unknown, E = unknown, R = StreamDeck | Scop
   readonly feedback?: (
     api: Api,
     input: unknown,
+    context?: Pick<Invocation, 'instanceId'>,
   ) => Effect.Effect<KeyFeedback, E | Schema.SchemaError, R>;
   readonly unavailable?: KeyFeedback;
   readonly lcd?: (
@@ -196,6 +234,7 @@ export const handler = <Api, Input, E, R>(
 ) => mapHandler<Api, Input, E, R, unknown>(action, api, () => input, output);
 /** Schema is the single source for decoded input, browser fields and runtime validation. */
 export const action = <Api, Input, Encoded, E, R>(options: {
+  readonly systemAction?: string;
   readonly id: string;
   readonly name: string;
   readonly description: string;
@@ -203,7 +242,11 @@ export const action = <Api, Input, Encoded, E, R>(options: {
   readonly defaults: Encoded;
   readonly interaction?: 'press' | 'hold';
   readonly tile?: Tile;
-  readonly feedback?: (api: Api, input: Input) => Effect.Effect<KeyFeedback, E, R>;
+  readonly feedback?: (
+    api: Api,
+    input: Input,
+    context?: Pick<Invocation, 'instanceId'>,
+  ) => Effect.Effect<KeyFeedback, E, R>;
   readonly unavailable?: KeyFeedback;
   readonly lcd?: (
     api: Api,
@@ -213,6 +256,7 @@ export const action = <Api, Input, Encoded, E, R>(options: {
   readonly run: (api: Api, input: Input, context: Invocation) => Effect.Effect<unknown, E, R>;
 }): Action<Api, Encoded, E, R> => ({
   info: {
+    ...(options.systemAction ? { systemAction: options.systemAction } : {}),
     id: options.id,
     name: options.name,
     description: options.description,
@@ -239,11 +283,11 @@ export const action = <Api, Input, Encoded, E, R>(options: {
     : {}),
   ...(options.feedback || options.tile
     ? {
-        feedback: (api: Api, input: unknown) =>
+        feedback: (api: Api, input: unknown, context?: Pick<Invocation, 'instanceId'>) =>
           Schema.decodeUnknownEffect(options.input, { onExcessProperty: 'error' })(input).pipe(
             Effect.flatMap((value) =>
               options.feedback
-                ? options.feedback(api, value)
+                ? options.feedback(api, value, context)
                 : Effect.succeed({
                     icon: invariant(options.tile, 'plugin').icon,
                     text: 'PRÊT',

@@ -1,5 +1,6 @@
 import { invariant, IntegrationError } from './errors.ts';
-import { Context, Layer, Effect, Ref, Result, Schema, Semaphore, Stream } from 'effect';
+import { Context, Layer, Effect, Option, Ref, Result, Schema, Semaphore, Stream } from 'effect';
+import { MprisRegistry } from './mpris-registry.ts';
 import * as Mpris from './mpris.ts';
 import * as StateStore from './state.ts';
 import * as Sources from './sources.ts';
@@ -17,7 +18,8 @@ export interface State {
 /** Global media controls select one active player, independent of Spotify and window focus. */
 export const make = Effect.gen(function* () {
   const transport = yield* Mpris.MprisTransport;
-  yield* transport.ready;
+  const registry = yield* Effect.serviceOption(MprisRegistry);
+  yield* transport.ready.pipe(Effect.ignore);
   const lock = yield* Semaphore.make(1);
   const cached = yield* Ref.make<Result.Result<State, IntegrationError>>(
     Result.fail(new IntegrationError({ message: 'Aucun lecteur média disponible.' })),
@@ -61,10 +63,12 @@ export const make = Effect.gen(function* () {
         Effect.gen(function* () {
           const api =
             existing?.api ??
-            (yield* Mpris.make(entry.name, name).pipe(
-              Effect.provideService(Mpris.MprisTransport, transport),
-            ));
-          const playback = yield* existing ? api.current : api.state;
+            (yield* (
+              Option.isSome(registry)
+                ? registry.value.player(entry.name, name)
+                : Mpris.make(entry.name, name)
+            ).pipe(Effect.provideService(Mpris.MprisTransport, transport)));
+          const playback = yield* existing && Option.isNone(registry) ? api.current : api.state;
           const started =
             playback.status === 'Playing' &&
             (existing ? existing.status !== 'Playing' : selected !== undefined);
@@ -132,6 +136,7 @@ export const managed = Effect.gen(function* () {
     raw.current,
     '1 second',
     new IntegrationError({ message: 'No media player available.' }),
+    'media',
   );
   return {
     current: store.refresh,

@@ -27,6 +27,11 @@ import { useProfileEditor } from './use-profile-editor.ts';
 import './style.css';
 import { NoteEditor } from './note-editor.tsx';
 import { TrashIcon } from './trash-icon.tsx';
+import { accept } from '../src/studio-state.ts';
+import { Diagnostics } from './diagnostics.tsx';
+import { GestureBindingsEditor } from './gesture-bindings.tsx';
+import { ContextEditor } from './context-editor.tsx';
+import * as ContextPreview from './context-preview.ts';
 function Icon({
   name,
   size = 20,
@@ -77,6 +82,7 @@ function KeyInspector({
   dirty,
   busy,
   onRemove,
+  onGestures,
 }: {
   selected: KeyView;
   catalogue: Catalogue;
@@ -94,6 +100,7 @@ function KeyInspector({
   dirty: boolean;
   busy: boolean;
   onRemove: () => Effect.Effect<Snapshot, unknown>;
+  onGestures: (value: NonNullable<KeyView['gestures']>) => Effect.Effect<Snapshot, unknown>;
 }) {
   const setDraft = onDraft;
   const [error, setError] = useState('');
@@ -119,7 +126,10 @@ function KeyInspector({
       (action) => action.plugin === draft.values.plugin && action.id === draft.values.command,
     )?.interaction === 'hold';
   const invalidTrigger = draftHeld && draft.activation === 'double-tap';
-  const gestureTest = heldAction || (selected.binding?.trigger?.type ?? 'press') !== 'press';
+  const gestureTest =
+    heldAction ||
+    !!Object.keys(selected.gestures ?? {}).length ||
+    (selected.binding?.trigger?.type ?? 'press') !== 'press';
   const unavailable =
     !selected.binding ||
     dirty ||
@@ -508,6 +518,14 @@ function KeyInspector({
           </p>
         ) : null}
       </form>
+      <GestureBindingsEditor
+        value={selected.gestures ?? {}}
+        catalogue={catalogue}
+        disabled={busy || !selected.binding}
+        onChange={(value) => {
+          void Api.run(onGestures(value)).catch((cause) => setError(messageOf(cause)));
+        }}
+      />
       <div className="test-action">
         {gestureTest ? (
           <HeldAction
@@ -564,19 +582,20 @@ function App() {
   const [tileTarget, setTileTarget] = useState<number | null>(null);
   const [lcdDropTarget, setLcdDropTarget] = useState<number | null>(null);
   const [selectedLcdTile, setSelectedLcdTile] = useState<string | null>(null);
+  const [contextPreview, setContextPreview] = useState<string | null>(null);
   const [selectedLcdZone, setSelectedLcdZone] = useState<string | null>(null);
   const acceptSnapshot = (value: Snapshot) =>
-    setLiveSnapshot((previous) =>
-      previous?.sessionId === value.sessionId &&
-      (previous.inputSequence > value.inputSequence ||
-        previous.plugins.revision > value.plugins.revision ||
-        (previous.plugins.revision === value.plugins.revision &&
-          previous.layout.revision > value.layout.revision))
-        ? previous
-        : value,
-    );
+    setLiveSnapshot((previous) => accept(previous, value));
   const editor = useProfileEditor(liveSnapshot, catalogue, acceptSnapshot);
-  const snapshot = editor.snapshot;
+  const previewRule =
+    tab === 'contexts'
+      ? editor.snapshot?.configuration.profile.contexts?.find((rule) => rule.id === contextPreview)
+      : undefined;
+  const previewing = !!previewRule;
+  const snapshot =
+    editor.snapshot && previewRule
+      ? ContextPreview.preview(editor.snapshot, previewRule, catalogue)
+      : editor.snapshot;
   const dirty = editor.dirty;
   useEffect(() => {
     const watcher = Effect.runFork(
@@ -763,7 +782,7 @@ function App() {
                 snapshot={invariant(snapshot, 'editor-snapshot')}
                 tileTarget={tileTarget}
                 selected={selection.kind === 'key' ? selection.index : null}
-                editable={online && shortcutsActive && !editor.busy}
+                editable={online && shortcutsActive && !editor.busy && !previewing}
                 draft={dirty}
                 pendingKeys={editor.pendingKeys}
                 onOrganize={editor.organize}
@@ -774,7 +793,7 @@ function App() {
                 empty=<span className="empty-key">
                   <Icon name="plus" size={22} />
                 </span>
-                interactive={online && !editor.busy}
+                interactive={online && !editor.busy && !previewing}
               />
             ) : (
               <div className="key-grid loading" aria-label="Chargement des touches">
@@ -795,8 +814,8 @@ function App() {
                       lcd={lcd}
                       snapshot={snapshot}
                       catalogue={catalogue}
-                      draft={dirty}
-                      disabled={!online || editor.busy}
+                      draft={dirty || previewing}
+                      disabled={!online || editor.busy || previewing}
                       dropTarget={lcdDropTarget === lcd.index}
                       onSelect={(id) => {
                         setSelectedLcdTile(id);
@@ -818,7 +837,7 @@ function App() {
                             }}
                             title={`${dial.name} · ${dial.interaction}`}
                             aria-label={`${dial.name} · ${dial.interaction}`}
-                            disabled={!online || !mixerActive}
+                            disabled={!online || !mixerActive || previewing}
                             onClick={() => currentTapLcd(dial)}
                           />
                         ))}
@@ -855,7 +874,7 @@ function App() {
                   dial={dial}
                   lcdWidth={snapshot?.lcds[0]?.width ?? 1200}
                   selected={selection.kind === 'dial' && selection.index === dial.index}
-                  disabled={!snapshot || !online}
+                  disabled={!snapshot || !online || previewing}
                   page={snapshot?.page ?? 0}
                   sessionId={snapshot?.sessionId ?? ''}
                   onSnapshot={acceptSnapshot}
@@ -915,6 +934,18 @@ function App() {
           ) : null}
         </section>
         <EditorTabs
+          contexts={
+            snapshot ? (
+              <ContextEditor
+                snapshot={editor.snapshot ?? snapshot}
+                previewId={contextPreview}
+                onPreview={setContextPreview}
+                disabled={editor.busy || !online}
+                onChange={editor.editContexts}
+              />
+            ) : null
+          }
+          diagnostics={<Diagnostics active={tab === 'diagnostics'} snapshot={liveSnapshot} />}
           selected={tab}
           onSelect={setTab}
           plugins={
@@ -1009,6 +1040,7 @@ function App() {
               onSnapshot={acceptSnapshot}
               draft={editor.form(selectedKey) ?? draftOf(selectedKey.binding, catalogue)}
               onDraft={(draft) => editor.edit(selectedKey, draft)}
+              onGestures={(value) => editor.gestures(selectedKey, value)}
               onRemove={() => editor.remove(selectedKey)}
               onOrganize={editor.organize}
               onNavigate={editor.navigate}
