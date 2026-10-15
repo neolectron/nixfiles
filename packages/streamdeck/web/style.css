@@ -395,7 +395,7 @@ small {
   cursor: pointer;
 }
 button.lcd-card-hit:hover:not(:disabled) {
-  background: #ffffff08;
+  background: transparent;
 }
 .lcd-card-hit:focus-visible {
   outline: 2px solid var(--accent);
@@ -1226,8 +1226,8 @@ button.zone-edit-link {
   width: 100%;
   height: 100%;
 }
-.lcd-tile-action:hover {
-  background: #ffffff08;
+.lcd-tile-action:hover:not(:disabled) {
+  background: transparent;
 }
 .lcd-tile-edit {
   position: absolute;
