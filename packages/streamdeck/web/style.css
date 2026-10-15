@@ -120,9 +120,9 @@ small {
 }
 .preview-heading {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
   margin-bottom: 16px;
 }
 .inspector-intro {
@@ -134,12 +134,12 @@ small {
 .profile-name {
   font-size: 12px;
   color: #c4c8d1;
-  padding-top: 4px;
   white-space: nowrap;
 }
 .device-model {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
 }
 .device-stage {
   overflow-x: auto;
@@ -1361,18 +1361,31 @@ button.zone-edit-link {
 .configuration-save {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 24px;
+  flex-shrink: 0;
+  gap: 8px;
 }
-.configuration-save > span {
-  margin-right: auto;
+.configuration-status {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 @media (max-width: 480px) {
-  .configuration-save > span {
-    flex-basis: 100%;
+  .preview-heading:has(.configuration-save) .device-model {
+    display: none;
+  }
+  .preview-heading:has(.configuration-save) {
+    gap: 8px;
+  }
+  .configuration-status {
+    margin-left: auto;
+    flex: 0;
+  }
+  .configuration-save button {
+    padding: 10px;
   }
 }
 /* The note is a writing surface; its toolbar keeps persistence and dictation visible. */

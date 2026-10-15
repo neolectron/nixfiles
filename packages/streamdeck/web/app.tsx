@@ -720,29 +720,31 @@ function App() {
           <div className="preview-heading">
             <span className="profile-name">Profil principal</span>
             <span className="device-model">{deviceName(snapshot?.model)}</span>
-          </div>
-          <div className="configuration-save">
-            <span role="status">
+            <span className="configuration-status" role="status">
               {!snapshot
                 ? 'Chargement…'
                 : editor.busy
                   ? 'Enregistrement…'
                   : dirty
                     ? 'Modifications non enregistrées'
-                    : 'Configuration enregistrée'}
+                    : ''}
             </span>
-            <button
-              type="button"
-              className="primary"
-              disabled={!dirty || !online || editor.busy || !shortcutsActive}
-              onClick={() => void editor.save()}
-            >
-              <Icon name="save" size={17} />
-              Enregistrer
-            </button>
-            <button type="button" disabled={!dirty || editor.busy} onClick={editor.discard}>
-              Annuler
-            </button>
+            {dirty || editor.busy ? (
+              <div className="configuration-save">
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!dirty || !online || editor.busy || !shortcutsActive}
+                  onClick={() => void editor.save()}
+                >
+                  <Icon name="save" size={17} />
+                  Enregistrer
+                </button>
+                <button type="button" disabled={!dirty || editor.busy} onClick={editor.discard}>
+                  Annuler
+                </button>
+              </div>
+            ) : null}
           </div>
           {editor.conflict ? (
             <p className="error" role="alert">
