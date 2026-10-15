@@ -97,6 +97,8 @@ export function useProfileEditor(
     },
     form: (key: Snapshot['keys'][number]) =>
       state && catalogue ? Drafts.formOf(state, key, catalogue) : undefined,
+    remove: (key: Snapshot['keys'][number]) =>
+      local((before, actions) => Drafts.remove(before, key, actions)),
     editLcd: (lcd: LcdLayout.Configuration) => {
       if (current.current && !saving.current)
         replace({ ...current.current, profile: { ...current.current.profile, lcd } });

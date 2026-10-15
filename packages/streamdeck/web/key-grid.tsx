@@ -13,6 +13,8 @@ import { KeyCard } from '../src/ui/key-card.tsx';
 import { Effect } from 'effect';
 import { useKeyInput } from './use-key-input.ts';
 import { DragGrip } from './drag-grip.tsx';
+import { TrashIcon } from './trash-icon.tsx';
+import { outsideDeck } from './key-drop.ts';
 type Key = Snapshot['keys'][number];
 type Gesture = {
   key: Key;
@@ -21,6 +23,16 @@ type Gesture = {
 };
 const movable = (key: Key) =>
   !key.overlay && !key.navigation && key.status !== 'running' && !key.pressed;
+const isOutside = (event: PointerEvent<HTMLButtonElement>) => {
+  const deck = event.currentTarget.closest('[data-deck-skin]');
+  return (
+    !!deck &&
+    outsideDeck(event.clientX, event.clientY, deck.getBoundingClientRect(), {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    })
+  );
+};
 const draftNavigation = (key: Key): Navigate | null => {
   const binding = key.binding;
   if (!binding) return null;
@@ -162,6 +174,7 @@ export function KeyGrid({
   draft = false,
   onOrganize,
   onNavigate,
+  onRemove,
 }: {
   snapshot: Snapshot;
   selected: number | null;
@@ -175,6 +188,7 @@ export function KeyGrid({
   draft?: boolean;
   onOrganize: (command: Organize) => Effect.Effect<Snapshot, unknown>;
   onNavigate: (command: Navigate) => Effect.Effect<Snapshot, unknown>;
+  onRemove: (key: Key) => Effect.Effect<Snapshot, unknown>;
 }) {
   const drag = useRef<Gesture | null>(null);
   const pointerDrag = useRef<{ id: number; x: number; y: number; moving: boolean } | null>(null);
@@ -184,11 +198,13 @@ export function KeyGrid({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [deletion, setDeletion] = useState<{ x: number; y: number } | null>(null);
   const clear = () => {
     drag.current = null;
     pointerDrag.current = null;
     setSource(null);
     setTarget(null);
+    setDeletion(null);
   };
   useEffect(() => {
     const cancel = () => clear();
@@ -219,6 +235,28 @@ export function KeyGrid({
     return slot === null || slot === undefined
       ? undefined
       : snapshot.keys.find((key) => key.index === Number(slot));
+  };
+  const remove = async (from: Gesture) => {
+    clear();
+    if (saving.current || !editable || !movable(from.key)) return;
+    if (from.session !== snapshot.sessionId || from.revision !== snapshot.layout.revision) {
+      setError('La disposition a changé. Recommence la suppression.');
+      return;
+    }
+    saving.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await Api.run(onRemove(from.key));
+      onSelect(from.key.index);
+      setNotice(`« ${from.key.binding?.label ?? 'Raccourci'} » supprimé dans le brouillon.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'La suppression a échoué.');
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
   };
   const exchange = async (from: Gesture, to: Key) => {
     clear();
@@ -317,6 +355,7 @@ export function KeyGrid({
                   current.moving = true;
                   setSource(drag.current.key.index);
                   const to = underPointer(event);
+                  setDeletion(isOutside(event) ? { x: event.clientX, y: event.clientY } : null);
                   setTarget(
                     to && movable(to) && to.index !== drag.current.key.index ? to.index : null,
                   );
@@ -325,9 +364,11 @@ export function KeyGrid({
                   const current = pointerDrag.current;
                   const from = drag.current;
                   const to = underPointer(event);
-                  if (current?.id === event.pointerId && current.moving && from && to)
-                    void exchange(from, to);
-                  else clear();
+                  if (current?.id === event.pointerId && current.moving && from) {
+                    if (to) void exchange(from, to);
+                    else if (isOutside(event)) void remove(from);
+                    else clear();
+                  } else clear();
                 },
                 onPointerCancel: clear,
                 onLostPointerCapture: clear,
@@ -337,6 +378,22 @@ export function KeyGrid({
                 'data-tile-drop-allowed': allowed && movable(key) ? 'true' : 'false',
                 className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index || tileTarget === key.index ? ' drop-target' : ''}`,
                 onKeyDown: (event) => {
+                  if (
+                    allowed &&
+                    movable(key) &&
+                    key.binding &&
+                    selected === key.index &&
+                    event.key === 'Delete' &&
+                    !event.altKey &&
+                    !event.ctrlKey &&
+                    !event.metaKey &&
+                    !event.shiftKey
+                  ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void remove(gesture(key));
+                    return;
+                  }
                   if (
                     !allowed ||
                     !movable(key) ||
@@ -401,6 +458,18 @@ export function KeyGrid({
           ))}
         </div>
       </div>
+      {deletion ? (
+        <div
+          className="key-delete-preview"
+          role="status"
+          style={{
+            left: Math.max(8, Math.min(deletion.x + 14, window.innerWidth - 220)),
+            top: Math.max(8, Math.min(deletion.y + 14, window.innerHeight - 44)),
+          }}
+        >
+          <TrashIcon /> Relâcher pour supprimer
+        </div>
+      ) : null}
       {disabledReason ? (
         <p className="rearrange-status" role="status">
           {disabledReason}

@@ -140,6 +140,145 @@ it.live(
 );
 
 it.live(
+  'deleting a shortcut stays local, rejects stale targets and saves without running its action',
+  () =>
+    withStudio((studio, mock, file) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const before = yield* studio.snapshot;
+        const disk = yield* fs.readFileString(file);
+        const writes = mock.writes.length;
+        const chosen = key(before, 0);
+        const draft = Drafts.remove(Drafts.begin(before), chosen, catalogue);
+        assert.strictEqual(key(Drafts.project(draft, before, catalogue), 0).binding, null);
+        assert.strictEqual(Drafts.dirty(draft), true);
+        assert.throws(() => Drafts.remove(draft, chosen, catalogue), /changé/);
+        for (const protectedKey of [
+          { ...chosen, navigation: true },
+          { ...chosen, pressed: true },
+          { ...chosen, status: 'running' as const },
+        ])
+          assert.throws(() => Drafts.remove(Drafts.begin(before), protectedKey, catalogue));
+        assert.strictEqual(yield* fs.readFileString(file), disk);
+        assert.strictEqual(mock.writes.length, writes);
+        assert.strictEqual(key(yield* studio.snapshot, 0).binding?.label, 'Original');
+        const prepared = Drafts.materialize(draft, catalogue);
+        yield* studio.actions.saveProfile(
+          prepared.profile,
+          prepared.navigation,
+          before.configuration.revision,
+          before.configuration.profile,
+        );
+        assert.strictEqual(key(yield* studio.snapshot, 0).binding, null);
+        assert.strictEqual(
+          JSON.parse(yield* fs.readFileString(file)).zones[0].items[0] ?? null,
+          null,
+        );
+        assert.strictEqual(Drafts.dirty(Drafts.begin(before)), false); // Discard keeps the original profile.
+      }),
+    ),
+);
+
+it.live('deleting an incomplete new shortcut drops its form without disturbing other edits', () =>
+  withStudio((studio) =>
+    Effect.gen(function* () {
+      const before = yield* studio.snapshot;
+      const invalid = Drafts.edit(
+        Drafts.begin(before),
+        key(before, 1),
+        {
+          action: 'run-command',
+          label: 'Incomplete',
+          values: { executable: '', arguments: '', directory: '' },
+          activation: 'press',
+          milliseconds: '600',
+        },
+        catalogue,
+        'incomplete',
+      );
+      assert.throws(() => Drafts.materialize(invalid, catalogue));
+      const preview = Drafts.project(invalid, before, catalogue);
+      const removed = Drafts.remove(invalid, key(preview, 1), catalogue);
+      assert.strictEqual(Drafts.dirty(removed), false);
+      assert.strictEqual(removed.forms.length, 0);
+      assert.strictEqual(
+        key(Drafts.project(removed, before, catalogue), 0).binding?.label,
+        'Original',
+      );
+    }),
+  ),
+);
+
+it.live(
+  'deletion preserves edits displaced by a removed pin and removes folder contents independently',
+  () =>
+    withStudio((studio) =>
+      Effect.gen(function* () {
+        const before = yield* studio.snapshot;
+        const profile = Layout.copy(before.configuration.profile);
+        const zone = profile.zones[0]!;
+        zone.pinned['0'] = zone.items[0]!;
+        zone.items[0] = null;
+        zone.items[1] = {
+          id: 'other',
+          binding: { action: 'counter', label: 'Other', parameters: { start: 2 } },
+        };
+        let state: Drafts.ProfileDraft = { ...Drafts.begin(before), profile };
+        let preview = Drafts.project(state, before, catalogue);
+        state = Drafts.edit(
+          state,
+          key(preview, 2),
+          {
+            action: 'counter',
+            label: 'Other edited',
+            values: { start: '5' },
+            activation: 'press',
+            milliseconds: '600',
+          },
+          catalogue,
+          'unused',
+        );
+        preview = Drafts.project(state, before, catalogue);
+        state = Drafts.remove(state, key(preview, 0), catalogue);
+        preview = Drafts.project(state, before, catalogue);
+        assert.strictEqual(key(preview, 0).binding, null);
+        assert.strictEqual(key(preview, 1).binding?.label, 'Other edited');
+        assert.deepStrictEqual(Drafts.materialize(state, catalogue).profile.zones[0]!.pinned, {});
+
+        const folders = Layout.copy(before.configuration.profile);
+        folders.folders.push({ id: 'tools', name: 'Tools', items: [folders.zones[0]!.items[0]!] });
+        folders.zones[0]!.items[0] = {
+          id: 'open-tools',
+          binding: { action: 'open-folder', label: 'Tools', parameters: { folder: 'tools' } },
+        };
+        const root = { ...Drafts.begin(before), profile: folders };
+        const rootView = Drafts.project(root, before, catalogue);
+        const withoutLink = Drafts.materialize(
+          Drafts.remove(root, key(rootView, 0), catalogue),
+          catalogue,
+        );
+        assert.strictEqual(withoutLink.profile.folders[0]!.items[0]!.binding.label, 'Original');
+        const opened = Drafts.navigate(root, catalogue, {
+          zone: 'deck',
+          operation: 'open',
+          folder: 'tools',
+        });
+        const openedView = Drafts.project(opened, before, catalogue);
+        assert.throws(() => Drafts.remove(opened, key(openedView, 0), catalogue)); // Automatic Back.
+        const withoutContent = Drafts.materialize(
+          Drafts.remove(opened, key(openedView, 1), catalogue),
+          catalogue,
+        );
+        assert.strictEqual(withoutContent.profile.folders[0]!.items[0], null);
+        assert.strictEqual(
+          withoutContent.profile.zones[0]!.items[0]!.binding.action,
+          'open-folder',
+        );
+      }),
+    ),
+);
+
+it.live(
   'invalid layouts, invalid actions and concurrent saves leave disk and hardware unchanged',
   () =>
     withStudio((studio, mock, file) =>

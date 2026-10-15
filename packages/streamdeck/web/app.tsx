@@ -26,6 +26,7 @@ import { draftOf, type Draft } from './key-draft.ts';
 import { useProfileEditor } from './use-profile-editor.ts';
 import './style.css';
 import { NoteEditor } from './note-editor.tsx';
+import { TrashIcon } from './trash-icon.tsx';
 function Icon({
   name,
   size = 20,
@@ -75,6 +76,7 @@ function KeyInspector({
   onNavigate,
   dirty,
   busy,
+  onRemove,
 }: {
   selected: KeyView;
   catalogue: Catalogue;
@@ -91,6 +93,7 @@ function KeyInspector({
   ) => Effect.Effect<Snapshot, unknown>;
   dirty: boolean;
   busy: boolean;
+  onRemove: () => Effect.Effect<Snapshot, unknown>;
 }) {
   const setDraft = onDraft;
   const [error, setError] = useState('');
@@ -172,7 +175,26 @@ function KeyInspector({
     <section className="inspector" aria-labelledby="inspector-title">
       <div className="inspector-heading">
         <h2 id="inspector-title">{`Touche ${selected.index + 1}`}</h2>
-        <span className="coordinate">{`${selected.row + 1} : ${selected.column + 1}`}</span>
+        <div className="inspector-key-actions">
+          <span className="coordinate">{`${selected.row + 1} : ${selected.column + 1}`}</span>
+          <button
+            type="button"
+            className="delete-key-button"
+            aria-label={`Supprimer la touche ${selected.index + 1}`}
+            title="Supprimer la touche"
+            disabled={
+              busy ||
+              selected.status === 'running' ||
+              selected.pressed ||
+              (!selected.binding && !draft.action)
+            }
+            onClick={() => {
+              void Api.run(onRemove()).catch((cause: unknown) => setError(messageOf(cause)));
+            }}
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
       <form onSubmit={(event) => event.preventDefault()}>
         <label className="field">
@@ -742,6 +764,7 @@ function App() {
                 editable={online && shortcutsActive && !editor.busy}
                 draft={dirty}
                 onOrganize={editor.organize}
+                onRemove={editor.remove}
                 onNavigate={editor.navigate}
                 disabledReason={
                   !online
@@ -991,6 +1014,7 @@ function App() {
               onSnapshot={acceptSnapshot}
               draft={editor.form(selectedKey) ?? draftOf(selectedKey.binding, catalogue)}
               onDraft={(draft) => editor.edit(selectedKey, draft)}
+              onRemove={() => editor.remove(selectedKey)}
               onOrganize={editor.organize}
               onNavigate={editor.navigate}
               dirty={dirty}

@@ -474,6 +474,38 @@ button.lcd-card-hit:hover:not(:disabled) {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.inspector-key-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.delete-key-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #ff9f9f;
+  border-color: transparent;
+  background: transparent;
+}
+.delete-key-button:hover:not(:disabled) {
+  background: #ff9f9f14;
+  border-color: #ff9f9f55;
+}
+.key-delete-preview {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #ff9f9f55;
+  border-radius: 7px;
+  color: #ff9f9f;
+  background: #292025;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .inspector form {
   margin-top: 26px;
 }

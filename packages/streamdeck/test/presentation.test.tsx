@@ -139,6 +139,7 @@ it.live(
               interactive={false}
               onOrganize={() => Effect.never}
               onNavigate={() => Effect.never}
+              onRemove={() => Effect.never}
             />,
           );
           assert.include(keyHtml, 'React counter');
