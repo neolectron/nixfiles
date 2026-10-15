@@ -12,6 +12,7 @@ const action = (id: string, name: string, method: Mpris.Command, icon: KeyFeedba
     description: 'Commande média standard du lecteur actif, sans changer le focus.',
     input: Plugin.NoInput,
     defaults: {},
+    tile: { label: name, icon },
     run: (api: Media.Controller) => api.command(method),
     unavailable: { icon, text: 'AUCUN MÉDIA', tone: 'neutral' },
     feedback: (api) =>

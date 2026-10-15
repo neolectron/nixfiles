@@ -13,9 +13,52 @@ import * as AppTiles from '../src/plugins/application-tiles.ts';
 import * as OpenAIApps from '../src/plugins/openai-apps.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import * as Spotify from '../src/plugins/spotify.ts';
+import * as Media from '../src/plugins/media.ts';
 import { Catalogue } from '../src/studio-contract.ts';
 import { PluginTiles } from '../web/plugin-tiles.tsx';
 import { KeyCard } from '../src/ui/key-card.tsx';
+import { supports } from '../src/tile-capabilities.ts';
+
+it('every standard media command exports an assignable tile with its icon and drag handle', () => {
+  const actions = Media.plugin.actions!.map((action) => ({
+    ...action.info,
+    plugin: Media.plugin.id,
+    pluginName: Media.plugin.name,
+  }));
+  const catalogue = Schema.decodeUnknownSync(Catalogue)({
+    actions: [],
+    applications: [],
+    pluginActions: actions,
+  });
+  assert.deepStrictEqual(
+    catalogue.pluginActions.map((action) => [action.id, action.tile?.icon]),
+    [
+      ['previous', 'previous'],
+      ['play-pause', 'play'],
+      ['next', 'next'],
+      ['play', 'play'],
+      ['pause', 'pause'],
+      ['stop', 'stop'],
+    ],
+  );
+  const html = renderToStaticMarkup(
+    <PluginTiles
+      actions={catalogue.pluginActions}
+      busy={false}
+      onChoose={() => {
+        throw new Error('Rendering must not execute or assign media actions');
+      }}
+    />,
+  );
+  for (const action of catalogue.pluginActions) {
+    assert.deepStrictEqual(Schema.decodeUnknownSync(Plugin.NoInput)(action.defaults), {});
+    assert.ok(supports(action, 'key'));
+    assert.ok(supports(action, 'lcd'));
+    assert.include(html, `aria-label="${action.name}"`);
+    assert.include(html, `aria-label="Glisser ${action.name} sur une touche ou le LCD"`);
+  }
+  assert.notInclude(html, 'Aucune tile exportée');
+});
 
 it.live('a plugin can export a tile with no custom renderer or feedback callback', () =>
   Effect.gen(function* () {
