@@ -70,6 +70,7 @@ export const plugin = Plugin.fromLayer({
   run,
   actions: [
     AppTiles.launch<Player.Controller & AppTiles.Applications>(AppTiles.spotify),
+    AppTiles.launch<Player.Controller & AppTiles.Applications>(AppTiles.spotifast),
     transport(
       'play-pause',
       'Lecture / pause',
