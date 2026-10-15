@@ -10,7 +10,6 @@ import { StreamDeck, discover } from './stream-deck.ts';
 import type { DeckEvent } from './model.ts';
 import { startHello } from './scripts/hello.ts';
 import { playground } from './scripts/playground.ts';
-import { playground as pluginPlayground } from './scripts/plugin-playground.ts';
 import { pages } from './scripts/pages.ts';
 import { gestures } from './scripts/gesture-playground.ts';
 import { mixer } from './scripts/audio-mixer.ts';
@@ -61,7 +60,7 @@ interface DeviceOptions {
 }
 
 const runDevice = (
-  kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer' | 'studio' | 'plugins' | 'gestures',
+  kind: 'hello' | 'events' | 'playground' | 'pages' | 'mixer' | 'studio' | 'gestures',
   options: DeviceOptions,
 ) =>
   Effect.gen(function* () {
@@ -127,24 +126,22 @@ const runDevice = (
             ? Stream.runForEach(events, observe)
             : kind === 'gestures'
               ? gestures
-              : kind === 'plugins'
-                ? pluginPlayground
-                : kind === 'pages'
-                  ? pages
-                  : kind === 'mixer'
-                    ? mixer({
-                        ...(options.step === undefined ? {} : { step: options.step }),
-                        ...(options.renderer === undefined ? {} : { renderer: options.renderer }),
-                      }).pipe(
-                        Effect.provide(
-                          options.mockAudio
-                            ? Audio.demoLayer
-                            : options.mock
-                              ? Audio.mockLayer
-                              : Audio.layer,
-                        ),
-                      )
-                    : playground);
+              : kind === 'pages'
+                ? pages
+                : kind === 'mixer'
+                  ? mixer({
+                      ...(options.step === undefined ? {} : { step: options.step }),
+                      ...(options.renderer === undefined ? {} : { renderer: options.renderer }),
+                    }).pipe(
+                      Effect.provide(
+                        options.mockAudio
+                          ? Audio.demoLayer
+                          : options.mock
+                            ? Audio.mockLayer
+                            : Audio.layer,
+                      ),
+                    )
+                  : playground);
         if (options.demo) {
           const fiber = yield* Effect.forkScoped(run);
           for (const event of Mock.demoEvents) yield* mock.emit(event);
@@ -294,11 +291,6 @@ const command = Command.make('streamdeck').pipe(
     'Stream Deck USB HID scripting with Effect v4. Ctrl+C releases the device and scoped plugin resources.',
   ),
   Command.withSubcommands([
-    Command.make('plugins', connectionFlags, (options) => runDevice('plugins', options)).pipe(
-      Command.withDescription(
-        'Editable plugin example: an Effect event source, React key display and physical key handler.',
-      ),
-    ),
     Command.make('gestures', connectionFlags, (options) => runDevice('gestures', options)).pipe(
       Command.withDescription(
         'Shared actions on short/long/double presses, encoders and touch; simulated hold, no microphone.',

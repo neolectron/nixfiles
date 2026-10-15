@@ -120,8 +120,8 @@ fresh services; transient counters/output reset, saved configuration survives.
 
 ## Connect a source in the studio
 
-Edit `packages/streamdeck/src/studio-plugins.ts`. The shipped example registers a
-clock source without enabling it. Replace its source, or register more plugins:
+Register personal plugins in `packages/streamdeck/src/studio-plugins.ts`.
+Create an Effect source and consume it in your plugin's scoped runner:
 
 ```ts
 import * as Sources from '@nixfiles/system-control/sources.ts';
@@ -129,14 +129,12 @@ import * as Sources from '@nixfiles/system-control/sources.ts';
 const source = Sources.poll(myService.currentState, '1 second').pipe(
   Stream.map((value) => value.title),
 );
-yield * host.install(EventDisplay.plugin(source, 0));
+const run = Plugin.listen(source, (title) => api.update(title));
 ```
 
-The example has React feedback and a physical press counter. It owns key index
-`0` (touch 1 in the UI); **Raccourcis** owns all keys, so disable Raccourcis before
-enabling the example. Mixer audio can remain enabled because it owns other
-controls. `pnpm cli plugins --mock --duration 3` runs the same example independently
-without HID or real audio. All entry points use Effect CLI and Node's `tsx` runtime loader.
+Declare the plugin's key, dial and LCD controls explicitly; the host checks
+ownership conflicts before activation. Keep app state and rendering in the
+plugin service, and return its runner from setup.
 
 `Sources.poll` returns an ordinary Effect `Stream`. Apply `Stream.map`, `filter`,
 `merge`, `changes`, `debounce`, or explicit retry/recovery before consumption.
@@ -442,9 +440,9 @@ element)` or `region(index, { x, y, width, height }, element)`. Key/LCD dimensio
 come from the claimed device; preview and physical feedback use the same pixels.
 An old activation cannot draw after disable, including after a later re-enable.
 
-Keep the React component pure and consume events in the Effect service. For
-example, `src/plugins/event-display.tsx` combines an external Stream with physical
-press events, updates a Ref and renders one key sequentially. Hooks/DOM interaction
+Keep the React component pure and consume events in the Effect service. Combine
+external Streams and physical events there, update state in a Ref and serialize
+redraws. Hooks/DOM interaction
 belong to the browser editor; hardware feedback remains raster images and HID
 reports. The mixer keeps its existing partial-region cache and gesture batching.
 

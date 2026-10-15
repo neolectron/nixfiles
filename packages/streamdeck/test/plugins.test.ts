@@ -19,7 +19,6 @@ import * as Sources from '@nixfiles/system-control/sources.ts';
 import * as Mock from '../src/mock.ts';
 import * as Audio from '@nixfiles/system-control/audio.ts';
 import { StreamDeck } from '../src/stream-deck.ts';
-import * as EventDisplay from '../src/plugins/event-display.tsx';
 import { startStudio } from '../src/scripts/studio.ts';
 
 it.live(
@@ -219,6 +218,9 @@ it.live(
         };
         yield* Effect.gen(function* () {
           const studio = yield* startStudio({ profile, applications: [], mock: true });
+          assert.ok(
+            !(yield* studio.snapshot).plugins.items.some((plugin) => plugin.id === 'event-display'),
+          );
           yield* studio.actions.save(0, {
             label: 'Count',
             action: 'counter',
@@ -355,41 +357,6 @@ it.live('a plugin can disable itself without waiting on its own scope', () =>
       }).pipe(Effect.scoped, Effect.provide(mock.layer()));
     }),
   ).pipe(Effect.timeout('5 seconds')),
-);
-
-it.live(
-  'the same React plugin consumes external streams and physical inputs with mirrored key feedback',
-  () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const mock = Mock.make();
-        yield* Effect.gen(function* () {
-          const host = yield* Host.make;
-          const handle = yield* host.install(EventDisplay.plugin(Stream.succeed('Hello source')));
-          yield* host.setEnabled(handle.id, true);
-          const state = handle.use((api) => api.state);
-          yield* Effect.repeat(state, {
-            until: (view) => view.message === 'Hello source',
-            schedule: Schedule.spaced(1),
-          });
-          yield* mock.emit({ _tag: 'KeyDown', key: 0 });
-          const pressed = yield* Effect.repeat(state, {
-            until: (view) => view.presses === 1,
-            schedule: Schedule.spaced(1),
-          });
-          assert.strictEqual(pressed.message, 'Hello source');
-          yield* mock.emit({ _tag: 'KeyDown', key: 1 });
-          assert.strictEqual((yield* state).presses, 1);
-          assert.ok(
-            mock.writes.filter((write) => write.kind === 'key' && write.index === 0).length >= 2,
-          );
-          yield* host.setEnabled(handle.id, false);
-          const last = mock.writes.at(-1)!;
-          assert.strictEqual(last.kind, 'key');
-          assert.ok('image' in last && last.image.data.every((channel) => channel === 0));
-        }).pipe(Effect.scoped, Effect.provide(mock.layer()));
-      }),
-    ).pipe(Effect.timeout('5 seconds')),
 );
 
 it.live('disabling shortcuts terminates only their scoped command processes', () =>
