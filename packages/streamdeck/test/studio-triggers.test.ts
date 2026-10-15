@@ -7,6 +7,7 @@ import * as Mock from '../src/mock.ts';
 import * as Actions from '../src/studio-actions.tsx';
 import * as Audio from '@nixfiles/system-control/audio.ts';
 import * as Talk from '../src/plugins/push-to-talk.ts';
+import * as OpenAI from '../src/plugins/openai-apps.ts';
 import { ButtonBinding } from '../src/studio-contract.ts';
 import { StreamDeck } from '../src/stream-deck.ts';
 import { httpApp, startStudio } from '../src/scripts/studio.ts';
@@ -164,13 +165,16 @@ it.effect(
             profile: `${directory}/profile.json`,
             applications: [],
             mock: true,
-            configurePlugins: (host) => host.install(Talk.plugin(target)),
+            configurePlugins: (host) =>
+              host
+                .install(OpenAI.plugin)
+                .pipe(Effect.provide(Layer.merge(target, NodeServices.layer))),
           });
-          yield* studio.setPlugin({ id: 'dot-voice', enabled: true, expected: false });
+          yield* studio.setPlugin({ id: 'openai-apps', enabled: true, expected: false });
           const binding = {
             label: 'Talk',
             action: 'plugin',
-            parameters: { plugin: 'dot-voice', command: 'talk', input: {} },
+            parameters: { plugin: 'openai-apps', command: 'talk', input: {} },
             trigger: { type: 'long-press', milliseconds: 100 },
           };
           yield* studio.actions.save(0, binding);

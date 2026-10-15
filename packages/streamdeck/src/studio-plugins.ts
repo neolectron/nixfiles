@@ -4,7 +4,6 @@ import * as Sources from '@nixfiles/system-control/sources.ts';
 import * as EventDisplay from './plugins/event-display.tsx';
 import * as Obs from './plugins/obs.ts';
 import * as Discord from './plugins/discord.ts';
-import * as PushToTalk from './plugins/push-to-talk.ts';
 import * as Spotify from './plugins/spotify.ts';
 import * as Media from './plugins/media.ts';
 import * as OpenAIApps from './plugins/openai-apps.ts';
@@ -27,5 +26,4 @@ export const configure = (host: Effect.Success<typeof make>) =>
     yield* host.install(Appearance.plugin);
     yield* host.install(NotesPlugin.plugin);
     yield* host.install(System.plugin);
-    yield* host.install(PushToTalk.plugin(PushToTalk.VoiceTarget.commandLayer));
   });

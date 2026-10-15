@@ -74,7 +74,7 @@ it.live(
           );
           assert.strictEqual(
             (yield* host.catalogue).filter((action) => action.plugin === 'openai-apps').length,
-            9,
+            10,
           );
           assert.strictEqual(started, 0);
           yield* Ref.set(state, Result.succeed(Dot.idle));

@@ -35,7 +35,7 @@ import type { Device } from './stream-deck.ts';
 import * as Takumi from './takumi.ts';
 import { KeyCard } from './ui/key-card.tsx';
 import type { KeyFeedback } from './key-feedback.ts';
-import { mergeDiscordActions } from './studio-profile-migrations.ts';
+import { mergeDiscordActions, mergeOpenAIActions } from './studio-profile-migrations.ts';
 import * as Input from './studio-input.ts';
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A,>(run: () => A) =>
@@ -210,8 +210,10 @@ export const makeWithState = (
             ],
             folders: [],
           };
-    const loaded = mergeDiscordActions(originalProfile);
-    let previousDiscordText = loaded !== originalProfile ? originalText : undefined;
+    const discordProfile = mergeDiscordActions(originalProfile);
+    let previousDiscordText = discordProfile !== originalProfile ? originalText : undefined;
+    const loaded = mergeOpenAIActions(discordProfile);
+    let previousDotText = loaded !== discordProfile ? originalText : undefined;
     yield* checked(() => Layout.validate(loaded, deviceKeys));
     const model = yield* Ref.make({
       profile: loaded,
@@ -397,6 +399,11 @@ export const makeWithState = (
           (yield* storage.get(`${profileKey}.discord-share.backup`)) === undefined
         )
           yield* storage.set(`${profileKey}.discord-share.backup`, previousDiscordText);
+        if (
+          previousDotText !== undefined &&
+          (yield* storage.get(`${profileKey}.dot-voice.backup`)) === undefined
+        )
+          yield* storage.set(`${profileKey}.dot-voice.backup`, previousDotText);
         yield* Effect.gen(function* () {
           yield* profileDocument.set(validated);
           yield* Ref.update(model, (before) => ({
@@ -407,6 +414,7 @@ export const makeWithState = (
           }));
           legacyText = undefined;
           previousDiscordText = undefined;
+          previousDotText = undefined;
         }).pipe(Effect.uninterruptible);
       });
     const navigateUnlocked = (command: Navigate) =>

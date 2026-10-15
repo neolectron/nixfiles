@@ -54,6 +54,10 @@ it.live(
             setup: Effect.succeed({
               api: {
                 dot,
+                voice: {
+                  ready: Effect.void,
+                  hold: () => Effect.die('Unexpected microphone access'),
+                },
                 selection: { transform: () => Effect.die('Unexpected selection access') },
                 prompts: {
                   busy: Effect.succeed(false),

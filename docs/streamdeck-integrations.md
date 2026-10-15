@@ -1,6 +1,7 @@
 # Application plugins
 
-The studio registers OBS, one Discord plugin, Spotify and Dot push-to-talk.
+The studio registers OBS, one Discord plugin, Spotify and ChatGPT / Codex, which
+also exports the Dot push-to-talk action.
 They start disabled and own no physical controls. Choose **Action d’un plugin**
 on a shortcut, select its feature/action and save it. Enable its feature once the
 corresponding connection is configured. Enabling establishes services; it does
@@ -179,31 +180,35 @@ after restart. Unrelated plugin preferences and OAuth credentials are preserved.
 ## Dot push-to-talk
 
 `src/plugins/push-to-talk.ts` defines `VoiceTarget` with `start` and `stop` Effects.
-Its plugin receives the Layer explicitly, so a native client API can replace a
-command bridge without changing bindings:
+The ChatGPT / Codex plugin exports its `talk` action and reuses an injected
+`VoiceTarget`, so a native client API can replace the command bridge without
+changing bindings:
 
 ```ts
 import { Layer } from 'effect';
 import * as Talk from '../plugins/push-to-talk.ts';
+import * as OpenAI from '../plugins/openai-apps.ts';
+import { Effect } from 'effect';
 
 // dot.begin / dot.end are your already-connected application's Effects.
 const target = Layer.succeed(Talk.VoiceTarget, {
   start: dot.begin,
   stop: dot.end,
 });
-yield * host.install(Talk.plugin(target));
+yield* host.install(OpenAI.plugin).pipe(Effect.provide(target));
 ```
 
 The default registration uses `VoiceTarget.commandLayer`, configured with two
 literal argv arrays: `STREAMDECK_DOT_START` and `STREAMDECK_DOT_STOP`. Both are
-required. Setup resolves commands but never runs them. A bridge command has a
+required for the hold action. Missing commands leave the ChatGPT / Codex plugin
+available and the tile shows **À CONNECTER**. Setup resolves commands but never
+runs them. A bridge command has a
 five-second limit and scoped subprocess cleanup; it must control the external
 application and exit promptly, rather than remain as a microphone capture process.
 The existing Codex Dot voice UI is not connected by this bridge automatically.
 Its actual supported control interface still needs to be identified.
 The real profile reserves key 28 (bottom left) for **Parler au dot**. It shows
-**À CONNECTER** and the feature remains disabled while the start/stop bridge is
-missing. The key assignment does not start microphone capture or establish an
+**À CONNECTER** while the start/stop bridge is missing. The key assignment does not start microphone capture or establish an
 OpenAI voice connection.
 
 The action declares `interaction: 'hold'`. Its invocation receives

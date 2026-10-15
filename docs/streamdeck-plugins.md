@@ -71,8 +71,10 @@ second through one shared Desktop service. A press rechecks windows before openi
 or focusing. Launching uses literal `gio launch` arguments and unreferences the
 launcher, so disabling the plugin does not terminate the user’s GUI application.
 
-ChatGPT / Codex launch tiles are separate from Dot push-to-talk: opening an app
-needs neither microphone capture nor a configured voice bridge. OBS activation
+ChatGPT / Codex groups app launch, prompts, text selection, Dot calls and the
+**Parler au dot** hold tile under `openai-apps`. Opening an app needs neither
+microphone capture nor a configured voice bridge. Missing voice bridges only
+affect the hold action; activation and other actions remain available. OBS activation
 is independent of WebSocket availability. Its managed system Layer owns background
 reconnects; offline RPC actions return `IntegrationError` and leave launch/configuration
 available. Launching OBS never starts recording. These are key-action presets,
@@ -783,8 +785,12 @@ JSON object. See the system-control README for the contract.
 
 The external application owns its call. Disabling the plugin stops observation
 and revokes controls; it does not hang up a call that may have been started
-elsewhere. **Raccrocher** is the explicit end-call action. Existing **Dot ·
-push-to-talk** and its hold/release cleanup remain separate and unchanged.
+elsewhere. **Raccrocher** is the explicit end-call action. The **Parler au dot** hold action belongs to the same **ChatGPT / Codex**
+plugin, with independent hold/release cleanup. Disabling this plugin releases
+any active hold; it does not end a separately owned call. Legacy `dot-voice/talk`
+bindings migrate to `openai-apps/talk`, preserving labels, gestures, IDs and
+positions. The next profile save preserves the original in `.dot-voice.backup`.
+Activation preferences merge once and the obsolete toggle is removed.
 
 Reference: [OpenAI Dot calls](https://learn.chatgpt.com/docs/dots/channels#chatgpt-and-voice).
 

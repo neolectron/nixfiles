@@ -59,6 +59,10 @@ it.live(
             setup: Effect.succeed({
               api: {
                 dot,
+                voice: {
+                  ready: Effect.void,
+                  hold: () => Effect.die('Unexpected microphone access'),
+                },
                 prompts: {
                   busy: Effect.succeed(false),
                   run: () => Effect.die('Unexpected prompt job'),
@@ -76,7 +80,10 @@ it.live(
           }),
         );
         const catalogue = yield* host.catalogue;
-        assert.strictEqual(catalogue.filter((action) => action.plugin === 'openai-apps').length, 9);
+        assert.strictEqual(
+          catalogue.filter((action) => action.plugin === 'openai-apps').length,
+          10,
+        );
         assert.strictEqual(calls, 0);
         yield* host.validateAction('openai-apps', 'transform-selection', {
           prompt: 'Custom instruction',

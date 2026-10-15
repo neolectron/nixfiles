@@ -19,6 +19,7 @@ import * as Obs from '../src/plugins/obs.ts';
 import { DiscordTransport } from '@nixfiles/system-control/discord-ipc.ts';
 import * as Discord from '../src/plugins/discord.ts';
 import * as Talk from '../src/plugins/push-to-talk.ts';
+import * as OpenAI from '../src/plugins/openai-apps.ts';
 import { commandFromConfig } from '../src/plugins/command-bridge.ts';
 import * as Mock from '../src/mock.ts';
 import * as Audio from '@nixfiles/system-control/audio.ts';
@@ -259,13 +260,16 @@ it.live(
               profile: `${dir}/profile.json`,
               applications: [],
               mock: true,
-              configurePlugins: (host) => host.install(Talk.plugin(target)),
+              configurePlugins: (host) =>
+                host
+                  .install(OpenAI.plugin)
+                  .pipe(Effect.provide(Layer.merge(target, NodeServices.layer))),
             });
-            yield* studio.setPlugin({ id: 'dot-voice', enabled: true, expected: false });
+            yield* studio.setPlugin({ id: 'openai-apps', enabled: true, expected: false });
             yield* studio.actions.save(0, {
               label: 'Parler',
               action: 'plugin',
-              parameters: { plugin: 'dot-voice', command: 'talk', input: {} },
+              parameters: { plugin: 'openai-apps', command: 'talk', input: {} },
             });
             const address = (yield* studio.snapshot).keys[0]!.address;
             yield* mock.emit({ _tag: 'KeyDown', key: 0 });
@@ -297,7 +301,7 @@ it.live(
               until: (n) => n === 2,
               schedule: Schedule.spaced(1),
             });
-            yield* studio.setPlugin({ id: 'dot-voice', enabled: false, expected: true });
+            yield* studio.setPlugin({ id: 'openai-apps', enabled: false, expected: true });
             assert.strictEqual(yield* Ref.get(stops), 2);
             yield* Effect.repeat(studio.snapshot, {
               until: (view) => view.keys[0]!.status === 'error',
