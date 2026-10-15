@@ -37,6 +37,16 @@ it.effect(
           yield* studio.actions.save(0, counter('long-press'));
           yield* studio.actions.save(1, counter('double-tap'));
           yield* studio.actions.save(2, counter('press'));
+          // The gesture clock does not flush asynchronous persistence I/O.
+          const waitForCount = (key: number, count: number) =>
+            studio.snapshot.pipe(
+              Effect.repeat({
+                until: (view) => view.keys[key]?.count === count,
+                schedule: Schedule.spaced(1),
+              }),
+              Effect.timeout('2 seconds'),
+              TestClock.withLive,
+            );
           const router = yield* Effect.forkScoped(studio.run);
           yield* mock.emit({ _tag: 'KeyDown', key: 0 });
           yield* TestClock.adjust(50);
@@ -45,6 +55,7 @@ it.effect(
           assert.strictEqual((yield* studio.snapshot).keys[0]!.count, 0);
           yield* mock.emit({ _tag: 'KeyDown', key: 0 });
           yield* TestClock.adjust(100);
+          yield* waitForCount(0, 1);
           assert.strictEqual((yield* studio.snapshot).keys[0]!.count, 1);
           yield* TestClock.adjust(1000);
           yield* mock.emit({ _tag: 'KeyUp', key: 0 });
@@ -61,18 +72,12 @@ it.effect(
           assert.strictEqual((yield* studio.snapshot).keys[1]!.count, 0);
           yield* TestClock.adjust(50);
           yield* tap(1);
+          yield* waitForCount(1, 1);
           assert.strictEqual((yield* studio.snapshot).keys[1]!.count, 1);
           yield* tap(2);
           // HID emission queues the callback; wait for the routed job, without
           // advancing the gesture clock or relying on a scheduler flush.
-          yield* studio.snapshot.pipe(
-            Effect.repeat({
-              until: (view) => view.keys[2]?.count === 1,
-              schedule: Schedule.spaced(1),
-            }),
-            Effect.timeout('2 seconds'),
-            TestClock.withLive,
-          );
+          yield* waitForCount(2, 1);
           assert.strictEqual((yield* studio.snapshot).keys[2]!.count, 1);
           yield* Fiber.interrupt(router);
           const saved = JSON.parse(yield* fs.readFileString(profile));
