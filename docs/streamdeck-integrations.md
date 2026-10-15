@@ -67,8 +67,13 @@ plugin. Starting the app never starts recording or broadcasting.
 `packages/streamdeck/src/plugins/obs.ts` implements [obs-websocket 5](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
 through Effect's Socket and Crypto services: Hello/Identify/Identified, SHA-256
 challenge authentication, correlated requests, bounded timeouts and scoped close.
-It exposes status, record/stream toggles, virtual camera, save replay, scene
-selection and input mute. Only explicit action execution sends these commands.
+All 20 actions appear as draggable tiles: app launch, status, record/stream toggles,
+explicit start/stop, recording pause/resume and pause toggle, virtual-camera
+start/stop/toggle, replay-buffer start/stop/toggle/save, scene selection and input
+mute. Tiles work on keys and LCD; scene/source names remain editable parameters.
+Existing action IDs are preserved. Palette rendering and activation never send
+output commands. Connected tiles show PRÊT; offline controls show HORS LIGNE.
+Only explicit action execution sends these commands.
 The read-only status action is the first real connection check to use.
 
 Enable OBS's WebSocket server in **Tools → WebSocket Server Settings**. Connection
