@@ -7,7 +7,6 @@
     "./presentation": "./src/presentation.tsx",
     "./react-mixer": "./src/react-mixer.tsx",
     "./studio-actions": "./src/studio-actions.tsx",
-    "./plugins/event-display": "./src/plugins/event-display.tsx",
     "./plugins/spotify-lcd": "./src/plugins/spotify-lcd.tsx",
     "./ui/*": "./src/ui/*.tsx",
     "./*": "./src/*.ts"

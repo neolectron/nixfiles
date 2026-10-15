@@ -155,13 +155,7 @@ connections continue while their presentation is disabled, so other consumers
 can keep using them. `Sources` now comes from
 `@nixfiles/system-control/sources.ts`.
 
-Register personal plugins in `src/studio-plugins.ts`. The inactive **Exemple :
-événements** demonstrates an Effect source, React rendering and key presses.
-It can own touch 1 after Raccourcis is disabled. The same script runs in isolation:
-
-```sh
-pnpm cli plugins --mock --duration 3
-```
+Register personal plugins in `src/studio-plugins.ts`.
 
 Use `Plugin.fromLayer` for a feature service, `Plugin.define` for a small scoped
 Effect, `Plugin.listen` for any Stream, `Sources.callback` for SDK events or
