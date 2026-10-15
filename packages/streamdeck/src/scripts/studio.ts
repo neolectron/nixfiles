@@ -11,6 +11,7 @@ import * as NotesPlugin from '../plugins/notes.ts';
 import { Discord as SystemDiscord } from '@nixfiles/system-control/discord.ts';
 import { invariant } from '../errors.ts';
 import { NodeHttpServer } from '@effect/platform-node';
+import { serveFrontend } from '../studio-server.ts';
 import {
   ByteSize,
   Console,
@@ -1155,8 +1156,9 @@ export const httpApp = (controller: Controller, origins: ReadonlyArray<string>) 
       .asHttpEffect()
       .pipe(Effect.provideService(HttpIncomingMessage.MaxBodySize, ByteSize.bytes(65536)));
   });
-/** Vite serves the frontend on demand; Effect platform owns each API request. */
+/** Effect owns API requests; packaged services serve a precompiled frontend. */
 export const studio = (options: {
+  production?: boolean;
   audio?: 'live' | 'demo';
   port: number;
   profile: string;
@@ -1178,45 +1180,12 @@ export const studio = (options: {
     const handler = yield* NodeHttpServer.makeHandler(app, { scope });
     const path = yield* Path.Path;
     const root = yield* path.fromFileUrl(new URL('../../web', import.meta.url));
-    const vite = yield* Effect.tryPromise(() => import('vite'));
-    const server = yield* Effect.acquireRelease(
-      Effect.tryPromise(() =>
-        vite.createServer({
-          configFile: false,
-          root,
-          server: { host: '127.0.0.1', port: options.port, strictPort: true },
-          plugins: [
-            {
-              name: 'effect-studio-api',
-              handleHotUpdate(context) {
-                // Node watch restarts shared backend modules; Vite reconnects after readiness.
-                if (
-                  [
-                    'studio-contract.ts',
-                    'discord-contract.ts',
-                    'key-feedback.ts',
-                    'ui/key-card.ts',
-                  ].some((file) => context.file === path.resolve(root, `../src/${file}`))
-                )
-                  return [];
-              },
-              configureServer(currentServer) {
-                currentServer.middlewares.use((request, response, next) =>
-                  request.url?.startsWith('/api/') ? handler(request, response) : next(),
-                );
-              },
-            },
-          ],
-        }),
-      ),
-      (candidateServer) =>
-        Effect.promise(() => {
-          if (candidateServer.httpServer && 'closeAllConnections' in candidateServer.httpServer)
-            candidateServer.httpServer.closeAllConnections();
-          return candidateServer.close();
-        }),
-    );
-    yield* Effect.tryPromise(() => server.listen());
+    yield* serveFrontend({
+      root,
+      port: options.port,
+      production: options.production ?? false,
+      handler,
+    });
     yield* Console.log(
       JSON.stringify({
         kind: 'studio-ready',

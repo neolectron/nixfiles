@@ -57,6 +57,7 @@ interface DeviceOptions {
   readonly port?: number;
   readonly profile?: Option.Option<string>;
   readonly storage?: 'file' | 'memory';
+  readonly production?: boolean;
 }
 
 const runDevice = (
@@ -104,6 +105,7 @@ const runDevice = (
                 );
                 return module.studio({
                   port: options.port ?? 3900,
+                  production: options.production ?? false,
                   profile: Option.getOrElse(options.profile ?? Option.none(), () => fallback),
                   ...(options.storage === 'memory'
                     ? { persistence: StateStorage.layerMemory }
@@ -254,6 +256,10 @@ const previewCommand = Command.make(
 const studioCommand = Command.make(
   'studio',
   {
+    production: Flag.Boolean('production').pipe(
+      Flag.withDefault(false),
+      Flag.withDescription('Serve the packaged web-dist frontend without development watchers.'),
+    ),
     ...connectionFlags,
     storage: Flag.Literals('storage', ['file', 'memory']).pipe(
       Flag.withDefault('file'),
