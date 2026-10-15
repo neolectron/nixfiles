@@ -7,29 +7,40 @@ import { CodexPrompt } from '@nixfiles/system-control/codex-prompt.ts';
 import * as Prompt from './openai-prompt.ts';
 import * as Dot from '@nixfiles/system-control/dot-call.ts';
 import * as Call from './openai-call.ts';
+import * as Talk from './push-to-talk.ts';
 
 export class OpenAIApps extends Context.Service<
   OpenAIApps,
-  AppTiles.Applications & Text.SelectionActions & Prompt.PromptActions & Call.CallActions
+  AppTiles.Applications &
+    Text.SelectionActions &
+    Prompt.PromptActions &
+    Call.CallActions &
+    Talk.VoiceActions
 >()('@nixfiles/streamdeck/OpenAIApps') {
   static readonly layer = Layer.effect(
     OpenAIApps,
     Effect.gen(function* () {
+      const provided = yield* Effect.serviceOption(Talk.VoiceTarget);
+      const target =
+        provided._tag === 'Some'
+          ? provided.value
+          : Context.get(yield* Layer.build(Talk.VoiceTarget.commandLayer), Talk.VoiceTarget);
       return {
         desktop: yield* AppTiles.desktop,
         selection: yield* TextSelection,
         prompts: yield* CodexPrompt,
         dot: yield* Dot.shared,
+        voice: yield* Talk.make.pipe(Effect.provideService(Talk.VoiceTarget, target)),
       };
     }),
   ).pipe(Layer.provide(Layer.merge(TextSelection.layer, CodexPrompt.layer)));
 }
-/** App launch is independent of the microphone/hold-to-talk plugin. */
+/** Optional voice bridges never prevent launch, prompt or selection actions from activating. */
 export const plugin = Plugin.fromLayer({
   id: 'openai-apps',
   name: 'ChatGPT / Codex',
   description:
-    'Applications OpenAI, appels du dot, prompts Codex et transformation du texte sélectionné.',
+    'Applications OpenAI, appels et push-to-talk du dot, prompts Codex et transformation du texte sélectionné.',
   controls: {},
   service: OpenAIApps,
   layer: OpenAIApps.layer,
@@ -37,6 +48,7 @@ export const plugin = Plugin.fromLayer({
     AppTiles.launch(AppTiles.chatgpt),
     AppTiles.launch(AppTiles.codex),
     Prompt.action,
+    Talk.action,
     ...Call.actions,
     ...Text.actions,
   ],

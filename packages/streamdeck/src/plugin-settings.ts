@@ -1,7 +1,9 @@
 import { Effect, Layer, Option, Path, Schema } from 'effect';
 import { PersistentState } from '@nixfiles/system-control/persistent-state.ts';
 import * as FileStorage from '@nixfiles/system-control/state-storage-file.ts';
-import { mergeDiscordPreferences } from './studio-profile-migrations.ts';
+import { mergeDiscordPreferences, mergeOpenAIPreferences } from './studio-profile-migrations.ts';
+const migrate = (enabled: Readonly<Record<string, boolean>>) =>
+  mergeOpenAIPreferences(mergeDiscordPreferences(enabled));
 
 const Settings = Schema.Struct({
   version: Schema.Literal(1),
@@ -12,12 +14,12 @@ export const makeWithState = (key: string) =>
   Effect.gen(function* () {
     const document = (yield* PersistentState).document(key, Settings);
     const loaded = Option.getOrUndefined(yield* document.get)?.enabled ?? {};
-    const initial = mergeDiscordPreferences(loaded);
+    const initial = migrate(loaded);
     if (initial !== loaded)
       yield* document.modify((value) =>
         Effect.succeed({
           version: 1,
-          enabled: mergeDiscordPreferences(Option.getOrUndefined(value)?.enabled ?? {}),
+          enabled: migrate(Option.getOrUndefined(value)?.enabled ?? {}),
         }),
       );
     return {
