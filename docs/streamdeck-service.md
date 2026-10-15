@@ -35,9 +35,11 @@ running another hardware owner.
 
 The service requires read/write access to the deck's hidraw device. A visible
 USB device alone does not prove it can be opened. An active-session `uaccess`
-rule can provide access scoped to the confirmed device model; this integration
-does not grant that permission itself. If missing, obtain approval for the exact
-host-specific rule before changing permissions. Do not use a root service,
+rule provides access scoped to the confirmed device model. Frostbit declares the
+approved `0fd9:00c6` rule in `hosts/frostbit/config/streamdeck.nix`, packaged as
+`70-streamdeck.rules` so it runs before `73-seat-late.rules` assigns the ACL.
+Do not put this tag in `services.udev.extraRules`: its `99-local.rules` runs too
+late. Other hosts must approve and declare their own rule. Do not use a root service,
 world-writable hidraw nodes or blanket input-device rules as a workaround.
 
 ## Build and targeted activation
@@ -89,3 +91,27 @@ recovery after a process failure. An enabled service or a healthy HTTP response
 alone does not prove USB ownership. The Nix package's install check also renders
 a React preview outside the checkout to catch missing JSX configuration,
 fonts, or native runtime libraries.
+
+## Targeted USB activation on frostbit
+
+The approved rule can be built separately:
+
+```bash
+nix build .#frostbit-streamdeck-udev-rules
+udevadm verify result/lib/udev/rules.d/70-streamdeck.rules
+```
+
+Before a full NixOS switch, the same immutable Nix-generated rule can be linked
+into `/usr/local/lib/udev/rules.d/70-streamdeck.rules`. Udev reads that persistent
+local directory on boot; this leaves the current system generation unchanged.
+Protect the rule's store output with an indirect GC root alongside the service
+root. Use a one-shot, GUI-authorized `run0 --pipe` invocation to create only that
+link, reload udev rules, and trigger only the confirmed deck's hidraw sysfs path.
+Do not overwrite a different existing rule or trigger unrelated devices. Never
+provide credentials in a terminal or in chat.
+
+After a later authorized full switch, `/etc/udev/rules.d/70-streamdeck.rules`
+contains the declared rule and takes precedence over the local copy. The
+bootstrap link and its GC root can then be removed after checking the contents
+match. No additional root service, retained authorization, group membership,
+chmod, or direct ACL modification is needed.
