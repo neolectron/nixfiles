@@ -71,26 +71,28 @@ registration requires separate explicit approval and is not enabled here.
 
 ## Local TypeScript tools
 
-The pnpm workspace contains `packages/streamdeck` and `packages/keep-awake-mcp`.
-Existing Nix packages stay in place; `packages/node-global-packages` retains its
-standalone npm build and is excluded from the workspace.
+The pnpm workspace contains `packages/system-control`, `packages/streamdeck`
+and `packages/keep-awake-mcp`. Existing Nix packages stay in place;
+`packages/node-global-packages` retains its standalone npm build and is excluded
+from the workspace.
 
 ```sh
 nix-shell packages/streamdeck/shell.nix
 pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm check
 pnpm streamdeck:demo
 ```
 
-`pnpm test` runs both packages' mocked suites. The real keep-awake integration
-smoke is opt-in (`pnpm keep-awake:smoke`); Stream Deck hardware tests await the
-device. See [Stream Deck commands](packages/streamdeck/README.md) and
-[keep-awake installation](packages/keep-awake-mcp/README.md). The latter can use
-its retained Nix package output directly, without activating the entire host.
-No persistent MCP registration or Stream Deck udev permissions are enabled by
-these repository commands.
+`pnpm check` runs lint, formatting, type checks and tests. TypeScript runs directly
+through Node and tsx; these tools do not have a build script. The real keep-awake
+integration smoke is opt-in (`pnpm keep-awake:smoke`).
+
+Frostbit enables the Nix-packaged Stream Deck Studio user service at graphical
+login, with a device-specific active-session USB access rule. See
+[automatic startup and targeted activation](docs/streamdeck-service.md),
+[Stream Deck commands](packages/streamdeck/README.md), and
+[keep-awake installation](packages/keep-awake-mcp/README.md). MCP client
+registration remains separate.
 
 ## How this repo works
 
