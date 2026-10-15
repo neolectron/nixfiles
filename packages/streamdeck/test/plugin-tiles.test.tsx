@@ -19,6 +19,92 @@ import { PluginTiles } from '../web/plugin-tiles.tsx';
 import { KeyCard } from '../src/ui/key-card.tsx';
 import { supports } from '../src/tile-capabilities.ts';
 
+it.live(
+  'OBS exports every control as a tile and routes explicit commands without executing during rendering',
+  () =>
+    Effect.gen(function* () {
+      const actions = Obs.plugin.actions!;
+      const requests: Array<{ type: string; input: unknown }> = [];
+      const api: Obs.Controller = {
+        state: Effect.succeed({ connected: true }),
+        snapshot: Effect.succeed(Result.succeed({ connected: true })),
+        observe: Stream.empty,
+        request: (type, input = {}) =>
+          Effect.sync(() => {
+            requests.push({ type, input });
+            return {};
+          }),
+      };
+      const catalogue = Schema.decodeUnknownSync(Catalogue)({
+        actions: [],
+        applications: [],
+        pluginActions: actions.map((action) => ({
+          ...action.info,
+          plugin: 'obs',
+          pluginName: 'OBS Studio',
+        })),
+      });
+      const html = renderToStaticMarkup(
+        <PluginTiles
+          actions={catalogue.pluginActions}
+          busy={false}
+          onChoose={() => {
+            throw new Error('Palette rendering must not trigger OBS');
+          }}
+        />,
+      );
+      assert.strictEqual(catalogue.pluginActions.length, 20);
+      for (const action of catalogue.pluginActions) {
+        assert.ok(action.tile);
+        assert.ok(supports(action, 'key'));
+        assert.ok(supports(action, 'lcd'));
+        assert.include(html, `aria-label="${action.name}"`);
+        assert.include(html, `aria-label="Glisser ${action.name} sur une touche ou le LCD"`);
+      }
+      assert.deepStrictEqual(requests, []);
+      const expected = [
+        ['status', 'GetRecordStatus'],
+        ['record', 'ToggleRecord'],
+        ['start-record', 'StartRecord'],
+        ['stop-record', 'StopRecord'],
+        ['pause-record', 'PauseRecord'],
+        ['resume-record', 'ResumeRecord'],
+        ['toggle-record-pause', 'ToggleRecordPause'],
+        ['stream', 'ToggleStream'],
+        ['start-stream', 'StartStream'],
+        ['stop-stream', 'StopStream'],
+        ['virtual-camera', 'ToggleVirtualCam'],
+        ['start-virtual-camera', 'StartVirtualCam'],
+        ['stop-virtual-camera', 'StopVirtualCam'],
+        ['start-replay', 'StartReplayBuffer'],
+        ['stop-replay', 'StopReplayBuffer'],
+        ['toggle-replay', 'ToggleReplayBuffer'],
+        ['save-replay', 'SaveReplayBuffer'],
+      ] as const;
+      for (const [id, type] of expected) {
+        const action = actions.find((action) => action.info.id === id)!;
+        yield* action.validate({});
+        yield* action.feedback!(api, {});
+        assert.strictEqual(
+          requests.length,
+          expected.findIndex((item) => item[0] === id),
+        );
+        yield* action.execute(api, {}, { output: () => Effect.void });
+        assert.deepStrictEqual(requests.at(-1), { type, input: {} });
+      }
+      yield* actions
+        .find((action) => action.info.id === 'scene')!
+        .execute(api, { sceneName: 'Camera' }, { output: () => Effect.void });
+      yield* actions
+        .find((action) => action.info.id === 'mute-input')!
+        .execute(api, { inputName: 'Micro' }, { output: () => Effect.void });
+      assert.deepStrictEqual(requests.slice(-2), [
+        { type: 'SetCurrentProgramScene', input: { sceneName: 'Camera' } },
+        { type: 'ToggleInputMute', input: { inputName: 'Micro' } },
+      ]);
+    }).pipe(Effect.provide(Mock.make().layer())),
+);
+
 it('every standard media command exports an assignable tile with its icon and drag handle', () => {
   const actions = Media.plugin.actions!.map((action) => ({
     ...action.info,
@@ -191,9 +277,19 @@ it.live(
               'obs',
             );
             yield* host.validateAction('obs', 'launch', {});
+            yield* host.validateAction('obs', 'start-record', {});
+            yield* host.validateAction('obs', 'start-stream', {});
+            assert.ok(catalogue.every((action) => action.tile));
             yield* host.setEnabled('obs', true);
             assert.ok((yield* host.snapshot).items.find((item) => item.id === 'obs')?.enabled);
             assert.ok(Result.isFailure(yield* Effect.result(host.invoke('obs', 'record', {}))));
+            assert.ok(
+              Result.isFailure(yield* Effect.result(host.invoke('obs', 'start-record', {}))),
+            );
+            assert.strictEqual(
+              (yield* host.feedback('obs', 'start-record', {}))?.text,
+              'HORS LIGNE',
+            );
             assert.ok((yield* host.snapshot).items.find((item) => item.id === 'obs')?.enabled);
             assert.strictEqual((yield* host.feedback('obs', 'launch', {}))?.text, 'FERMÉ');
             yield* host.invoke('obs', 'launch', {});
