@@ -33,8 +33,9 @@ uses the deck's key renderer at a smaller scale, with a separate six-dot grip.
 Clicking prepares a draft on the selected key; dragging prepares it on the target
 key. Both return to Édition; saving is explicit and neither executes the action.
 Disabled plugins keep their tiles available.
-Layout and tile edits share one browser-local draft, with Enregistrer and Annuler
-above the device. Switching keys keeps every form, including incomplete fields.
+Layout and tile edits share one browser-local draft. A single row above the device
+groups the profile, model and draft status. Enregistrer and Annuler appear there
+only while changes are pending, and remain visible during saving. Switching keys keeps every form, including incomplete fields.
 Dragging, pinning, creating folders/zones/pages and editing tile parameters only
 change the preview. Save submits the whole configuration once. Unsaved key actions
 are inactive; folder/back/page faces navigate the draft locally. Audio controls
