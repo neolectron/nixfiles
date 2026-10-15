@@ -326,6 +326,9 @@ small {
   opacity: 0.45;
   cursor: grabbing;
 }
+.deck-key.pending .deck-key-action {
+  opacity: 0.45;
+}
 .deck-key.drop-target {
   outline: 3px dashed var(--accent);
   outline-offset: 3px;

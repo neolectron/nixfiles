@@ -765,6 +765,7 @@ function App() {
                 selected={selection.kind === 'key' ? selection.index : null}
                 editable={online && shortcutsActive && !editor.busy}
                 draft={dirty}
+                pendingKeys={editor.pendingKeys}
                 onOrganize={editor.organize}
                 onRemove={editor.remove}
                 onNavigate={editor.navigate}
@@ -773,7 +774,7 @@ function App() {
                 empty=<span className="empty-key">
                   <Icon name="plus" size={22} />
                 </span>
-                interactive={online && !dirty && !editor.busy}
+                interactive={online && !editor.busy}
               />
             ) : (
               <div className="key-grid loading" aria-label="Chargement des touches">
@@ -1011,7 +1012,7 @@ function App() {
               onRemove={() => editor.remove(selectedKey)}
               onOrganize={editor.organize}
               onNavigate={editor.navigate}
-              dirty={dirty}
+              dirty={editor.pendingKeys.has(selectedKey.index)}
               busy={editor.busy}
             />
           ) : selectedDial ? (

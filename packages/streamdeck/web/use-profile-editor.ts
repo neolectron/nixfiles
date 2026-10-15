@@ -79,12 +79,15 @@ export function useProfileEditor(
       setBusy(false);
     }
   };
+  const snapshot = live && state ? Drafts.project(state, live, catalogue) : live;
   return {
     state,
     dirty,
     busy,
     error,
-    snapshot: live && state ? Drafts.project(state, live, catalogue) : live,
+    snapshot,
+    pendingKeys:
+      live && state && snapshot ? Drafts.pendingKeys(state, snapshot, live) : new Set<number>(),
     conflict: !!(
       live &&
       state &&

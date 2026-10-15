@@ -155,6 +155,29 @@ export const navigate = (
     navigation: Layout.navigate(prepared.profile, prepared.navigation, command),
   };
 };
+const keyIdentity = (key: Key | undefined) =>
+  key && [key.id, key.address, key.zone, key.pinned, key.navigation, key.binding, key.overlay];
+/** Only configuration identity matters; live feedback, presses and counters remain usable. */
+export const pendingKeys = (
+  state: ProfileDraft,
+  preview: Snapshot,
+  live: Snapshot,
+): ReadonlySet<number> => {
+  if (!dirty(state)) return new Set();
+  return new Set(
+    preview.keys
+      .filter(
+        (key) =>
+          state.session !== live.sessionId ||
+          !!findForm(state, key) ||
+          !Equal.equals(
+            keyIdentity(key),
+            keyIdentity(live.keys.find((current) => current.index === key.index)),
+          ),
+      )
+      .map((key) => key.index),
+  );
+};
 /** Draft keys render locally; only committed snapshots drive actual input and hardware images. */
 export const project = (
   state: ProfileDraft,
@@ -164,6 +187,11 @@ export const project = (
   if (!dirty(state)) return live;
   const preview = catalogue ? materialize(state, catalogue, false) : state;
   const projected = Layout.project(preview.profile, preview.navigation, live.layout.revision);
+  const committed = Layout.project(
+    live.configuration.profile,
+    live.configuration.navigation,
+    live.layout.revision,
+  );
   return {
     ...live,
     configuration: { ...live.configuration, profile: preview.profile },
@@ -173,6 +201,7 @@ export const project = (
     layout: projected.layout,
     keys: live.keys.map((key) => {
       const slot = invariant(projected.keys.get(key.index), 'profile-draft');
+      if (Equal.equals(slot, committed.keys.get(key.index))) return key;
       const running = live.keys.find((current) => slot.entry && current.id === slot.entry.id);
       const same = Equal.equals(running?.binding ?? null, slot.entry?.binding ?? null);
       const binding = slot.entry?.binding;
