@@ -92,7 +92,7 @@ it.live(
         yield* Effect.gen(function* () {
           const restored = yield* Actions.make(yield* StreamDeck, profile, []);
           assert.strictEqual((yield* restored.profile).zones[0]!.items[0]?.binding.label, 'Essai');
-          assert.strictEqual((yield* restored.states).get(0)?.count, 4);
+          assert.strictEqual((yield* restored.states).get(0)?.count, 6);
         }).pipe(Effect.provide(second.layer()));
       }),
     ).pipe(Effect.provide(NodeServices.layer)),

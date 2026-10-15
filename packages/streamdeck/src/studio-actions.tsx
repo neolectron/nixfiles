@@ -37,6 +37,7 @@ import { KeyCard } from './ui/key-card.tsx';
 import type { KeyFeedback } from './key-feedback.ts';
 import { mergeDiscordActions, mergeOpenAIActions } from './studio-profile-migrations.ts';
 import * as Input from './studio-input.ts';
+import * as Counters from './studio-counter-state.ts';
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A,>(run: () => A) =>
   Effect.try({
@@ -90,7 +91,7 @@ export const catalogue: ReadonlyArray<ActionDefinition> = [
   {
     id: 'counter',
     name: 'Compteur',
-    description: 'Incrémente une valeur sur la touche pour tester un comportement.',
+    description: 'Incrémente une valeur sauvegardée à chaque appui, restaurée au redémarrage.',
     defaults: { start: 0 },
     schema: Schema.toJsonSchemaDocument(actionParameters.counter),
     fields: [{ key: 'start', label: 'Valeur de départ', kind: 'number', hint: '' }],
@@ -215,13 +216,30 @@ export const makeWithState = (
     const loaded = mergeOpenAIActions(discordProfile);
     let previousDotText = loaded !== discordProfile ? originalText : undefined;
     yield* checked(() => Layout.validate(loaded, deviceKeys));
+    const counters = yield* Counters.make(`${profileKey}.counters.json`);
     const model = yield* Ref.make({
       profile: loaded,
       configurationRevision: 0,
       navigation: {} as Layout.Navigation,
       revision: 0,
     });
-    const states = yield* Ref.make<ReadonlyMap<string, KeyState>>(new Map());
+    const states = yield* Ref.make<ReadonlyMap<string, KeyState>>(
+      new Map(
+        Layout.entries(loaded).flatMap((entry) =>
+          entry.binding.action === 'counter'
+            ? [
+                [
+                  entry.id,
+                  {
+                    ...emptyState,
+                    count: counters.initial(entry.id, entry.binding.parameters.start),
+                  },
+                ],
+              ]
+            : [],
+        ),
+      ),
+    );
     const feedbacks = yield* Ref.make<ReadonlyMap<string, KeyFeedback | null>>(new Map());
     let feedbackReady = false;
     const jobs = new Map<string, Fiber.Fiber<void, never>>();
@@ -382,6 +400,18 @@ export const makeWithState = (
       });
     const setState = (id: string, state: KeyState) =>
       Ref.update(states, (before) => new Map([...before, [id, state]]));
+    const resetState = (entry: Entry, previous: Entry | null | undefined) =>
+      Effect.gen(function* () {
+        const binding = entry.binding;
+        const count =
+          binding.action !== 'counter'
+            ? 0
+            : previous?.binding.action === 'counter' &&
+                previous.binding.parameters.start === binding.parameters.start
+              ? stateFor(previous, yield* Ref.get(states)).count
+              : yield* counters.reset(entry.id, binding.parameters.start);
+        yield* setState(entry.id, { ...emptyState, count });
+      }).pipe(Effect.uninterruptible);
     const commit = (next: Profile, navigation: Layout.Navigation) =>
       Effect.gen(function* () {
         const compact = Layout.copy(next);
@@ -476,11 +506,7 @@ export const makeWithState = (
             : null;
           yield* checked(() => Layout.replace(next, before.navigation, key, entry));
           yield* commit(next, before.navigation);
-          if (entry)
-            yield* setState(entry.id, {
-              ...emptyState,
-              count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0,
-            });
+          if (entry) yield* resetState(entry, slot.entry);
           yield* repaint(slot.zone);
         }),
       );
@@ -545,11 +571,7 @@ export const makeWithState = (
               );
           }
           yield* commit(next, validatedNavigation);
-          for (const entry of changed)
-            yield* setState(entry.id, {
-              ...emptyState,
-              count: entry.binding.action === 'counter' ? entry.binding.parameters.start : 0,
-            });
+          for (const entry of changed) yield* resetState(entry, previousEntries.get(entry.id));
           yield* repaint();
         }),
       );
@@ -656,7 +678,18 @@ export const makeWithState = (
           if (state.status === 'running')
             return yield* Effect.fail(invalid('Cette commande est déjà en cours.', 409));
           if (binding.action === 'counter') {
-            yield* setState(entry.id, { ...state, count: state.count + 1, status: 'success' });
+            yield* Effect.gen(function* () {
+              const count = yield* counters.increment(entry.id, binding.parameters.start);
+              yield* setState(entry.id, { ...state, count, status: 'success', detail: '' });
+            }).pipe(
+              Effect.catch((error) =>
+                setState(entry.id, { ...state, status: 'error', detail: error.message }).pipe(
+                  Effect.andThen(paintEntry(entry.id)),
+                  Effect.andThen(Effect.fail(error)),
+                ),
+              ),
+              Effect.uninterruptible,
+            );
             yield* paintEntry(entry.id);
             return;
           }

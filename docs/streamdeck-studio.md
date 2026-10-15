@@ -89,6 +89,13 @@ requires its own Save; dictated text is appended immediately after transcription
 Transient connection state, in-flight jobs and browser drafts remain transient.
 Discord OAuth credentials retain their separate local credential store.
 
+Counter tiles save their runtime value immediately through the same adapter, in
+`<profile filename>.counters.json` with the default file backend. Values are keyed
+by stable tile IDs and restored before rendering, including counters in folders
+or on other pages. Moving or renaming a tile preserves its value; changing its
+starting value resets it. A failed write reports an error without advancing the
+displayed count. Counter presses never rewrite the layout or save browser drafts.
+
 To start with disposable state, choose the existing Effect memory adapter:
 
 ```bash

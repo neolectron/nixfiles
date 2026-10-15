@@ -238,7 +238,7 @@ it.live(
           yield* studio.setPlugin({ id: 'shortcuts', enabled: false, expected: true });
           assert.strictEqual((yield* Effect.result(studio.actions.press(0)))._tag, 'Failure');
           yield* studio.setPlugin({ id: 'shortcuts', enabled: true, expected: false });
-          assert.strictEqual((yield* studio.snapshot).keys[0]!.count, 5);
+          assert.strictEqual((yield* studio.snapshot).keys[0]!.count, 6);
           yield* studio.setPlugin({ id: 'audio-mixer', enabled: false, expected: true });
           assert.strictEqual(
             JSON.parse(yield* fs.readFileString(`${profile}.plugins.json`)).enabled['audio-mixer'],
