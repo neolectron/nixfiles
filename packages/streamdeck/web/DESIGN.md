@@ -44,11 +44,14 @@ Tab changes preserve unsaved drafts. Narrow screens: configuration below the pre
 the grid follows the device's columns. No decorative
 motion, metrics, marketing content or unfinished navigation. Physical knob
 selection explains the current mixer assignment. Key faces invoke their configured simple/double/long gestures. The corner pencil
-(on hover or keyboard focus) and right click open editing without invoking an
+(on hover or keyboard focus) floats outside the upper-right corner, with a 26px
+button and 16px icon. Right click also opens editing without invoking an
 action. The numbered corner is a compact pointer drag handle, offset outside the
 upper-left edge, with dots above the number and a larger invisible hit area.
-Palette grips follow the same treatment. Alt + arrows also
-rearrange. USB disconnection changes the branded indicator and leaves web actions live.
+Palette grips follow the same treatment. Only the hovered tile reveals its grip;
+keyboard focus and an active drag keep
+its controls available. Touch devices retain visible controls without hover.
+Alt + arrows also rearrange. USB disconnection changes the branded indicator and leaves web actions live.
 The inspector's trash button clears the selected shortcut in the draft. Delete
 also works while its grid control is focused. Dragging a grip outside the physical
 casing shows a trash hint and removes the shortcut on release; Escape cancels.
