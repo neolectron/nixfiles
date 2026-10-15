@@ -204,3 +204,24 @@ Deck et 22 veille. Inspection navigateur à 1280 px et 390 px : onglets lisibles
 aucun débordement du document ni erreur console ; création/aperçu/annulation d'un
 contexte vérifiés. Le hash du profil réel est identique avant/après cet essai.
 Un seul serveur watch utilise le deck connecté sur `http://127.0.0.1:3900`.
+
+## Réactivité des potards — 15 octobre 2026
+
+Les entrées du mixer accumulent les crans par identité d'application sans attendre
+le verrou d'affichage. Une file glissante d'une demande regroupe les rendus, tandis
+que la boucle de commandes audio poursuit ses écritures même si le LCD est lent.
+La fenêtre de regroupement passe de 40 à 20 ms. Le mixer utilise la confirmation
+publiée par le service audio et évite une seconde lecture système après chaque
+commande. Les contrôles d'identité des flux et de la sortie Master sont conservés.
+
+Le compositeur applique les overlays au rectangle modifié : une carte de 200 × 100
+reste un transfert de cette taille au lieu d'entraîner une image de 1200 × 100.
+Le fond est conservé pour restaurer correctement les régions lorsque les overlays
+se ferment. Les snapshots d'animation web sont regroupés hors du callback de
+rotation ; les crans eux-mêmes restent intégralement comptés.
+
+Validation : `pnpm check`, 326 tests (69 système, 235 deck, 22 veille). Les nouvelles
+régressions bloquent volontairement le LCD, envoient deux rafales de dix crans et
+vérifient que les deux lots audio aboutissent avant de libérer l'écran, sans perte.
+Elles vérifient également l'unique lecture de confirmation après une commande et
+les pixels des overlays sur un transfert partiel de 200 pixels.

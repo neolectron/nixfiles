@@ -98,8 +98,16 @@ export const make = (
           };
           blit(current, image, position.x, position.y);
           base.set(index, current);
-          if (parts.get(index)?.length) yield* original.lcd(index).setImage(composed(index));
-          else yield* original.lcd(index).drawRegion(position, image);
+          const overlays = parts.get(index) ?? [];
+          if (!overlays.length) yield* original.lcd(index).drawRegion(position, image);
+          else {
+            // Composite only the dirty rectangle. A 200px knob card must not become
+            // a 1200px USB transfer merely because another plugin owns a LCD tile.
+            const region = { ...image, data: image.data.slice() };
+            for (const part of overlays)
+              blit(region, part.image, part.x - position.x, part.y - position.y);
+            yield* original.lcd(index).drawRegion(position, region);
+          }
         }),
       );
     const views = () =>

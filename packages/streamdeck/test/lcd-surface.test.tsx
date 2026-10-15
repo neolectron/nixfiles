@@ -220,10 +220,27 @@ it.live(
           yield* surface.device
             .lcd(0)
             .drawRegion({ x: 0, y: 0 }, yield* Image.solid({ width: 600, height: 100 }, [1, 2, 3]));
-          const frame = mock.writes.filter((write) => write.kind === 'lcd').at(-1)!;
-          if (frame.kind !== 'lcd') throw new Error('Missing composed frame');
+          const frame = mock.writes.at(-1)!;
+          if (frame.kind !== 'region') throw new Error('Expected a partial composed frame');
+          assert.strictEqual(frame.image.width, 600);
+          assert.deepStrictEqual(frame.position, { x: 0, y: 0 });
           assert.deepStrictEqual([...frame.image.data.slice(200 * 3, 200 * 3 + 3)], [200, 10, 20]);
           assert.deepStrictEqual([...frame.image.data.slice(100 * 3, 100 * 3 + 3)], [1, 2, 3]);
+          yield* surface.device
+            .lcd(0)
+            .drawRegion(
+              { x: 100, y: 0 },
+              yield* Image.solid({ width: 200, height: 100 }, [1, 2, 3]),
+            );
+          const knobFrame = mock.writes.at(-1)!;
+          if (knobFrame.kind !== 'region') throw new Error('Expected a knob-sized USB frame');
+          assert.strictEqual(knobFrame.image.width, 200);
+          assert.deepStrictEqual(knobFrame.position, { x: 100, y: 0 });
+          assert.deepStrictEqual([...knobFrame.image.data.slice(0, 3)], [1, 2, 3]);
+          assert.deepStrictEqual(
+            [...knobFrame.image.data.slice(100 * 3, 100 * 3 + 3)],
+            [200, 10, 20],
+          );
           const subscription = yield* surface.device.subscribe;
           const received: string[] = [];
           const reader = yield* Effect.forkScoped(

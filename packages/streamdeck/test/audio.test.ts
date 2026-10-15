@@ -435,6 +435,8 @@ it.effect(
           const initialWrites = deck.writes.length;
           yield* mixer.adjustDial(0, 1);
           assert.deepStrictEqual(notifications, [['player', { delta: 2, toggles: 0 }]]);
+          assert.strictEqual(deck.writes.length, initialWrites);
+          yield* mixer.redraw;
           assert.strictEqual(deck.writes.length, initialWrites + 1);
           assert.deepStrictEqual(changes, []);
           yield* mixer.adjustDial(1, 1);
@@ -494,6 +496,7 @@ it.effect(
           assert.strictEqual((yield* mixer.regions)[0]!.width, master.x);
           const expandedWrites = deck.writes.length;
           yield* mixer.adjustDial(0, 1);
+          yield* mixer.redraw;
           const normal = yield* mixer.regions;
           assert.strictEqual(normal.length, 6);
           assert.strictEqual(deck.writes.length, expandedWrites + 5); // Gauge plus four cleared empty slots, no Master rewrite.
@@ -508,6 +511,7 @@ it.effect(
           assert.strictEqual(positioned[0]!.width, normal[0]!.width);
           assert.strictEqual(positioned[1]!.width, master.x - positioned[1]!.x);
           yield* mixer.adjustDial(1, 1);
+          yield* mixer.redraw;
           assert.deepStrictEqual((yield* mixer.state).assignments, ['other', 'player']);
           assert.strictEqual((yield* mixer.regions).length, 6);
           track = true;

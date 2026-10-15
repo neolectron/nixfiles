@@ -22,6 +22,7 @@ import {
   Path,
   Option,
   PubSub,
+  Queue,
   Ref,
   Schema,
   Semaphore,
@@ -156,6 +157,7 @@ export const startStudio = (options: {
       readonly sequence: number;
     }>({ pressed: new Set(), pressedDials: new Set(), dialRotations: new Map(), sequence: 0 });
     const inputViews = yield* Effect.acquireRelease(PubSub.sliding<Snapshot>(64), PubSub.shutdown);
+    const inputRefreshes = yield* Effect.acquireRelease(Queue.sliding<void>(1), Queue.shutdown);
     const heldKeys = new Map<string, number>();
     const heldDials = new Map<string, number>();
     const lastEvent = yield* Ref.make('');
@@ -459,7 +461,8 @@ export const startStudio = (options: {
               ),
               sequence: before.sequence + 1,
             }));
-            yield* PubSub.publish(inputViews, yield* readSnapshot);
+            // Rotation steps accumulate in input; snapshots may coalesce, never the cranks.
+            yield* Queue.offer(inputRefreshes, undefined);
           }
           yield* Ref.set(
             lastEvent,
@@ -758,6 +761,12 @@ export const startStudio = (options: {
         [
           binding.run,
           sharedState.run,
+          Effect.forever(
+            Queue.take(inputRefreshes).pipe(
+              Effect.andThen(readSnapshot),
+              Effect.flatMap((view) => PubSub.publish(inputViews, view)),
+            ),
+          ),
           Effect.forever(refreshSurface.pipe(Effect.andThen(Effect.sleep(250)))),
           Stream.runForEach(deck.connectionChanges ?? Stream.empty, (connected) =>
             connected
