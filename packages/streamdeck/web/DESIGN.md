@@ -43,5 +43,7 @@ the grid follows the device's columns. No decorative
 motion, metrics, marketing content or unfinished navigation. Physical knob
 selection explains the current mixer assignment. Key faces invoke their configured simple/double/long gestures. The corner pencil
 (on hover or keyboard focus) and right click open editing without invoking an
-action. The numbered corner is a separate pointer drag handle; Alt + arrows also
+action. The numbered corner is a compact pointer drag handle, offset outside the
+upper-left edge, with dots above the number and a larger invisible hit area.
+Palette grips follow the same treatment. Alt + arrows also
 rearrange. USB disconnection changes the branded indicator and leaves web actions live.
