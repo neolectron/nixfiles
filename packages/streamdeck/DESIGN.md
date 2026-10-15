@@ -72,8 +72,11 @@ is smaller and right aligned. Do not reinstate the uppercase 3×5 bitmap font he
 ## Layout
 
 The tested strip is 1200×100. Regions derive from hardware dial positions:
-168, 216, 216, 216, 216, 168 pixels. Each region has its own inset card. The name
-row begins after the icon; the semicircle occupies the lower left and the value
+168, 216, 216, 216, 216, 168 pixels. Each region has its own inset card. The
+`LcdCard` frame is shared by volume, now-playing and active-window tiles:
+4px inset on every side, a 7px radius and the same charcoal gradient. Configured
+tile widths remain independent, while their visible top and bottom edges align.
+The name row begins after the icon; the semicircle occupies the lower left and the value
 occupies the right. The rightmost region remains Master on all app pages.
 The percentage unit sits beside the number on the same baseline. Shift the gauge
 left to leave room for three digits even in the 168px end regions; allow the unit
