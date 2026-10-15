@@ -132,7 +132,6 @@ it.live(
               snapshot={state}
               selected={null}
               editable={false}
-              disabledReason={undefined}
               empty={null}
               onSelect={() => {}}
               onSnapshot={() => {}}
