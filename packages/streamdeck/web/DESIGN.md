@@ -24,6 +24,8 @@ reflects connection state (green, amber or red); the small status underneath the
 wordmark stays grey. The model name remains visible in the context row above.
 Keep input geometry separate from decorative bezels. Narrow screens pan the
 entire casing locally so keys, LCD touch regions and encoders stay aligned.
+The depth lip is confined to the bottom edge; it must never paint a second
+rounded panel over the front face. Keep the plastic dark and its highlights subtle.
 Édition keeps the selected key/dial inspector. Plugins groups activation switches
 and per-plugin collapsible configuration; switches remain reachable when collapsed.
 Each plugin groups its exported tiles and settings into separate tabs. The palette
