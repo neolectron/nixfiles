@@ -1031,14 +1031,12 @@ button.zone-edit-link {
 }
 .key-edit {
   position: absolute;
-  top: 4%;
-  right: 4%;
+  top: -14px;
+  right: -9px;
   display: grid;
   place-items: center;
-  width: 30%;
-  height: 30%;
-  max-width: 26px;
-  max-height: 26px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border-radius: 5px;
   background: #181a20ed;
@@ -1048,11 +1046,11 @@ button.zone-edit-link {
   pointer-events: none;
 }
 .key-edit svg {
-  width: 70%;
-  height: 70%;
+  width: 16px;
+  height: 16px;
 }
 .deck-key:hover .key-edit,
-.deck-key:focus-within .key-edit {
+.deck-key:has(:focus-visible) .key-edit {
   opacity: 1;
   pointer-events: auto;
 }
@@ -1075,6 +1073,17 @@ button.zone-edit-link {
   touch-action: none;
   user-select: none;
   cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+}
+.deck-key:hover .key-drag-handle,
+.deck-key:has(:focus-visible) .key-drag-handle,
+.deck-key.dragging .key-drag-handle,
+.plugin-tile:hover .key-drag-handle,
+.plugin-tile:has(:focus-visible) .key-drag-handle,
+.plugin-tile.dragging .key-drag-handle {
+  opacity: 1;
+  pointer-events: auto;
 }
 .key-drag-handle::before {
   content: '';
@@ -1130,7 +1139,8 @@ button.zone-edit-link {
   background: #444958;
 }
 @media (hover: none) {
-  .key-edit {
+  .key-edit,
+  .key-drag-handle {
     opacity: 1;
     pointer-events: auto;
   }
