@@ -248,6 +248,7 @@ in
             hm.chatgpt
             hm.codexDesktop
             hm.keepAwake
+            hm.streamdeck
             hm.agentSkills
             hm.humanlayer
             hm.wifiAudioStreaming

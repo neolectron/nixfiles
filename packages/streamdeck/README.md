@@ -502,3 +502,10 @@ Discord mute/deafen default to direct local IPC/RPC. Configure and authorize you
 application under **Connexion Discord**; the keys and web preview follow actual
 voice state. The explicit legacy keyboard backend remains available. Existing
 bindings are preserved; plugin/HTTP failures display a concise domain message.
+
+## Automatic session startup
+
+Frostbit can run the packaged Studio as the `streamdeck-studio` systemd user
+service, starting at graphical login. See [service, profile migration and targeted
+activation](../../docs/streamdeck-service.md). The service listens only on
+`127.0.0.1:3900`; its state lives in `~/.local/state/streamdeck-studio`.
