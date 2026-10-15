@@ -768,13 +768,6 @@ function App() {
                 onOrganize={editor.organize}
                 onRemove={editor.remove}
                 onNavigate={editor.navigate}
-                disabledReason={
-                  !online
-                    ? 'Moteur déconnecté.'
-                    : !shortcutsActive
-                      ? 'Raccourcis désactivé.'
-                      : undefined
-                }
                 onSelect={(index) => select({ kind: 'key', index })}
                 onSnapshot={acceptSnapshot}
                 empty=<span className="empty-key">
@@ -874,7 +867,6 @@ function App() {
             </div>
           </DeviceShell>
           <div className="preview-footer">
-            <span>{online ? 'Aperçu en direct' : 'Reconnexion au moteur…'}</span>
             {(snapshot?.lcds ?? []).map((lcd) => (
               <button
                 key={lcd.index}

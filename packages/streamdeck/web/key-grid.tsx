@@ -165,7 +165,6 @@ export function KeyGrid({
   snapshot,
   selected,
   editable,
-  disabledReason,
   onSelect,
   onSnapshot,
   interactive,
@@ -179,7 +178,6 @@ export function KeyGrid({
   snapshot: Snapshot;
   selected: number | null;
   editable: boolean;
-  disabledReason: string | undefined;
   empty: ReactNode;
   onSelect: (index: number) => void;
   onSnapshot: (snapshot: Snapshot) => void;
@@ -196,7 +194,6 @@ export function KeyGrid({
   const [source, setSource] = useState<number | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [deletion, setDeletion] = useState<{ x: number; y: number } | null>(null);
   const clear = () => {
@@ -246,11 +243,9 @@ export function KeyGrid({
     saving.current = true;
     setBusy(true);
     setError('');
-    setNotice('');
     try {
       await Api.run(onRemove(from.key));
       onSelect(from.key.index);
-      setNotice(`« ${from.key.binding?.label ?? 'Raccourci'} » supprimé dans le brouillon.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La suppression a échoué.');
     } finally {
@@ -268,7 +263,6 @@ export function KeyGrid({
     saving.current = true;
     setBusy(true);
     setError('');
-    setNotice('');
     try {
       await Api.run(
         onOrganize({
@@ -282,9 +276,6 @@ export function KeyGrid({
       );
 
       onSelect(to.index);
-      setNotice(
-        `« ${invariant(from.key.binding, 'key-grid').label} » déplacé vers la touche ${to.index + 1} dans le brouillon.`,
-      );
       document.querySelector<HTMLButtonElement>(`[data-deck-key="${to.index}"]`)?.focus();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Le déplacement a échoué. Réessaie.');
@@ -342,7 +333,6 @@ export function KeyGrid({
                     moving: false,
                   };
                   setError('');
-                  setNotice('');
                 },
                 onPointerMove: (event) => {
                   const current = pointerDrag.current;
@@ -469,16 +459,6 @@ export function KeyGrid({
         >
           <TrashIcon /> Relâcher pour supprimer
         </div>
-      ) : null}
-      {disabledReason ? (
-        <p className="rearrange-status" role="status">
-          {disabledReason}
-        </p>
-      ) : null}
-      {busy || notice ? (
-        <p className="rearrange-status" role="status">
-          {busy ? 'Préparation du déplacement…' : notice}
-        </p>
       ) : null}
       {error ? (
         <p className="error" role="alert">

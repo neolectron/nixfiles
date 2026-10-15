@@ -54,6 +54,9 @@ upper-left edge, with dots above the number and a larger invisible hit area.
 Palette grips follow the same treatment. Only the hovered tile reveals its grip;
 keyboard focus and an active drag keep
 its controls available. Touch devices retain visible controls without hover.
+The casing has no prose status banners for rearrangement, deletion or engine
+availability. Grid changes provide direct visual feedback; the branded connection
+indicator reports availability. Keep actionable error messages and the delete-drop hint.
 Alt + arrows also rearrange. USB disconnection changes the branded indicator and leaves web actions live.
 The inspector's trash button clears the selected shortcut in the draft. Delete
 also works while its grid control is focused. Dragging a grip outside the physical
