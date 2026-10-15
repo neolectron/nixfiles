@@ -4,6 +4,7 @@ import {
   Effect,
   Layer,
   Option,
+  Queue,
   Ref,
   Result,
   Schema,
@@ -98,7 +99,7 @@ export const make = (options: MixerOptions = {}) =>
     const space = Option.getOrUndefined(yield* Effect.serviceOption(LcdSpace));
     const step = options.step ?? 2;
     const pollMillis = options.refreshMillis ?? 500;
-    const flushMillis = options.flushMillis ?? 40;
+    const flushMillis = options.flushMillis ?? 20;
     if (![step, pollMillis, flushMillis].every((value) => Number.isFinite(value) && value > 0))
       return yield* Effect.fail(
         new StreamDeckError({
@@ -137,6 +138,8 @@ export const make = (options: MixerOptions = {}) =>
       | undefined
     >(undefined);
     const screen = yield* Semaphore.make(1);
+    const redraws = yield* Effect.acquireRelease(Queue.sliding<void>(1), Queue.shutdown);
+    const requestRedraw = Queue.offer(redraws, undefined).pipe(Effect.asVoid);
     const cache = new Map<number, string>();
     const regions = yield* Ref.make<ReadonlyArray<Slot>>(slots);
     const scene = yield* Ref.make<ReadonlyArray<Region> | undefined>(undefined);
@@ -345,54 +348,49 @@ export const make = (options: MixerOptions = {}) =>
     );
     const refresh = audio.refresh.pipe(Effect.ignore, Effect.andThen(synchronize));
     const enqueue = (dial: number, delta: number, toggles: number, origin?: InputOrigin) =>
-      Semaphore.withPermits(
-        screen,
-        1,
-      )(
-        Effect.gen(function* () {
-          const view = yield* Ref.get(state);
-          if (dial === masterSlot.dial) {
-            const target = view.master;
-            if (!view.masterOnline || !target) return;
-            yield* Ref.update(pendingMaster, (previous) => {
-              const change =
-                previous?.target.name === target.name && previous.target.serial === target.serial
-                  ? previous.change
-                  : { delta: 0, toggles: 0 };
-              return {
-                target,
-                change: { delta: change.delta + delta, toggles: change.toggles + toggles },
-              };
-            });
-            return;
-          }
-          if (!view.online) return;
-          const slot = appSlots.findIndex((candidateSlot) => candidateSlot.dial === dial);
-          const key = slot < 0 ? undefined : view.assignments[view.page * appSlots.length + slot];
-          if (!key) return;
-          if (
-            origin &&
-            ((origin.revision !== undefined && origin.revision !== view.page) ||
-              (origin.address !== undefined && origin.address !== key))
-          )
-            return;
-          yield* Ref.update(pending, (changes) => {
-            const next = new Map(changes);
-            const previous = next.get(key) ?? { delta: 0, toggles: 0 };
-            next.set(key, { delta: previous.delta + delta, toggles: previous.toggles + toggles });
-            return next;
+      Effect.gen(function* () {
+        const view = yield* Ref.get(state);
+        if (dial === masterSlot.dial) {
+          const target = view.master;
+          if (!view.masterOnline || !target) return;
+          yield* Ref.update(pendingMaster, (previous) => {
+            const change =
+              previous?.target.name === target.name && previous.target.serial === target.serial
+                ? previous.change
+                : { delta: 0, toggles: 0 };
+            return {
+              target,
+              change: { delta: change.delta + delta, toggles: change.toggles + toggles },
+            };
           });
-          const app = view.apps.find((candidateApp) => candidateApp.key === key);
-          if (
-            app &&
-            extensions &&
-            (delta || toggles) &&
-            (yield* extensions.adjust(app, { delta, toggles }))
-          )
-            yield* render(view);
-        }),
-      );
-    const flush = Effect.gen(function* () {
+          return;
+        }
+        if (!view.online) return;
+        const slot = appSlots.findIndex((candidateSlot) => candidateSlot.dial === dial);
+        const key = slot < 0 ? undefined : view.assignments[view.page * appSlots.length + slot];
+        if (!key) return;
+        if (
+          origin &&
+          ((origin.revision !== undefined && origin.revision !== view.page) ||
+            (origin.address !== undefined && origin.address !== key))
+        )
+          return;
+        yield* Ref.update(pending, (changes) => {
+          const next = new Map(changes);
+          const previous = next.get(key) ?? { delta: 0, toggles: 0 };
+          next.set(key, { delta: previous.delta + delta, toggles: previous.toggles + toggles });
+          return next;
+        });
+        const app = view.apps.find((candidateApp) => candidateApp.key === key);
+        if (
+          app &&
+          extensions &&
+          (delta || toggles) &&
+          (yield* extensions.adjust(app, { delta, toggles }))
+        )
+          yield* requestRedraw;
+      });
+    const applyChanges = Effect.gen(function* () {
       const changes = yield* Ref.getAndSet(pending, new Map());
       const master = yield* Ref.getAndSet(pendingMaster, undefined);
       for (const [key, change] of changes) {
@@ -412,8 +410,16 @@ export const make = (options: MixerOptions = {}) =>
           JSON.stringify({ kind: 'master-request', output: master.target.name, ...master.change }),
         );
       }
-      if (changes.size || master) yield* refresh;
+      return changes.size > 0 || master !== undefined;
     });
+    // Audio writes already refresh and publish their confirmed state. UI work has its
+    // own coalescing worker, so a slow display can never hold the audio write loop.
+    const flush = applyChanges.pipe(
+      Effect.flatMap((changed) => (changed ? synchronize : Effect.void)),
+    );
+    const flushInBackground = applyChanges.pipe(
+      Effect.flatMap((changed) => (changed ? requestRedraw : Effect.void)),
+    );
     const changePage = (direction: number) =>
       Semaphore.withPermits(
         screen,
@@ -520,10 +526,11 @@ export const make = (options: MixerOptions = {}) =>
       toggleDial: (dial: number) => enqueue(dial, 0, 1),
       run: Effect.raceAllFirst([
         binding.run,
-        Stream.runForEach(audio.observe, () => synchronize),
+        Stream.runForEach(audio.observe, () => requestRedraw),
+        Effect.forever(Queue.take(redraws).pipe(Effect.andThen(synchronize))),
         // Presentation clocks and plugin activation can change without an audio event.
-        Effect.forever(Effect.sleep(pollMillis).pipe(Effect.andThen(synchronize))),
-        Effect.forever(Effect.sleep(flushMillis).pipe(Effect.andThen(flush))),
+        Effect.forever(Effect.sleep(pollMillis).pipe(Effect.andThen(requestRedraw))),
+        Effect.forever(Effect.sleep(flushMillis).pipe(Effect.andThen(flushInBackground))),
       ]),
     };
   });
