@@ -221,8 +221,11 @@ bindings, independent browser owners and stale cancellation.
 
 With Spotify enabled, tapping a Spotify/Spotifast card switches between volume
 and track title, artists, elapsed/duration times and a progress bar. The source
-plugin registers scoped content with `MixerCards`; the audio mixer remains the
-sole LCD writer and owns paging and dial volume/mute. The browser preview invokes
+plugin registers scoped content with `MixerCards`; the audio mixer produces the
+base scene and owns paging and dial volume/mute. `LcdSurface` composites configured
+tiles above that scene and supplies `LcdSpace` to bound expanded cards before the
+next occupied zone. These are still two contribution APIs sharing one compositor
+and space allocation. The browser preview invokes
 the same tap API, guarded by the displayed application and page. Spotify actions
 also resolve Spotifast automatically.
 Rotation now immediately adds a circular volume overlay on the album artwork,

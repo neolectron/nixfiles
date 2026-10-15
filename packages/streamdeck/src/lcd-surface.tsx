@@ -5,6 +5,7 @@ import type { RgbImage } from './image.ts';
 import type { DeckEvent, Position } from './model.ts';
 import type { Region, View } from './presentation.tsx';
 import * as Layout from './lcd-layout.ts';
+import { LcdSpace, expansionWidth } from './lcd-space.ts';
 import { invalid, invariant } from './errors.ts';
 import type { Controller as Host } from './plugin-host.ts';
 import * as Takumi from './takumi.ts';
@@ -331,6 +332,25 @@ export const make = (original: Device, renderer: Effect.Success<typeof Takumi.ma
     );
     return {
       device,
+      space: LcdSpace.of({
+        expand: (lcd, anchor, requested) =>
+          Effect.sync(() =>
+            expansionWidth(
+              anchor,
+              requested,
+              closed
+                ? [anchor]
+                : routedViews
+                    .filter((view) => view.zone.lcd === lcd)
+                    .map((view) => ({
+                      x: view.zone.x,
+                      y: 0,
+                      width: view.zone.width,
+                      height: invariant(sizeFor(lcd), 'lcd-surface').height,
+                    })),
+            ),
+          ),
+      }),
       refresh,
       navigate,
       input,

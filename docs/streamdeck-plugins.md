@@ -258,7 +258,16 @@ fiber or application-specific logic in the mixer.
 Returning no frame uses the mixer's normal volume card. A frame supplies a change
 stamp and a lazy RGB render Effect; unchanged stamps avoid rendering and USB writes.
 `expandIntoEmpty: true` offers the frame the width of contiguous unoccupied slots
-to its right, stopping before another application or Master. When a frame is
+to its right, stopping before another application, Master or a configured LCD zone.
+Studio supplies the shared `LcdSpace` Effect service from `LcdSurface`: the mixer
+queries committed foreground regions rather than guessing which pixels are free.
+Focus-dependent zones release their area when hidden and reclaim it when shown;
+layout changes also redraw the mixer without rereading audio. Frame width and
+touch bounds use the same allocation in the browser and on the device.
+The base dial columns remain fixed; an explicit foreground takeover can cover
+those columns, but expansion never grows behind it. Standalone mixers without
+`LcdSpace` retain their original app/Master bounds.
+When a frame is
 absent (such as explicitly selecting volume view), it returns to the base slot. The
 compositor clears previously covered slots when shrinking, and publishes the
 actual rendered regions for physical touch and the web preview's hit areas.
