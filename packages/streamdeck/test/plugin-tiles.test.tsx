@@ -175,7 +175,9 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
     (plugin) =>
       plugin
         .actions!.filter(
-          (action) => action.info.tile && ['launch', 'chatgpt', 'codex'].includes(action.info.id),
+          (action) =>
+            action.info.tile &&
+            ['launch', 'launch-spotifast', 'chatgpt', 'codex'].includes(action.info.id),
         )
         .map((action) => ({ ...action.info, plugin: plugin.id, pluginName: plugin.name })),
   );
@@ -184,7 +186,7 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
     applications: [],
     pluginActions: actions,
   });
-  assert.strictEqual(catalogue.pluginActions.length, 5);
+  assert.strictEqual(catalogue.pluginActions.length, 6);
   const html = renderToStaticMarkup(
     <PluginTiles
       actions={catalogue.pluginActions}
@@ -194,9 +196,9 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
       }}
     />,
   );
-  for (const name of ['Discord', 'Spotify', 'OBS Studio', 'ChatGPT', 'Codex'])
+  for (const name of ['Discord', 'Spotify', 'Spotifast', 'OBS Studio', 'ChatGPT', 'Codex'])
     assert.ok(html.includes(name));
-  assert.strictEqual((html.match(/<svg/g) ?? []).length, 10);
+  assert.strictEqual((html.match(/<svg/g) ?? []).length, 12);
   for (const action of catalogue.pluginActions) {
     assert.deepStrictEqual(Schema.decodeUnknownSync(Plugin.NoInput)(action.defaults), {});
     const face = renderToStaticMarkup(
@@ -214,6 +216,70 @@ it('launch tiles are exported by their plugin with strict defaults and reusable 
     assert.ok(face.includes('<svg'));
   }
 });
+
+it.live(
+  'the Spotifast tile launches, focuses and tracks only Spotifast, preserving Spotify bindings',
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const windows = yield* Ref.make<ReadonlyArray<Window>>([{ id: 1, app_id: 'spotify' }]);
+        const launches: string[] = [];
+        const focused: number[] = [];
+        const makeDesktop = (ids: ReadonlyArray<string>) =>
+          Desktop.serviceLayer.pipe(
+            Layer.provide(
+              Layer.succeed(DesktopBackend, {
+                applications: Effect.succeed(
+                  ids.map((id) => ({ id, name: id, file: `/fake/${id}` })),
+                ),
+                windows: Ref.get(windows),
+                launch: (app) => Effect.sync(() => void launches.push(app.id)),
+                focus: (window) => Effect.sync(() => void focused.push(window.id)),
+              }),
+            ),
+            Layer.build,
+            Effect.map((context) => Context.get(context, Desktop)),
+          );
+        const desktop = yield* makeDesktop(['spotify.desktop', 'spotifast.desktop']);
+        const action = AppTiles.launch(AppTiles.spotifast);
+        assert.ok(Spotify.plugin.actions!.some((item) => item.info.id === action.info.id));
+        assert.ok(Spotify.plugin.actions!.some((item) => item.info.id === 'launch'));
+        assert.strictEqual(action.info.tile?.label, 'Spotifast');
+        assert.strictEqual(action.info.tile?.icon, 'spotifast');
+        assert.strictEqual((yield* action.feedback!({ desktop }, {})).text, 'FERMÉ');
+        assert.deepStrictEqual(launches, []);
+        yield* action.execute({ desktop }, {}, { output: () => Effect.void });
+        assert.deepStrictEqual(launches, ['spotifast.desktop']);
+        assert.deepStrictEqual(focused, []);
+        yield* Ref.set(windows, [
+          { id: 1, app_id: 'spotify' },
+          { id: 2, app_id: 'spotifast' },
+        ]);
+        yield* desktop.refresh;
+        assert.strictEqual((yield* action.feedback!({ desktop }, {})).text, 'OUVERT');
+        yield* action.execute({ desktop }, {}, { output: () => Effect.void });
+        assert.deepStrictEqual(focused, [2]);
+        assert.deepStrictEqual(launches, ['spotifast.desktop']);
+        yield* Ref.set(windows, [{ id: 1, app_id: 'spotify' }]);
+        yield* desktop.refresh;
+        assert.strictEqual((yield* action.feedback!({ desktop }, {})).text, 'FERMÉ');
+        const spotifyOnly = yield* makeDesktop(['spotify.desktop']);
+        assert.strictEqual(
+          (yield* action.feedback!({ desktop: spotifyOnly }, {})).text,
+          'NON INSTALLÉ',
+        );
+        assert.ok(
+          Result.isFailure(
+            yield* Effect.result(
+              action.execute({ desktop: spotifyOnly }, {}, { output: () => Effect.void }),
+            ),
+          ),
+        );
+        assert.deepStrictEqual(launches, ['spotifast.desktop']);
+        assert.deepStrictEqual(focused, [2]);
+      }),
+    ),
+);
 
 it('palette tiles remain draggable without a selected deck key, and lock while busy', () => {
   const actions = Obs.plugin

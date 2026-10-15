@@ -27,6 +27,7 @@ export const KeyFeedback = Schema.Struct({
     'music',
     'discord',
     'spotify',
+    'spotifast',
     'openai',
     'obs',
   ]),

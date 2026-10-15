@@ -32,6 +32,14 @@ export const spotify: AppTile = {
   applications: ['spotifast.desktop', 'spotify.desktop'],
   windows: ['spotifast', 'spotify'],
 };
+export const spotifast: AppTile = {
+  id: 'launch-spotifast',
+  name: 'Ouvrir Spotifast',
+  label: 'Spotifast',
+  icon: 'spotifast',
+  applications: ['spotifast.desktop'],
+  windows: ['spotifast'],
+};
 export const obs: AppTile = {
   id: 'launch',
   name: 'Ouvrir OBS Studio',

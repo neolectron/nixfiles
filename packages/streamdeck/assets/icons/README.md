@@ -1,6 +1,6 @@
 # Key application icons
 
-The paths in `src/ui/brand-icon.tsx` come from Simple Icons **13.21.0**:
+The Discord, Spotify, OpenAI and OBS paths in `src/ui/brand-icon.tsx` come from Simple Icons **13.21.0**:
 
 - [Discord](https://github.com/simple-icons/simple-icons/blob/13.21.0/icons/discord.svg)
 - [Spotify](https://github.com/simple-icons/simple-icons/blob/13.21.0/icons/spotify.svg)
@@ -9,6 +9,12 @@ The paths in `src/ui/brand-icon.tsx` come from Simple Icons **13.21.0**:
 
 Simple Icons distributes these paths under [CC0](https://github.com/simple-icons/simple-icons/blob/13.21.0/LICENSE.md). Brand trademarks belong to their respective owners.
 The same React SVG renders in the editor's tile picker and on the physical keys.
+
+The Spotifast icon is a monochrome adaptation of the circle/play geometry from
+the installed Spotifast **0.12.0** `share/icons/hicolor/scalable/apps/spotifast.svg`,
+from [crmne/spotifast](https://github.com/crmne/spotifast/tree/5b7a5dfe8c15542ee82fd7560c1e36496306b6c9)
+(the revision pinned in `flake.lock`). Its gradients, rim and shadow are omitted
+to match the other key icons and allow the live feedback color to apply.
 
 The editor's `web/elgato-mark.tsx` uses the
 [Elgato symbol](https://github.com/simple-icons/simple-icons/blob/13.21.0/icons/elgato.svg)
