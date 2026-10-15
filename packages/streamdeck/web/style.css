@@ -1029,17 +1029,29 @@ button.zone-edit-link {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  min-width: 24px;
-  height: 34px;
-  top: -10px;
-  left: 4px;
-  padding: 2px 4px;
+  width: 18px;
+  min-width: 18px;
+  height: 28px;
+  top: -14px;
+  left: -6px;
+  padding: 2px 3px;
+  font-size: 8px;
   border: 1px solid #666c79;
   color: #d8dbe3;
   background: #181a20ed;
   touch-action: none;
   user-select: none;
   cursor: grab;
+}
+.key-drag-handle::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+.key-drag-handle svg {
+  width: 10px;
+  height: 13px;
+  flex-shrink: 0;
 }
 .key-drag-handle span {
   line-height: 1;
@@ -1061,8 +1073,8 @@ button.zone-edit-link {
 @media (max-width: 480px) {
   .key-grid-scroll {
     overflow-x: auto;
-    padding: 12px 3px 4px;
-    margin: -12px -3px -4px;
+    padding: 18px 9px 4px;
+    margin: -18px -9px -4px;
   }
   .key-grid {
     min-width: 0;
@@ -1129,7 +1141,8 @@ button.zone-edit-link {
   transform-origin: top left;
 }
 .plugin-tile-grip {
-  height: 24px;
+  height: 20px;
+  top: -10px;
 }
 .plugin-tile-surface {
   position: absolute;
