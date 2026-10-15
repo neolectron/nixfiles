@@ -39,8 +39,10 @@ Layout and tile edits share one browser-local draft. A single row above the devi
 groups the profile, model and draft status. Enregistrer and Annuler appear there
 only while changes are pending, and remain visible during saving. Switching keys keeps every form, including incomplete fields.
 Dragging, pinning, creating folders/zones/pages and editing tile parameters only
-change the preview. Save submits the whole configuration once. Unsaved key actions
-are inactive; folder/back/page faces navigate the draft locally. Audio controls
+change the preview. Save submits the whole configuration once. Only keys with
+an unsaved binding or slot change are dimmed and inactive; unchanged keys keep
+their live feedback and remain usable, including inspector tests. Incomplete forms
+also lock their own key. Folder/back/page faces navigate the draft locally. Audio controls
 remain operational. Conflict/error states preserve the draft for correction or
 explicit discard; the connection indicator continues to reflect the real device.
 Tab changes preserve unsaved drafts. Narrow screens: configuration below the preview;

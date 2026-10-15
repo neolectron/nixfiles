@@ -16,6 +16,7 @@ import { DragGrip } from './drag-grip.tsx';
 import { TrashIcon } from './trash-icon.tsx';
 import { outsideDeck } from './key-drop.ts';
 type Key = Snapshot['keys'][number];
+const noPendingKeys: ReadonlySet<number> = new Set();
 type Gesture = {
   key: Key;
   revision: number;
@@ -171,6 +172,7 @@ export function KeyGrid({
   empty,
   tileTarget = null,
   draft = false,
+  pendingKeys = noPendingKeys,
   onOrganize,
   onNavigate,
   onRemove,
@@ -184,6 +186,7 @@ export function KeyGrid({
   interactive: boolean;
   tileTarget?: number | null;
   draft?: boolean;
+  pendingKeys?: ReadonlySet<number>;
   onOrganize: (command: Organize) => Effect.Effect<Snapshot, unknown>;
   onNavigate: (command: Navigate) => Effect.Effect<Snapshot, unknown>;
   onRemove: (key: Key) => Effect.Effect<Snapshot, unknown>;
@@ -294,7 +297,7 @@ export function KeyGrid({
               snapshot={snapshot}
               deckKey={key}
               selected={selected === key.index}
-              disabled={!interactive || busy}
+              disabled={!interactive || busy || pendingKeys.has(key.index)}
               onSelect={onSelect}
               onSnapshot={onSnapshot}
               onError={(cause) =>
@@ -366,7 +369,7 @@ export function KeyGrid({
               cellProps={{
                 'data-deck-slot': key.index,
                 'data-tile-drop-allowed': allowed && movable(key) ? 'true' : 'false',
-                className: `deck-key${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index || tileTarget === key.index ? ' drop-target' : ''}`,
+                className: `deck-key${pendingKeys.has(key.index) ? ' pending' : ''}${selected === key.index ? ' selected' : ''}${key.pressed ? ' pressed' : ''}${source === key.index ? ' dragging' : ''}${target === key.index || tileTarget === key.index ? ' drop-target' : ''}`,
                 onKeyDown: (event) => {
                   if (
                     allowed &&
@@ -430,7 +433,7 @@ export function KeyGrid({
                     />
                   </foreignObject>
                 </svg>
-              ) : !draft &&
+              ) : !pendingKeys.has(key.index) &&
                 key.revision &&
                 snapshot.plugins.items.some(
                   (plugin) =>

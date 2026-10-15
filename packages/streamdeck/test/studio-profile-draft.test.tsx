@@ -1,11 +1,14 @@
 import { assert, it } from '@effect/vitest';
 import { NodeServices, NodeHttpServer } from '@effect/platform-node';
-import { Effect, FileSystem, Layer } from 'effect';
+import { Effect, FileSystem, Layer, Schedule } from 'effect';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { HttpClient, HttpClientRequest, HttpServer } from 'effect/http';
 import * as Mock from '../src/mock.ts';
 import * as Actions from '../src/studio-actions.tsx';
 import * as Layout from '../src/studio-layout.ts';
 import * as Drafts from '../web/profile-draft.ts';
+import { draftOf } from '../web/key-draft.ts';
+import { KeyGrid } from '../web/key-grid.tsx';
 import type { Catalogue, Snapshot } from '../src/studio-contract.ts';
 import { demoLayer } from '@nixfiles/system-control/audio.ts';
 import { startStudio, httpApp } from '../src/scripts/studio.ts';
@@ -37,6 +40,139 @@ const withStudio = (
       }).pipe(Effect.provide(Layer.mergeAll(mock.layer(), demoLayer)));
     }),
   ).pipe(Effect.provide(NodeServices.layer));
+
+it.live(
+  'only edited and moved slots lock while unchanged keys retain live state and execute the saved action',
+  () =>
+    withStudio((studio) =>
+      Effect.gen(function* () {
+        yield* studio.actions.save(1, {
+          action: 'counter',
+          label: 'Untouched',
+          parameters: { start: 6 },
+        });
+        const before = yield* studio.snapshot;
+        const original = key(before, 0);
+        const form = draftOf(original.binding, catalogue);
+        const edited = Drafts.edit(
+          Drafts.begin(before),
+          original,
+          { ...form, label: 'Edited' },
+          catalogue,
+          'unused',
+        );
+        let preview = Drafts.project(edited, before, catalogue);
+        const pending = Drafts.pendingKeys(edited, preview, before);
+        assert.deepStrictEqual([...pending], [0]);
+        assert.strictEqual(key(preview, 1), key(before, 1));
+        const html = renderToStaticMarkup(
+          <KeyGrid
+            snapshot={preview}
+            selected={null}
+            editable={true}
+            interactive={true}
+            draft={true}
+            pendingKeys={pending}
+            empty={null}
+            onSelect={() => {}}
+            onSnapshot={() => {}}
+            onOrganize={() => Effect.never}
+            onNavigate={() => Effect.never}
+            onRemove={() => Effect.never}
+          />,
+        );
+        assert.match(html, /aria-label="Touche 1 · Edited"[^>]*disabled=""/);
+        assert.notMatch(html, /aria-label="Touche 2 · Untouched"[^>]*disabled=""/);
+        yield* studio.actions.press(1, key(preview, 1).address);
+        const live = yield* Effect.repeat(studio.snapshot, {
+          until: (state) => key(state, 1).count === 7,
+          schedule: Schedule.spaced(1),
+        });
+        preview = Drafts.project(edited, live, catalogue);
+        assert.strictEqual(key(preview, 1).count, 7);
+        assert.deepStrictEqual([...Drafts.pendingKeys(edited, preview, live)], [0]);
+        assert.strictEqual(key(live, 0).binding?.label, 'Original');
+        const reverted = Drafts.edit(edited, key(preview, 0), form, catalogue, 'unused');
+        assert.deepStrictEqual(
+          [...Drafts.pendingKeys(reverted, Drafts.project(reverted, live, catalogue), live)],
+          [],
+        );
+        const moved = Drafts.organize(
+          Drafts.begin(live),
+          catalogue,
+          {
+            operation: 'exchange',
+            source: 0,
+            target: 1,
+            sourceAddress: key(live, 0).address,
+            targetAddress: key(live, 1).address,
+            revision: live.layout.revision,
+          },
+          ids,
+          live.keys.map((item) => item.index),
+        );
+        assert.deepStrictEqual(
+          [...Drafts.pendingKeys(moved, Drafts.project(moved, live, catalogue), live)],
+          [0, 1],
+        );
+      }),
+    ).pipe(Effect.timeout('5 seconds')),
+);
+
+it.live(
+  'LCD edits do not lock keys, but new, deleted and incomplete shortcuts lock only their own slot',
+  () =>
+    withStudio((studio) =>
+      Effect.gen(function* () {
+        const before = yield* studio.snapshot;
+        const lcd: Drafts.ProfileDraft = {
+          ...Drafts.begin(before),
+          profile: { ...before.configuration.profile, lcd: { zones: [], folders: [] } },
+        };
+        assert.ok(Drafts.dirty(lcd));
+        assert.deepStrictEqual(
+          [...Drafts.pendingKeys(lcd, Drafts.project(lcd, before, catalogue), before)],
+          [],
+        );
+        const create = Drafts.edit(
+          Drafts.begin(before),
+          key(before, 2),
+          {
+            ...draftOf(null, catalogue),
+            action: 'counter',
+            label: 'New',
+            values: { start: '3' },
+          },
+          catalogue,
+          'new',
+        );
+        assert.deepStrictEqual(
+          [...Drafts.pendingKeys(create, Drafts.project(create, before, catalogue), before)],
+          [2],
+        );
+        const invalid = Drafts.edit(
+          Drafts.begin(before),
+          key(before, 3),
+          {
+            ...draftOf(null, catalogue),
+            action: 'run-command',
+            label: 'Incomplete',
+            values: { executable: '', arguments: '', directory: '' },
+          },
+          catalogue,
+          'incomplete',
+        );
+        const invalidView = Drafts.project(invalid, before, catalogue);
+        assert.strictEqual(key(invalidView, 3).binding, null);
+        assert.deepStrictEqual([...Drafts.pendingKeys(invalid, invalidView, before)], [3]);
+        const deleted = Drafts.remove(Drafts.begin(before), key(before, 0), catalogue);
+        assert.deepStrictEqual(
+          [...Drafts.pendingKeys(deleted, Drafts.project(deleted, before, catalogue), before)],
+          [0],
+        );
+      }),
+    ),
+);
 
 it.live(
   'multiple key drafts, rearrangement, folders and pages stay local until one atomic save',
