@@ -16,6 +16,7 @@ in
       inputs.nix-index-database.nixosModules.default
       nixos.frostbitHardwareConfiguration
       nixos.frostbitRebuildAuthorization
+      nixos.frostbitStreamDeck
       nixos.codexDesktop
       nixos.niri
       nixos.noctalia
