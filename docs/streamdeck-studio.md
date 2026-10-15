@@ -217,6 +217,16 @@ long/double gestures, while web input continues. Tests cover offline rendering a
 actions, native handle cleanup/reconnect and frame restoration, direct plugin
 bindings, independent browser owners and stale cancellation.
 
+## Remove key shortcuts
+
+Key shortcuts can be removed from the inspector's trash button, with Delete while
+the selected grid control is focused, or by dragging their grip outside the physical
+deck casing. A trash hint appears before release. Drops on the casing, LCD or gaps
+cancel; Escape, window blur and pointer cancellation also cancel. Deletion is a
+browser-local profile edit until Enregistrer; Annuler restores the saved layout.
+It never executes the shortcut. Running/held keys, contextual overlays and automatic
+folder Back controls are protected. Clearing a folder shortcut preserves its contents.
+
 ## Spotify track view on the LCD
 
 With Spotify enabled, tapping a Spotify/Spotifast card switches between volume

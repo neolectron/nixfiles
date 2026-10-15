@@ -70,6 +70,24 @@ export const edit = (
     ],
   };
 };
+/** Delete only the addressed shortcut, including an incomplete local form. */
+export const remove = (state: ProfileDraft, key: Key, catalogue: Catalogue): ProfileDraft => {
+  if (key.overlay || key.navigation || key.status === 'running' || key.pressed)
+    throw new Error('Cette touche ne peut pas être supprimée maintenant.');
+  const preview = materialize(state, catalogue, false);
+  const slot = Layout.project(preview.profile, state.navigation, 0).keys.get(key.index);
+  if (!slot || slot.virtual || slot.address !== key.address || (slot.entry?.id ?? null) !== key.id)
+    throw new Error('La page ou la touche a changé. Recommence la suppression.');
+  const form = findForm(state, key);
+  if (!slot.entry && !form) return state;
+  return edit(
+    state,
+    key,
+    draftOf(null, catalogue),
+    catalogue,
+    key.id ?? invariant(form, 'profile-draft').id,
+  );
+};
 /** Resolve all form locations before writing, so removing a fixed key cannot retarget another form. */
 export const materialize = (
   state: ProfileDraft,

@@ -47,3 +47,8 @@ action. The numbered corner is a compact pointer drag handle, offset outside the
 upper-left edge, with dots above the number and a larger invisible hit area.
 Palette grips follow the same treatment. Alt + arrows also
 rearrange. USB disconnection changes the branded indicator and leaves web actions live.
+The inspector's trash button clears the selected shortcut in the draft. Delete
+also works while its grid control is focused. Dragging a grip outside the physical
+casing shows a trash hint and removes the shortcut on release; Escape cancels.
+These changes share Enregistrer/Annuler with the rest of the layout. Removing a
+folder shortcut preserves the folder's contents and automatic Back stays protected.
