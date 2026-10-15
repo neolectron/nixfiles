@@ -474,6 +474,7 @@ export const make = (backend: Commands) =>
       read,
       500,
       new AudioError({ operation: 'state', message: 'Audio unavailable.' }),
+      'audio',
     );
     const write = (operation: Effect.Effect<void, AudioError>) =>
       store.guard(

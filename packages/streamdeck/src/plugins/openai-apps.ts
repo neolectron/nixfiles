@@ -25,15 +25,19 @@ export class OpenAIApps extends Context.Service<
         provided._tag === 'Some'
           ? provided.value
           : Context.get(yield* Layer.build(Talk.VoiceTarget.commandLayer), Talk.VoiceTarget);
+      const sharedPrompt = yield* Effect.serviceOption(CodexPrompt);
       return {
         desktop: yield* AppTiles.desktop,
         selection: yield* TextSelection,
-        prompts: yield* CodexPrompt,
+        prompts:
+          sharedPrompt._tag === 'Some'
+            ? sharedPrompt.value
+            : Context.get(yield* Layer.build(CodexPrompt.layer), CodexPrompt),
         dot: yield* Dot.shared,
         voice: yield* Talk.make.pipe(Effect.provideService(Talk.VoiceTarget, target)),
       };
     }),
-  ).pipe(Layer.provide(Layer.merge(TextSelection.layer, CodexPrompt.layer)));
+  ).pipe(Layer.provide(TextSelection.layer));
 }
 /** Optional voice bridges never prevent launch, prompt or selection actions from activating. */
 export const plugin = Plugin.fromLayer({

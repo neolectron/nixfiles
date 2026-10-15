@@ -547,3 +547,23 @@ le même bouton Enregistrer, la même sauvegarde atomique et le même contrôle 
 conflit. Déposer, redimensionner ou réordonner ne lance aucune action. Pendant un
 brouillon, le LCD peut prévisualiser pages/dossiers/défilement ; les autres actions
 ne sont exécutées qu’après enregistrement. Annuler restaure la configuration live.
+
+## Consolidated runtime
+
+The sidebar now includes **Contextes** and **Diagnostic**. Context rules match
+explicit compositor app IDs with priorities, capture the chosen key zone and may
+include an LCD layout. Preview renders locally on the deck without executing its
+actions. Rules, additional key gestures and other layout changes remain drafts
+until **Enregistrer**; enable **Layouts contextuels** in Plugins to apply them.
+
+Diagnostic exposes the current revisions, bounded system action history and
+persisted integration toggles. These toggles are separate from plugin activation.
+Dynamic choices populate fields such as OBS scene/input selectors while preserving
+manual configuration when the remote app is offline. Plugin palettes can contain
+multiple presets for a single declared action.
+
+The browser receives one complete declarative snapshot followed by changed SSE
+domains. It validates revision continuity and resynchronizes after disconnects.
+The hardware rasterizer consumes the same state and caches unchanged LCD frames.
+The existing watch command and the URL `http://127.0.0.1:3900` are unchanged.
+The shared MCP endpoint is `http://127.0.0.1:3900/mcp`.

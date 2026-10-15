@@ -19,6 +19,7 @@ const root = { folder: null, page: 0, history: [] };
 export const position = (navigation: Navigation, zone: string) => navigation[zone] ?? root;
 export type MutableProfile = {
   version: 2;
+  contexts?: ReadonlyArray<import('./studio-contract.ts').ContextRule>;
   lcd?: import('./lcd-layout.ts').Configuration;
   zones: Array<{
     id: string;
@@ -185,6 +186,18 @@ export const navigate = (profile: Profile, before: Navigation, command: Navigate
 };
 export const validate = (profile: Profile, deviceKeys: ReadonlyArray<number>) => {
   LcdLayout.validate(profile.lcd ?? LcdLayout.empty);
+  const contextIds = new Set<string>();
+  for (const rule of profile.contexts ?? []) {
+    if (contextIds.has(rule.id)) throw new Error('Identifiant de contexte dupliqué.');
+    contextIds.add(rule.id);
+    if (
+      Object.keys(rule.keys).some(
+        (key) => String(Number(key)) !== key || !deviceKeys.includes(Number(key)),
+      )
+    )
+      throw new Error('Touche de contexte invalide.');
+    if (rule.lcd) LcdLayout.validate(rule.lcd);
+  }
   const assigned = new Set<number>();
   const ids = new Set<string>();
   if (!profile.zones.some((zone) => zone.id === 'deck'))

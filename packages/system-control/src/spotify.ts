@@ -4,6 +4,7 @@ import * as StateStore from './state.ts';
 import * as Sources from './sources.ts';
 import { IntegrationError } from './errors.ts';
 import type { Identity } from './application-identity.ts';
+import { MprisRegistry } from './mpris-registry.ts';
 export const keyForApplication = (key: string) =>
   key === 'spotify' || key === 'com.spotify.client'
     ? 'spotify'
@@ -20,6 +21,7 @@ export interface Controller extends Mpris.Controller {
 /** Spotify and Spotifast share actions, but retain separate metadata for their own LCD cards. */
 export const make = (override?: string) =>
   Effect.gen(function* () {
+    const registry = yield* Effect.serviceOption(MprisRegistry);
     const candidates = override
       ? [
           {
@@ -32,18 +34,22 @@ export const make = (override?: string) =>
           { busName: 'org.mpris.MediaPlayer2.spotify', key: 'spotify', name: 'Spotify' },
           { busName: 'org.mpris.MediaPlayer2.spotifast', key: 'spotifast', name: 'Spotifast' },
         ];
-    const players = yield* Effect.forEach(candidates, (candidate) =>
-      Mpris.make(candidate.busName, candidate.name).pipe(
-        Effect.map((api) => ({ ...candidate, api })),
-      ),
-    );
+    const players = yield* Effect.forEach(candidates, (candidate) => {
+      const player: Effect.Effect<Mpris.Controller, IntegrationError, Mpris.MprisTransport> =
+        Option.isSome(registry)
+          ? registry.value.player(candidate.busName, candidate.name)
+          : Mpris.make(candidate.busName, candidate.name);
+      return player.pipe(Effect.map((api) => ({ ...candidate, api })));
+    });
     const lock = yield* Semaphore.make(1);
     let selected: string | undefined;
     const choose = (refresh: boolean) =>
       Effect.gen(function* () {
         const available: Array<{ player: (typeof players)[number]; state: Mpris.State }> = [];
         for (const player of players) {
-          const result = yield* Effect.result(refresh ? player.api.current : player.api.state);
+          const result = yield* Effect.result(
+            refresh && Option.isNone(registry) ? player.api.current : player.api.state,
+          );
           if (Result.isSuccess(result)) available.push({ player, state: result.success });
         }
         available.sort(
@@ -100,6 +106,7 @@ export const managed = (override?: string) =>
       raw.current,
       '1 second',
       new IntegrationError({ message: 'No Spotify player available.' }),
+      'media',
     );
     return {
       current: store.refresh,

@@ -2,6 +2,7 @@ import { Desktop, type Controller, type Target } from '@nixfiles/system-control/
 import { Context, Effect, Layer, Option } from 'effect';
 import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import * as Plugin from '../plugin.ts';
+import * as SystemAction from '../system-action.ts';
 
 export interface Applications {
   readonly desktop?: Controller;
@@ -77,9 +78,13 @@ export const launch = <Api extends Applications>(tile: AppTile) =>
     tile: { label: tile.label, icon: tile.icon },
     unavailable: { icon: tile.icon, text: 'DÉSACTIVÉ', tone: 'neutral' },
     run: (api: Api) =>
-      api.desktop
-        ? api.desktop.open(tile)
-        : Effect.fail(new IntegrationError({ message: 'Service Desktop indisponible.' })),
+      SystemAction.invoke(
+        'desktop.open-target',
+        { applications: tile.applications, windows: tile.windows },
+        api.desktop
+          ? api.desktop.open(tile)
+          : Effect.fail(new IntegrationError({ message: 'Service Desktop indisponible.' })),
+      ),
     feedback: (api: Api) =>
       api.desktop
         ? api.desktop.status(tile).pipe(

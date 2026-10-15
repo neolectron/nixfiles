@@ -105,6 +105,7 @@ export const make = Effect.gen(function* () {
     backend.read,
     '1 second',
     new IntegrationError({ message: 'Thème système indisponible.' }),
+    'appearance',
   );
   const change = (requested: Mode | 'toggle') =>
     store.guard(

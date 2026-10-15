@@ -1,6 +1,7 @@
-import { Config, Context, Effect, Fiber, FileSystem, Layer, Schema, Stream } from 'effect';
+import { Config, Context, Effect, FileSystem, Layer, Schema, Stream } from 'effect';
 import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 import { IntegrationError } from './errors.ts';
+import * as State from './state.ts';
 import { disabledMcp } from './codex-config.ts';
 
 export const Request = Schema.Struct({
@@ -148,27 +149,11 @@ export class TextTransform extends Context.Service<TextTransform, Controller>()(
     TextTransform,
     Effect.gen(function* () {
       const backend = yield* TextModel;
-      const owner = yield* Effect.scope;
-      let closed = false;
-      yield* Effect.addFinalizer(() =>
-        Effect.sync(() => {
-          closed = true;
-        }),
+      const state = yield* State.make<void, IntegrationError>(
+        new IntegrationError({ message: 'Service de transformation indisponible.' }),
+        'text',
       );
-      return {
-        transform: (request: Request) =>
-          Effect.suspend(() =>
-            closed
-              ? Effect.fail(
-                  new IntegrationError({ message: 'Le service de transformation est fermé.' }),
-                )
-              : Effect.acquireUseRelease(
-                  Effect.forkIn(backend.transform(request), owner),
-                  Fiber.join,
-                  Fiber.interrupt,
-                ),
-          ),
-      };
+      return { transform: (request: Request) => state.guard(backend.transform(request)) };
     }),
   );
   static readonly layer = TextTransform.serviceLayer.pipe(

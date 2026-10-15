@@ -14,12 +14,14 @@ it.live(
       let attempts = 0;
       let closed = 0;
       const sent: Message[] = [];
+      let event: ((frame: Message) => Effect.Effect<void, IntegrationError>) | undefined;
       const api = yield* Effect.scoped(
         Effect.gen(function* () {
           const obs = yield* make({ url: 'ws://fake', password: Redacted.make('') }).pipe(
             Effect.provideService(JsonSocket, {
               connect: (_url, receive) =>
                 Effect.gen(function* () {
+                  event = receive;
                   attempts++;
                   if (!(yield* Ref.get(online)))
                     return yield* new IntegrationError({ message: 'Offline' });
@@ -54,9 +56,25 @@ it.live(
           assert.deepStrictEqual(yield* obs.request('GetRecordStatus'), { outputActive: false });
           assert.ok(
             sent.every(
-              (frame) => frame.op !== 6 || (frame.d as Message).requestType === 'GetRecordStatus',
+              (frame) =>
+                frame.op !== 6 || String((frame.d as Message).requestType).startsWith('Get'),
             ),
           );
+          assert.ok(event);
+          yield* event({
+            op: 5,
+            d: {
+              eventType: 'RecordStateChanged',
+              eventData: { outputActive: true, outputState: 'OBS_WEBSOCKET_OUTPUT_PAUSED' },
+            },
+          });
+          assert.strictEqual((yield* obs.state).recording, true);
+          assert.strictEqual((yield* obs.state).paused, true);
+          yield* event({
+            op: 5,
+            d: { eventType: 'CurrentProgramSceneChanged', eventData: { sceneName: 'Gameplay' } },
+          });
+          assert.strictEqual((yield* obs.state).currentScene, 'Gameplay');
           yield* Ref.set(online, false);
           yield* Deferred.fail(disconnected, new IntegrationError({ message: 'Disconnected' }));
           yield* Effect.repeat(obs.snapshot, {

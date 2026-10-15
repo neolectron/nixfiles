@@ -7,6 +7,7 @@ import * as Player from '@nixfiles/system-control/spotify.ts';
 import * as Lcd from './spotify-lcd.tsx';
 import { MixerCards } from '../mixer-cards.ts';
 import * as AppTiles from './application-tiles.ts';
+import * as SystemAction from '../system-action.ts';
 
 type Icon = KeyFeedback['icon'];
 const unavailable = (icon: Icon): KeyFeedback => ({ icon, text: 'HORS LIGNE', tone: 'neutral' });
@@ -23,12 +24,13 @@ const transport = (
   icon: Icon,
 ) =>
   Plugin.action({
+    systemAction: `spotify.${id}`,
     id,
     name,
     description,
     input: Plugin.NoInput,
     defaults: {},
-    run: (api: Mpris.Controller) => api.command(method),
+    run: (api: Mpris.Controller) => SystemAction.invoke(`spotify.${id}`, {}, api.command(method)),
     unavailable: unavailable(icon),
     feedback: (api) =>
       Effect.map(api.state, (state) =>

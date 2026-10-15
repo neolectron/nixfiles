@@ -169,6 +169,7 @@ export const make = Effect.gen(function* () {
     backend.windows,
     '1 second',
     new IntegrationError({ message: 'État des fenêtres indisponible.' }),
+    'desktop',
   );
   const status = (target: Target) =>
     Effect.gen(function* () {

@@ -38,6 +38,7 @@ import type { KeyFeedback } from './key-feedback.ts';
 import { mergeDiscordActions, mergeOpenAIActions } from './studio-profile-migrations.ts';
 import * as Input from './studio-input.ts';
 import * as Counters from './studio-counter-state.ts';
+import * as Tiles from './tile-instance.ts';
 const invalid = (message: string, status = 400) => new StudioError({ message, status });
 const checked = <A,>(run: () => A) =>
   Effect.try({
@@ -162,6 +163,7 @@ export const makeWithState = (
       plugin: string,
       command: string,
       input: unknown,
+      context?: { instanceId: string },
     ) => Effect.Effect<KeyFeedback | null>;
     interaction?: (plugin: string, command: string) => Effect.Effect<'press' | 'hold'>;
   },
@@ -232,7 +234,11 @@ export const makeWithState = (
                   entry.id,
                   {
                     ...emptyState,
-                    count: counters.initial(entry.id, entry.binding.parameters.start),
+                    count: counters.initial(
+                      entry.id,
+                      entry.binding.parameters.start,
+                      entry.stateVersion,
+                    ),
                   },
                 ],
               ]
@@ -348,12 +354,14 @@ export const makeWithState = (
     const paint = (key: number, entry: Entry | null, state: KeyState) =>
       Effect.gen(function* () {
         const binding = entry?.binding;
+        const tile = entry ? Tiles.fromKey(entry) : undefined;
         const feedback =
           feedbackReady && binding?.action === 'plugin' && pluginActions?.feedback
             ? yield* pluginActions.feedback(
                 binding.parameters.plugin,
                 binding.parameters.command,
                 binding.parameters.input,
+                { instanceId: invariant(entry, 'feedback-instance').id },
               )
             : null;
         const stamp = JSON.stringify([entry, state.count, state.status, feedback]);
@@ -373,7 +381,7 @@ export const makeWithState = (
               yield* renderer.rgb(
                 <KeyCard
                   {...size}
-                  label={entry.binding.label}
+                  label={tile?.label ?? entry.binding.label}
                   action={entry.binding.action}
                   count={state.count}
                   status={state.status}
@@ -409,12 +417,34 @@ export const makeWithState = (
             : previous?.binding.action === 'counter' &&
                 previous.binding.parameters.start === binding.parameters.start
               ? stateFor(previous, yield* Ref.get(states)).count
-              : yield* counters.reset(entry.id, binding.parameters.start);
+              : binding.parameters.start;
         yield* setState(entry.id, { ...emptyState, count });
       }).pipe(Effect.uninterruptible);
     const commit = (next: Profile, navigation: Layout.Navigation) =>
       Effect.gen(function* () {
         const compact = Layout.copy(next);
+        const previous = new Map(
+          Layout.entries((yield* Ref.get(model)).profile).map((entry) => [entry.id, entry]),
+        );
+        const prepare = (entry: Entry | null) =>
+          Effect.gen(function* () {
+            if (!entry) return null;
+            const before = previous.get(entry.id);
+            const reset =
+              entry.binding.action === 'counter' &&
+              (before?.binding.action !== 'counter' ||
+                before.binding.parameters.start !== entry.binding.parameters.start);
+            const version = reset
+              ? yield* crypto.randomUUIDv4()
+              : (before?.stateVersion ?? entry.stateVersion);
+            return { ...entry, ...(version ? { stateVersion: version } : {}) };
+          });
+        for (const container of [...compact.zones, ...compact.folders]) {
+          container.items = yield* Effect.forEach(container.items, prepare);
+        }
+        for (const zone of compact.zones)
+          for (const [key, entry] of Object.entries(zone.pinned))
+            zone.pinned[key] = invariant(yield* prepare(entry), 'counter-state-version');
         for (const owner of [...compact.zones, ...compact.folders])
           while (owner.items.at(-1) === null) owner.items.pop();
         const validated = yield* Schema.decodeUnknownEffect(Profile)(compact);
@@ -502,7 +532,7 @@ export const makeWithState = (
           const before = yield* Ref.get(model);
           const next = Layout.copy(before.profile);
           const entry = binding
-            ? { id: slot.entry?.id ?? (yield* crypto.randomUUIDv4()), binding }
+            ? { ...slot.entry, id: slot.entry?.id ?? (yield* crypto.randomUUIDv4()), binding }
             : null;
           yield* checked(() => Layout.replace(next, before.navigation, key, entry));
           yield* commit(next, before.navigation);
@@ -549,10 +579,20 @@ export const makeWithState = (
           );
           const changed = Layout.entries(next).filter(
             (entry) =>
-              JSON.stringify(entry.binding) !==
-              JSON.stringify(previousEntries.get(entry.id)?.binding),
+              JSON.stringify([entry.binding, entry.gestures]) !==
+              JSON.stringify([
+                previousEntries.get(entry.id)?.binding,
+                previousEntries.get(entry.id)?.gestures,
+              ]),
           );
-          for (const { binding } of changed) {
+          for (const binding of [
+            ...changed.flatMap((entry) => [entry.binding, ...Object.values(entry.gestures ?? {})]),
+            ...(next.contexts ?? []).flatMap((rule) =>
+              Object.values(rule.keys).filter(
+                (candidate): candidate is ButtonBinding => candidate !== null,
+              ),
+            ),
+          ]) {
             yield* validateTrigger(binding);
             if (
               binding.action === 'launch-app' &&
@@ -629,6 +669,8 @@ export const makeWithState = (
         binding: ButtonBinding;
         revision: number;
         source: string;
+        action?: ButtonBinding;
+        gesture?: import('./press-gestures.ts').PressGesture;
       },
     ) =>
       Semaphore.withPermits(
@@ -650,7 +692,7 @@ export const makeWithState = (
             return yield* Effect.fail(
               invalid('Relâche d’abord l’action en cours sur cette touche.', 409),
             );
-          const binding = entry.binding;
+          const binding = expected?.action ?? entry.binding;
           const state = slot.state;
           if (binding.action === 'open-folder')
             return yield* navigateUnlocked({
@@ -679,7 +721,11 @@ export const makeWithState = (
             return yield* Effect.fail(invalid('Cette commande est déjà en cours.', 409));
           if (binding.action === 'counter') {
             yield* Effect.gen(function* () {
-              const count = yield* counters.increment(entry.id, binding.parameters.start);
+              const count = yield* counters.increment(
+                entry.id,
+                binding.parameters.start,
+                entry.stateVersion,
+              );
               yield* setState(entry.id, { ...state, count, status: 'success', detail: '' });
             }).pipe(
               Effect.catch((error) =>
@@ -715,10 +761,12 @@ export const makeWithState = (
                   ]);
                 });
               const context = {
+                instanceId: entry.id,
+                surface: { kind: 'key' as const, zone: slot.zone, key },
                 output,
                 released: Deferred.await(released),
                 cancelled: Deferred.await(cancelled),
-                gesture: binding.trigger?.type ?? ('press' as const),
+                gesture: expected?.gesture ?? binding.trigger?.type ?? ('press' as const),
               };
               const result =
                 binding.action === 'plugin'
@@ -856,6 +904,7 @@ export const makeWithState = (
             return slot.entry
               ? {
                   binding: slot.entry.binding,
+                  ...(slot.entry.gestures ? { gestures: slot.entry.gestures } : {}),
                   address: slot.address,
                   revision: (yield* view).layout.revision,
                 }
@@ -867,6 +916,8 @@ export const makeWithState = (
           binding: activation.binding,
           revision: activation.revision,
           source,
+          ...(activation.action ? { action: activation.action } : {}),
+          ...(activation.gesture ? { gesture: activation.gesture } : {}),
         }),
     });
     let paintedOverlayRevision = -1;

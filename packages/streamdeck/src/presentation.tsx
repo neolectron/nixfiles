@@ -12,6 +12,7 @@ export const Region = Schema.Struct({
   width: Dimension,
   height: Dimension,
   view: View,
+  interactive: Schema.optionalKey(Schema.Boolean),
 });
 export type Region = typeof Region.Type;
 export const define = <S extends Schema.ConstraintCodec<unknown, unknown>>(

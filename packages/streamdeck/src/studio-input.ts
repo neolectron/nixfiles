@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import * as Gestures from './press-gestures.ts';
-import type { ButtonBinding } from './studio-contract.ts';
+import { delay, defaults } from './press-trigger.ts';
+import type { ButtonBinding, GestureBindings } from './studio-contract.ts';
 import { StudioError } from './studio-errors.ts';
 import type { StreamDeckError } from './errors.ts';
 
@@ -8,6 +9,9 @@ export interface Activation {
   readonly binding: ButtonBinding;
   readonly address: string;
   readonly revision: number;
+  readonly gestures?: GestureBindings;
+  readonly action?: ButtonBinding;
+  readonly gesture?: Gestures.PressGesture;
 }
 export interface Options {
   readonly validateKey: (key: number) => Effect.Effect<void, StudioError>;
@@ -55,6 +59,46 @@ export const make = (options: Options) =>
               }),
             );
           yield* options.validate(activation.binding);
+          const fire = (binding: ButtonBinding, gesture?: Gestures.PressGesture) =>
+            options
+              .press(
+                key,
+                { ...activation, action: binding, ...(gesture ? { gesture } : {}) },
+                source,
+              )
+              .pipe(Effect.catch((error) => Effect.logWarning(error.message)));
+          if (activation.gestures && Object.keys(activation.gestures).length) {
+            const chosen = activation.gestures;
+            const trigger = activation.binding.trigger?.type ?? 'press';
+            const short = chosen.press ?? (trigger === 'press' ? activation.binding : undefined);
+            const long =
+              chosen.longPress ?? (trigger === 'long-press' ? activation.binding : undefined);
+            const double =
+              chosen.doubleTap ?? (trigger === 'double-tap' ? activation.binding : undefined);
+            for (const binding of [short, long, double])
+              if (binding) yield* options.validate(binding);
+            yield* gestures.down(channel, {
+              identity: JSON.stringify([
+                activation.address,
+                activation.binding,
+                activation.gestures,
+                activation.revision,
+              ]),
+              context: JSON.stringify([activation.address, activation.revision]),
+              handlers: {
+                longPressMs:
+                  long?.trigger?.type === 'long-press' ? delay(long.trigger) : defaults.longPressMs,
+                doubleTapMs:
+                  double?.trigger?.type === 'double-tap'
+                    ? delay(double.trigger)
+                    : defaults.doubleTapMs,
+                ...(short ? { onShortPress: () => fire(short, 'short-press') } : {}),
+                ...(long ? { onLongPress: () => fire(long, 'long-press') } : {}),
+                ...(double ? { onDoubleTap: () => fire(double, 'double-tap') } : {}),
+              },
+            });
+            return;
+          }
           yield* gestures.down(channel, {
             identity: JSON.stringify([activation.address, activation.binding, activation.revision]),
             context: JSON.stringify([activation.address, activation.revision]),

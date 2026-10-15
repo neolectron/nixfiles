@@ -1,8 +1,24 @@
-import { Effect, Fiber, PubSub, Ref, Result, Semaphore, Stream, type Duration } from 'effect';
+import {
+  Effect,
+  Fiber,
+  Option,
+  PubSub,
+  Ref,
+  Result,
+  Semaphore,
+  Stream,
+  type Duration,
+} from 'effect';
+import { IntegrationControl } from './integration-control.ts';
 
 /** A scoped snapshot plus a broadcast stream. Subscribe before reading the initial value. */
-export const make = <A, E>(initial: E) =>
+export const make = <A, E>(initial: E, integration?: string) =>
   Effect.gen(function* () {
+    const control = yield* Effect.serviceOption(IntegrationControl);
+    const enabled =
+      integration && Option.isSome(control)
+        ? control.value.enabled(integration)
+        : Effect.succeed(true);
     const owner = yield* Effect.scope;
     const current = yield* Ref.make<Result.Result<A, E>>(Result.fail(initial));
     const events = yield* Effect.acquireRelease(
@@ -16,12 +32,22 @@ export const make = <A, E>(initial: E) =>
       }).pipe(Effect.andThen(Ref.set(current, Result.fail(initial)))),
     );
     // An operation belongs both to its caller and to the service's lifetime.
-    const guard = <B>(operation: Effect.Effect<B, E>) =>
-      Effect.suspend(() =>
-        closed
-          ? Effect.fail(initial)
-          : Effect.acquireUseRelease(Effect.forkIn(operation, owner), Fiber.join, Fiber.interrupt),
-      );
+    const guard = <B>(operationInput: Effect.Effect<B, E>) =>
+      Effect.gen(function* () {
+        if (closed || !(yield* enabled)) return yield* Effect.fail(initial);
+        const operation =
+          integration && Option.isSome(control)
+            ? Effect.raceFirst(
+                operationInput,
+                control.value.until(integration, false).pipe(Effect.andThen(Effect.fail(initial))),
+              )
+            : operationInput;
+        return yield* Effect.acquireUseRelease(
+          Effect.forkIn(operation, owner),
+          Fiber.join,
+          Fiber.interrupt,
+        );
+      });
     const publish = (value: Result.Result<A, E>) =>
       Effect.suspend(() =>
         closed
@@ -34,26 +60,54 @@ export const make = <A, E>(initial: E) =>
     const observe = Stream.unwrap(
       Effect.gen(function* () {
         const subscription = yield* PubSub.subscribe(events);
-        const first = yield* Ref.get(current);
-        return Stream.concat(
-          Stream.succeed(first),
-          Stream.fromEffectRepeat(PubSub.take(subscription)),
+        const snapshot = Effect.flatMap(enabled, (active) =>
+          active ? Ref.get(current) : Effect.succeed(Result.fail(initial)),
         );
+        const first = yield* snapshot;
+        const updates = Stream.fromEffectRepeat(PubSub.take(subscription)).pipe(
+          Stream.mapEffect((value) =>
+            Effect.map(enabled, (active) => (active ? value : Result.fail(initial))),
+          ),
+        );
+        const changes =
+          integration && Option.isSome(control)
+            ? control.value.changes.pipe(Stream.mapEffect(() => snapshot))
+            : Stream.empty;
+        return Stream.concat(Stream.succeed(first), Stream.merge(updates, changes));
       }),
     );
     return {
-      snapshot: Ref.get(current),
+      snapshot: Effect.flatMap(enabled, (active) =>
+        active ? Ref.get(current) : Effect.succeed(Result.fail(initial)),
+      ),
       state: guard(Effect.flatMap(Ref.get(current), Effect.fromResult)),
       observe,
       publish,
       guard,
+      session: <B, E2, R>(operation: Effect.Effect<B, E2, R>) =>
+        integration && Option.isSome(control)
+          ? Effect.andThen(
+              control.value.until(integration, true),
+              Effect.raceFirst(
+                operation,
+                control.value
+                  .until(integration, false)
+                  .pipe(Effect.andThen(publish(Result.fail(initial)))),
+              ),
+            )
+          : operation,
     };
   });
 
 /** The Layer's scope owns the sole polling fiber, including its final interruption. */
-export const polling = <A, E>(read: Effect.Effect<A, E>, interval: Duration.Input, initial: E) =>
+export const polling = <A, E>(
+  read: Effect.Effect<A, E>,
+  interval: Duration.Input,
+  initial: E,
+  integration?: string,
+) =>
   Effect.gen(function* () {
-    const store = yield* make<A, E>(initial);
+    const store = yield* make<A, E>(initial, integration);
     const reads = yield* Semaphore.make(1);
     const refresh = store.guard(
       Semaphore.withPermits(

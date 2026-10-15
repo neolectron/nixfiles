@@ -1,4 +1,5 @@
 import type { KeyFeedback } from '../key-feedback.ts';
+import { find } from '../icon-registry.tsx';
 /** See assets/icons/README.md for each application's icon provenance. */
 const paths: Partial<Record<KeyFeedback['icon'], string>> = {
   // Monochrome adaptation of Spotifast's circle/play mark, in its native 128px coordinates.
@@ -22,6 +23,8 @@ export function BrandIcon({
   readonly size?: number;
 }) {
   const path = paths[icon];
+  const Custom = find(icon);
+  if (Custom) return <Custom color={color} size={size} />;
   return path ? (
     <svg
       width={size}
@@ -35,4 +38,4 @@ export function BrandIcon({
     </svg>
   ) : null;
 }
-export const isBrandIcon = (icon: KeyFeedback['icon']) => !!paths[icon];
+export const isBrandIcon = (icon: KeyFeedback['icon']) => !!paths[icon] || !!find(icon);

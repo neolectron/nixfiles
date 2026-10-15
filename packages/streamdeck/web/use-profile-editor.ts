@@ -100,11 +100,19 @@ export function useProfileEditor(
     },
     form: (key: Snapshot['keys'][number]) =>
       state && catalogue ? Drafts.formOf(state, key, catalogue) : undefined,
+    gestures: (
+      key: Snapshot['keys'][number],
+      gestures: NonNullable<Snapshot['keys'][number]['gestures']>,
+    ) => local((before, actions) => Drafts.editGestures(before, actions, key, gestures)),
     remove: (key: Snapshot['keys'][number]) =>
       local((before, actions) => Drafts.remove(before, key, actions)),
     editLcd: (lcd: LcdLayout.Configuration) => {
       if (current.current && !saving.current)
         replace({ ...current.current, profile: { ...current.current.profile, lcd } });
+    },
+    editContexts: (contexts: NonNullable<Snapshot['configuration']['profile']['contexts']>) => {
+      if (current.current && !saving.current)
+        replace({ ...current.current, profile: { ...current.current.profile, contexts } });
     },
     navigateLcd: (command: LcdLayout.Command) => {
       if (!current.current || saving.current) return;

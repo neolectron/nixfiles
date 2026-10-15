@@ -152,3 +152,55 @@ Cet incrément ne livre pas encore un SurfaceHost unique pour tous les types de
 contrôles : les potards restent au mixer et les overlays de touches conservent
 leur service. Le mixer n’a plus l’exclusivité physique du LCD ; les régions
 configurées recouvrent son image et interceptent leurs propres gestes.
+
+## Consolidation du 15 octobre 2026
+
+Cette livraison remplace les limites des incréments historiques ci-dessus. Le
+runtime partage les intégrations et un catalogue d'actions entre plugins, HTTP et
+MCP ; il n'instancie pas un second ensemble de services pour chaque transport.
+
+| Frontière      | Implémentation actuelle                                                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Système        | `actions.ts` valide entrées/sorties, expose capacités, choix dynamiques et diagnostics bornés sans paramètres ni résultats. `system-actions.ts` adapte les services.                    |
+| Transports     | `/api/system/actions`, `/choices`, `/invoke`, `/diagnostics`, `/integrations` et `/mcp`. MCP utilise l'implémentation fournie par Effect.                                               |
+| Lifecycle      | `IntegrationControl` persiste l'activation indépendamment des plugins ; désactiver interrompt commandes/sessions et suspend les lectures périodiques. Réactiver permet la récupération. |
+| Média          | `MprisRegistry` partage le contrôleur par nom D-Bus entre Spotify et les touches média. OBS lit son état initial et suit les événements de scènes, mute et sorties.                     |
+| Présentations  | `SurfaceHost` arbitre des scènes scoped : touches, régions LCD/tactile et potards. Fermer une scène restaure les propriétaires inférieurs ; les anciens handles sont révoqués.          |
+| Tiles          | `TileInstance` sépare identité/action et placement ; des adaptateurs conservent les profils existants. Une définition peut exporter plusieurs templates pour une action.                |
+| Client         | Le registre de plugins client rassemble icônes et présentations React. Le renderer générique et le schéma d'icônes ne connaissent plus chaque nouveau plugin.                           |
+| Gestes         | Une touche peut associer plusieurs actions à l'appui simple, long et double ; l'arbitrage exclusif appartient à la bibliothèque d'entrée.                                               |
+| État web       | Une projection matérialisée, révision monotone commune à HTTP/SSE ; snapshot complet à la connexion puis domaines modifiés. Un trou dans les révisions déclenche une resynchronisation. |
+| Rendu matériel | Les frames LCD sont paresseuses, mises en cache par taille, stamp et vue. Une frame inchangée ne relance pas sa rasterisation.                                                          |
+| Contextes      | Règles persistées avec priorité et app_id exact, capture d'une zone, LCD facultatif et aperçu local sur le deck. Le plugin « Layouts contextuels » contrôle leur activation.            |
+| Compteur       | Le compteur natif et le plugin de référence utilisent `Counters`, partagé à la racine avec le même adaptateur `PersistentState`.                                                        |
+
+La modification du départ d'un compteur écrit seulement le document de profil,
+avec un nouvel epoch `stateVersion`. L'ancien état ne correspond alors plus à cette
+configuration. Il n'y a plus deux écritures profil/compteurs à réussir pour
+valider une configuration. Chaque incrément est sauvegardé avant son affichage.
+
+Compatibilité : les profils v1/v2, les actions historiques, `DeckOverlays` et
+`MixerCards` sont conservés comme adaptateurs. Le mixer est une présentation de
+base ; les régions configurées et scènes temporaires le recouvrent via le même
+compositeur. Une contribution Spotify garde sa vue, son tactile et son expansion.
+Les changements de layout, de gestes et de contextes restent dans le brouillon
+jusqu'à **Enregistrer**. Les activations d'intégrations sont des commandes de
+runtime explicites, comme celles des plugins.
+
+Les tests couvrent notamment l'échec de sauvegarde, le redémarrage des compteurs,
+les révisions SSE, les trous de transport, les templates, les gestes exclusifs,
+l'arbitrage et la fermeture des scènes, la suspension/reprise des intégrations,
+les événements OBS et l'exécution HTTP/MCP sur un backend injecté. Aucun test ne
+démarre de microphone, appel, enregistrement ou diffusion réels.
+
+Les adaptateurs Redis/PostgreSQL, un système de chargement de code tiers à chaud
+et l'exécution des plugins binaires Elgato ne sont pas ajoutés : cette consolidation
+fournit les contrats pour les extensions du projet. Le verrou de persistance reste
+local au processus ; un adaptateur distribué doit porter sa propre atomicité.
+
+Validation de consolidation : `pnpm check` (Oxlint, Oxfmt, typecheck, Vitest et
+suite keep-awake). La suite couvre 324 tests : 69 services système, 233 Stream
+Deck et 22 veille. Inspection navigateur à 1280 px et 390 px : onglets lisibles,
+aucun débordement du document ni erreur console ; création/aperçu/annulation d'un
+contexte vérifiés. Le hash du profil réel est identique avant/après cet essai.
+Un seul serveur watch utilise le deck connecté sur `http://127.0.0.1:3900`.

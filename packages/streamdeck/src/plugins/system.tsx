@@ -104,6 +104,18 @@ export const plugin = Plugin.define({
   name: 'Système',
   description: 'Fenêtre active et navigation des surfaces du bureau.',
   controls: {},
+  // Keep legacy action IDs executable; new navigation presets belong to the Navigation plugin.
+  tiles: [
+    {
+      id: 'active-window',
+      action: 'active-window',
+      label: 'Fenêtre active',
+      icon: 'window',
+      surfaces: ['lcd'],
+      width: 400,
+      input: {},
+    },
+  ],
   actions: [activeWindow, page('previous'), page('next'), folder, page('back')],
   setup: Effect.gen(function* () {
     const api: Api = {
