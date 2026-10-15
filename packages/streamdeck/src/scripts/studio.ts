@@ -76,6 +76,7 @@ import type { RendererKind } from '../mixer-renderer.ts';
 import * as Cards from '../mixer-cards.ts';
 import * as LcdSurface from '../lcd-surface.tsx';
 import * as LcdLayout from '../lcd-layout.ts';
+import { LcdSpace } from '../lcd-space.ts';
 import { Desktop as SystemDesktop } from '@nixfiles/system-control/desktop.ts';
 const json = (body: unknown) =>
   Response.jsonUnsafe(body, { headers: { 'cache-control': 'no-store' } });
@@ -161,6 +162,7 @@ export const startStudio = (options: {
       .pipe(
         Effect.provideService(Takumi.ReactRenderer, renderer),
         Effect.provideService(Cards.MixerCards, cards),
+        Effect.provideService(LcdSpace, lcdSurface.space),
       );
     const audioPage = (direction: number) =>
       mixer
@@ -388,7 +390,12 @@ export const startStudio = (options: {
       const profile = Option.isSome(current)
         ? yield* current.value.profile
         : (yield* Ref.get(lastActions)).configuration.profile;
+      const before = yield* lcdSurface.snapshot;
       yield* lcdSurface.refresh(profile.lcd ?? LcdLayout.empty, host, yield* focusedApplication);
+      if ((yield* lcdSurface.snapshot).revision !== before.revision) {
+        const currentMixer = yield* mixer.current;
+        if (Option.isSome(currentMixer)) yield* currentMixer.value.redraw;
+      }
     }).pipe(Effect.catch((cause) => Effect.logWarning('LCD surface', cause)));
     const readSnapshot: Effect.Effect<Snapshot> = Effect.gen(function* () {
       const inputView = yield* Ref.get(input);

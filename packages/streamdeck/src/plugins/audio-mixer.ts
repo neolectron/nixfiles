@@ -24,6 +24,7 @@ import * as Display from '../mixer-renderer.ts';
 import { volumeColor } from '../volume-gauge.ts';
 import * as Plugin from '../plugin.ts';
 import { MixerCards } from '../mixer-cards.ts';
+import { LcdSpace } from '../lcd-space.ts';
 import type { Region } from '../presentation.tsx';
 import { presentation as volumePresentation } from '../ui/volume-presentation.tsx';
 export interface MixerOptions {
@@ -94,6 +95,7 @@ export const make = (options: MixerOptions = {}) =>
     const deck = yield* StreamDeck;
     const audio = yield* Audio;
     const extensions = Option.getOrUndefined(yield* Effect.serviceOption(MixerCards));
+    const space = Option.getOrUndefined(yield* Effect.serviceOption(LcdSpace));
     const step = options.step ?? 2;
     const pollMillis = options.refreshMillis ?? 500;
     const flushMillis = options.flushMillis ?? 40;
@@ -187,6 +189,11 @@ export const make = (options: MixerOptions = {}) =>
                   slot.x,
               };
             }
+          if (space && !isMaster)
+            available = {
+              ...available,
+              width: yield* space.expand(lcd.index, slot, available.width),
+            };
           const custom =
             !isMaster && app && 'key' in app && extensions
               ? yield* extensions.frame(app, slot, available)
@@ -505,6 +512,7 @@ export const make = (options: MixerOptions = {}) =>
       regions: Ref.get(regions),
       scene: Ref.get(scene),
       refresh,
+      redraw: synchronize,
       flush,
       changePage,
       tapDial,

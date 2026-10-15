@@ -20,7 +20,10 @@ import * as Host from '../src/plugin-host.ts';
 import * as Plugin from '../src/plugin.ts';
 import * as System from '../src/plugins/system.tsx';
 import { LcdView } from '../web/lcd-view.tsx';
-import { demoLayer } from '@nixfiles/system-control/audio.ts';
+import { demoLayer, makeLayer as audioLayer } from '@nixfiles/system-control/audio.ts';
+import * as Mixer from '../src/plugins/audio-mixer.ts';
+import * as Cards from '../src/mixer-cards.ts';
+import { LcdSpace } from '../src/lcd-space.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 import { StateStorage } from '@nixfiles/system-control/state-storage.ts';
 
@@ -39,6 +42,149 @@ const config: Layout.Configuration = {
   ],
   folders: [],
 };
+it.live(
+  'expanded mixer cards respect committed LCD zones and recover space when those zones disappear',
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const mock = Mock.make();
+        yield* Effect.gen(function* () {
+          const surface = yield* Surface.make(yield* StreamDeck, yield* Takumi.make);
+          const cards = yield* Cards.make;
+          let expanded = true;
+          let playerTouches = 0;
+          let foregroundTouches = 0;
+          yield* cards.register({
+            id: 'player',
+            matches: (app) => app.key === 'spotifast',
+            expandIntoEmpty: true,
+            tap: {
+              label: 'Player',
+              run: () =>
+                Effect.sync(() => {
+                  playerTouches++;
+                }),
+            },
+            frame: (_, size) =>
+              Effect.succeed(
+                expanded
+                  ? {
+                      stamp: `player/${size.width}`,
+                      view: { type: 'test.player', data: { width: size.width } },
+                      draw: Image.solid(size, [10, 20, 80]),
+                    }
+                  : undefined,
+              ),
+          });
+          const provider = {
+            invoke: () =>
+              Effect.sync(() => {
+                foregroundTouches++;
+              }),
+            feedback: () => Effect.succeed(null),
+            catalogue: Effect.succeed([]),
+            lcdFrame: (
+              _plugin: string,
+              _action: string,
+              _input: unknown,
+              size: { width: number; height: number },
+            ) =>
+              Effect.map(Image.solid(size, [200, 10, 20]).pipe(Effect.orDie), (image) => ({
+                image,
+                view: { type: 'test.window', data: {} },
+              })),
+          };
+          const configured: Layout.Configuration = {
+            ...config,
+            zones: [
+              {
+                ...config.zones[0]!,
+                x: 600,
+                width: 400,
+                application: 'editor',
+                pages: [[{ ...tile, width: 400 }]],
+              },
+            ],
+          };
+          yield* surface.refresh(configured, provider, 'editor');
+          yield* Effect.gen(function* () {
+            const mixer = yield* Mixer.make();
+            const playerRegion = Effect.map(mixer.regions, (regions) =>
+              regions.find((region) => region.dial === 1)!,
+            );
+            const initial = yield* playerRegion;
+            assert.strictEqual(initial.x + initial.width, 600);
+            const playerView = (yield* mixer.scene)?.find(
+              (region) => region.view.type === 'test.player',
+            );
+            assert.strictEqual(playerView!.x + playerView!.width, 600);
+            const frame = mock.writes.filter((write) => write.kind === 'lcd').at(-1)!;
+            if (frame.kind !== 'lcd') throw new Error('Missing composed frame');
+            assert.deepStrictEqual(
+              [...frame.image.data.slice(650 * 3, 650 * 3 + 3)],
+              [200, 10, 20],
+            );
+            const runner = yield* mixer.run.pipe(Effect.forkScoped);
+            yield* mock.emit({ _tag: 'TouchTap', lcd: 0, position: { x: 650, y: 30 } });
+            yield* mock.emit({ _tag: 'TouchTap', lcd: 0, position: { x: 500, y: 30 } });
+            yield* Effect.repeat(
+              Effect.sync(() => foregroundTouches === 1 && playerTouches === 1),
+              {
+                until: Boolean,
+                schedule: Schedule.spaced(1),
+              },
+            );
+            expanded = false;
+            yield* mixer.redraw;
+            assert.strictEqual((yield* playerRegion).width, 200);
+            expanded = true;
+            yield* mixer.redraw;
+            assert.deepStrictEqual(yield* playerRegion, initial);
+            // Conditional zones release and reclaim their space as focus changes.
+            yield* surface.refresh(configured, provider, null);
+            yield* mixer.redraw;
+            assert.strictEqual((yield* playerRegion).x + (yield* playerRegion).width, 1000);
+            yield* surface.refresh(configured, provider, 'editor');
+            yield* mixer.redraw;
+            assert.deepStrictEqual(yield* playerRegion, initial);
+            yield* surface.refresh(Layout.empty, provider, null);
+            yield* mixer.redraw;
+            assert.strictEqual((yield* playerRegion).x + (yield* playerRegion).width, 1000);
+            assert.deepStrictEqual((yield* mixer.state).assignments, ['chrome', 'spotifast']);
+            yield* Fiber.interrupt(runner);
+          }).pipe(
+            Effect.provideService(StreamDeck, surface.device),
+            Effect.provideService(Cards.MixerCards, cards),
+            Effect.provideService(LcdSpace, surface.space),
+          );
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              mock.layer(),
+              audioLayer({
+                list: Effect.succeed(
+                  ['chrome', 'spotifast'].map((key) => ({
+                    key,
+                    name: key,
+                    volume: 63,
+                    muted: false,
+                    mixedMute: false,
+                    paused: false,
+                    streams: [],
+                  })),
+                ),
+                master: Effect.succeed(undefined),
+                change: () => Effect.die('Presentation must not change audio'),
+                changeMaster: () => Effect.die('Presentation must not change audio'),
+              }),
+            ),
+          ),
+        );
+        assert.strictEqual(mock.closes, 1);
+      }),
+    ).pipe(Effect.provide(NodeServices.layer), Effect.timeout('10 seconds')),
+);
+
 it.live(
   'LCD composition preserves the mixer background, routes touch once and restores covered pixels',
   () =>

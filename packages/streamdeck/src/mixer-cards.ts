@@ -29,12 +29,12 @@ export interface Contribution<E, R> {
   readonly onAdjust?: (app: Application, change: Change) => Effect.Effect<void, E, R>;
   /** Confirmed volume/mute changes from the system, regardless of their source. */
   readonly onChange?: (app: Application, previous: Application) => Effect.Effect<void, E, R>;
-  /** The compositor offers only contiguous empty slots, never another app or Master. */
+  /** Contiguous empty space only, bounded by other apps, Master and configured LCD zones. */
   readonly expandIntoEmpty?: boolean;
   /** Keep this source after ordinary app cards, independently of its selected view. */
   readonly placement?: 'last';
 }
-/** The mixer owns LCD pixels and geometry; scoped contributors own their content and behavior. */
+/** The mixer produces its base scene; scoped contributors own content and behavior. */
 export const make = Effect.sync(() => {
   type Entry = {
     matches: Contribution<never, never>['matches'];
