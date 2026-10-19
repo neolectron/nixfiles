@@ -14,9 +14,15 @@ real task, run `papercuts close <id-prefix>`.
 
 ## Clear communication
 
-Lead with the result or decision, use plain language, and keep explanations
-proportional to the question. When structure, control flow, state, or a change
-would take several paragraphs to explain, use the `show-me` skill for a compact
-visual with only the necessary prose. Also use it for `/show-me` or a request to
-restate an answer visually. Simple answers do not need a diagram. Preserve
-material caveats, evidence, and the user's requested level of detail.
+By default, get straight to the point: result, decision, or next action first.
+Use short sentences, plain language, and little jargon, like one human talking
+to another. In French, keep familiar English technical terms instead of heavy
+French translations. Default to a few short sentences; expand only when the
+task needs it or the user asks. Skip preambles, repetition, and unrequested
+background. Stay precise: keep material uncertainty, evidence, and real risks
+visible.
+
+When structure, control flow, state, or a change would take several paragraphs
+to explain, use the `show-me` skill for a compact visual with only the necessary
+prose. Also use it for `/show-me` or a request to restate an answer visually.
+Simple answers do not need a diagram. Respect the user's requested level of detail.
