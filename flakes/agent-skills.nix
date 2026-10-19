@@ -209,6 +209,20 @@ in
         // deploySkills ".codex/skills"
         // deploySkills ".config/opencode/skills"
         // {
+          # Codex follows skill-directory links but skips symlinked SKILL.md files.
+          # Override only show-me; preserve deployment of every other skill.
+          ".agents/skills/show-me" = {
+            source = skillSource + "/show-me";
+            recursive = false;
+          };
+          ".codex/skills/show-me" = {
+            source = skillSource + "/show-me";
+            recursive = false;
+          };
+          ".config/opencode/skills/show-me" = {
+            source = skillSource + "/show-me";
+            recursive = false;
+          };
           ".agents/AGENTS.md".source = sharedAgentInstructions;
           ".codex/AGENTS.md".source = sharedAgentInstructions;
           ".config/opencode/AGENTS.md".source = sharedAgentInstructions;
