@@ -8,6 +8,10 @@
     {
       update-script-zod = updateScriptZod;
 
+      ast-outline = pkgs.callPackage ../packages/ast-outline { };
+
+      calldiff = pkgs.callPackage ../packages/calldiff { };
+
       codeburn = pkgs.callPackage ../packages/codeburn {
         inherit updateScriptZod;
       };

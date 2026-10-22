@@ -1,4 +1,4 @@
-{ ... }:
+{ inputs, ... }:
 let
   skillNames = [
     "antislop"
@@ -200,6 +200,18 @@ in
         pkgs.jujutsu
         antislop
         papercuts
+
+        # Executable dependencies for the shared Astahmer skill bundle.
+        inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.ast-outline
+        inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.calldiff
+        pkgs.ast-grep
+        pkgs.oxlint
+        pkgs.oxfmt
+        pkgs.python3
+        pkgs.fnm
+        # Unlike playwright/playwright-driver, playwright-test exposes the CLI
+        # and includes matching, Nix-patched browsers without runtime downloads.
+        pkgs.playwright-test
       ];
 
       # ~/.agents is the canonical shared tree. Each supported harness receives
