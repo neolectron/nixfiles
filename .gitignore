@@ -7,6 +7,12 @@ __pycache__
 node_modules/
 .pnpm-store/
 
+# Local secret references and generated dotenv credentials never belong in Git.
+.secret.local.json
+.env
+.env.*
+!.env.example
+
 # Locally supplied upstream Bitwig candidates are tested by hash. Keep the
 # proprietary binaries and machine-specific analyzer output out of Git.
 assets/bitwig/candidates/*/bitwig.jar
