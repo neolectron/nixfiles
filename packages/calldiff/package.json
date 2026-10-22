@@ -1,0 +1,88 @@
+{
+  "name": "calldiff",
+  "version": "0.6.0",
+  "description": "Diff call stacks across git commits for agentic code review (22 languages)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "calldiff": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanishqkancharla/calldiff.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tanishqkancharla/calldiff/issues"
+  },
+  "homepage": "https://github.com/tanishqkancharla/calldiff#readme",
+  "keywords": [
+    "callgraph",
+    "diff",
+    "callstack",
+    "tree-sitter",
+    "git",
+    "multi-language",
+    "typescript",
+    "python",
+    "rust",
+    "go"
+  ],
+  "author": "Tanishq Kancharla",
+  "license": "MIT",
+  "dependencies": {
+    "@tree-sitter-grammars/tree-sitter-lua": "0.2.0",
+    "@tree-sitter-grammars/tree-sitter-zig": "1.1.2",
+    "incur": "^0.4.26",
+    "picocolors": "^1.1.1",
+    "tree-sitter": "0.25.1",
+    "tree-sitter-bash": "0.25.1",
+    "tree-sitter-c": "0.24.1",
+    "tree-sitter-c-sharp": "0.23.1",
+    "tree-sitter-cpp": "0.23.4",
+    "tree-sitter-elixir": "0.3.5",
+    "tree-sitter-go": "0.25.0",
+    "tree-sitter-haskell": "0.23.1",
+    "tree-sitter-java": "0.23.5",
+    "tree-sitter-javascript": "0.25.0",
+    "tree-sitter-kotlin": "0.3.8",
+    "tree-sitter-ocaml": "0.24.2",
+    "tree-sitter-php": "0.24.2",
+    "tree-sitter-python": "0.25.0",
+    "tree-sitter-ruby": "0.23.1",
+    "tree-sitter-rust": "0.24.0",
+    "tree-sitter-scala": "0.24.0",
+    "tree-sitter-solidity": "1.2.13",
+    "tree-sitter-swift": "0.7.1",
+    "tree-sitter-typescript": "0.23.2"
+  },
+  "overrides": {
+    "tree-sitter-typescript": {
+      "tree-sitter": "$tree-sitter"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "outdent": "^0.8.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
+  }
+}
