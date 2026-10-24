@@ -27,8 +27,18 @@ in
 
   # Home Manager side: terminal emulators, shells, and prompt
   flake.modules.homeManager.terminal =
-    { pkgs, lib, ... }:
     {
+      pkgs,
+      config,
+      lib,
+      ...
+    }:
+    let
+      localBin = "${config.home.homeDirectory}/.local/bin";
+    in
+    {
+      home.sessionPath = [ localBin ];
+
       home.packages = with pkgs; [
         _0fetch
         eza
@@ -77,12 +87,19 @@ in
           la = "eza -a";
         };
         plugins = [ ];
-        # Run 0fetch in every interactive shell.
-        initContent = lib.mkOrder 1500 ''
-          if [[ -o interactive ]]; then
-            ${pkgs.lib.getExe pkgs._0fetch}
-          fi
-        '';
+        initContent = lib.mkMerge [
+          # Repair PATH even when the desktop inherited HM's source-once guards.
+          # HM marks `path` unique at order 510; preserve all other entries.
+          (lib.mkOrder 550 ''
+            path=(${lib.escapeShellArg localBin} $path)
+          '')
+          # Run 0fetch in every interactive shell.
+          (lib.mkOrder 1500 ''
+            if [[ -o interactive ]]; then
+              ${pkgs.lib.getExe pkgs._0fetch}
+            fi
+          '')
+        ];
       };
 
       # fzf — fuzzy finder with shell integration
