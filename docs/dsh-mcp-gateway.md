@@ -44,8 +44,15 @@ Both units restart on failure after five seconds, limited to six starts per minu
 An exhausted limit needs an operator reset/start after correcting the cause.
 The tunnel is stopped when its gateway stops; manually restarting the gateway alone
 does not promise automatic tunnel recovery. Start/check both owned units together.
-The services can read the user's home but can write only their private directory
-and isolated temporary directory. Native DSH, not this adapter, runs agent work.
+These **user units are not filesystem sandboxes**. On this host, rootless mount
+namespace protections remap root-owned ancestors such as `/home` to UID65534;
+the gateway correctly rejects those ancestors as untrusted. Do not enable
+`ProtectHome`, `ProtectSystem`, `PrivateTmp`, `ReadWritePaths` or `PrivateUsers`
+here, and never weaken the application's ownership guards to accept nobody.
+The units retain UMask0077, NoNewPrivileges, RestrictSUIDSGID, LockPersonality and
+address-family restrictions. The application's strict private file/directory
+ownership and modes remain the storage boundary; the services otherwise have
+the user's filesystem access. Native DSH, not this adapter, runs agent work.
 
 ## Focused preparation
 
@@ -55,7 +62,21 @@ From this isolated checkout:
 nix build --no-link --print-out-paths .#tunnel-client .#dsh-mcp-service-files
 ```
 
-The service-artifact build runs six read-only contract tests. Offline unit validation:
+The service-artifact build runs seven read-only contract tests. On the actual target
+host, also run the [transient-unit regression](../packages/dsh-mcp-services/runtime-test.py):
+
+```sh
+python3 packages/dsh-mcp-services/runtime-test.py "$artifacts/share/systemd/user"
+```
+
+It derives the security policy from each generated unit and uses the same official
+Node binary with synthetic private state only. It asserts trusted root/current-user
+ancestor ownership, SQLite write/read,0600 database mode and directory fsync. It fails
+with the old remapping policy and passes without it. The Nix builder cannot run this
+host-only check because it has no user service manager. No real gateway/tunnel process,
+credential, configuration or network is used. Transient fixture units are collected.
+
+Offline unit validation:
 
 ```sh
 systemd-analyze --user verify \
