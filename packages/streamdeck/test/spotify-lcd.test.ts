@@ -27,6 +27,7 @@ import { IntegrationError } from '@nixfiles/system-control/errors.ts';
 import { startStudio } from '../src/scripts/studio.ts';
 import { timestamp } from '../src/ui/now-playing-card.tsx';
 import { Data as SpotifyPresentation } from '../src/plugins/spotify-presentation.tsx';
+import { make as startMixer } from '../src/plugins/audio-mixer.ts';
 
 const fixture = Effect.gen(function* () {
   const metadata = yield* Ref.make({
@@ -98,6 +99,113 @@ const spotifyApp: Audio.Application = {
     },
   ],
 };
+
+it.live(
+  'expanding either player moves it last immediately and preserves metadata and dial routing',
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const source = yield* fixture;
+        const api = yield* Player.managed().pipe(Effect.provide(source.layer));
+        const cards = yield* Cards.make;
+        const renderer = yield* Takumi.make;
+        const deck = Mock.make();
+        const native = { ...spotifyApp, key: 'com.spotify.client', name: 'Spotify' };
+        let apps = [spotifyApp, native];
+        const changes: string[] = [];
+        yield* SpotifyLcd.register({
+          ...api,
+          forApplication: (key) =>
+            api.forApplication('spotifast').pipe(
+              Effect.map((track) => ({
+                ...track,
+                title: key === 'spotify' ? 'Spotify track' : 'Spotifast track',
+              })),
+            ),
+        }).pipe(
+          Effect.provideService(Cards.MixerCards, cards),
+          Effect.provideService(Takumi.ReactRenderer, renderer),
+        );
+        yield* Effect.gen(function* () {
+          const mixer = yield* startMixer();
+          const master = (yield* mixer.regions).at(-1)!;
+          const wideTrack = (title: string) =>
+            Effect.gen(function* () {
+              const region = (yield* mixer.scene)!.find(
+                (entry) => entry.view.type === 'spotify.now-playing.v1' && entry.width > 216,
+              );
+              assert.ok(region);
+              assert.strictEqual(region.x + region.width, master.x);
+              assert.strictEqual(
+                Schema.decodeUnknownSync(SpotifyPresentation)(region.view.data).track.title,
+                title,
+              );
+              assert.deepStrictEqual((yield* mixer.regions).at(-1), master);
+            });
+          assert.deepStrictEqual((yield* mixer.state).assignments, ['spotifast', native.key]);
+          yield* mixer.tapDial(0, 'spotifast', 0);
+          assert.deepStrictEqual((yield* mixer.state).assignments, [native.key, 'spotifast']);
+          yield* wideTrack('Spotifast track');
+          // An editor command referring to the old dial cannot affect the replacement app.
+          assert.strictEqual(
+            (yield* Effect.result(mixer.tapDial(0, 'spotifast', 0)))._tag,
+            'Failure',
+          );
+          yield* mixer.adjustDial(1, 1);
+          yield* mixer.flush;
+          assert.deepStrictEqual(changes, ['spotifast']);
+          yield* wideTrack('Spotifast track');
+          yield* mixer.tapDial(0, native.key, 0);
+          assert.deepStrictEqual((yield* mixer.state).assignments, ['spotifast', native.key]);
+          yield* wideTrack('Spotify track');
+          yield* mixer.adjustDial(1, 1);
+          yield* mixer.flush;
+          assert.deepStrictEqual(changes, ['spotifast', native.key]);
+          // A newly discovered ordinary app stays before both players, even across refreshes.
+          apps = [...apps, { ...spotifyApp, key: 'browser', name: 'Browser' }];
+          yield* mixer.refresh;
+          assert.deepStrictEqual((yield* mixer.state).assignments, [
+            'browser',
+            'spotifast',
+            native.key,
+          ]);
+          yield* wideTrack('Spotify track');
+          yield* mixer.tapDial(1, 'spotifast', 0);
+          yield* mixer.tapDial(1, 'spotifast', 0);
+          assert.deepStrictEqual((yield* mixer.state).assignments, [
+            'browser',
+            native.key,
+            'spotifast',
+          ]);
+          yield* wideTrack('Spotifast track');
+          yield* mixer.tapDial(2, 'spotifast', 0);
+          assert.deepStrictEqual((yield* mixer.state).assignments, [
+            'browser',
+            'spotifast',
+            native.key,
+          ]);
+          yield* wideTrack('Spotify track');
+          assert.ok(source.requests.every((args) => args[8] === 'GetAll'));
+        }).pipe(
+          Effect.provideService(Cards.MixerCards, cards),
+          Effect.provide(
+            Layer.mergeAll(
+              deck.layer(),
+              Audio.makeLayer({
+                list: Effect.sync(() => apps),
+                change: (key) =>
+                  Effect.sync(() => {
+                    changes.push(key);
+                  }),
+                master: Effect.succeed(undefined),
+                changeMaster: () => Effect.void,
+              }),
+            ),
+          ),
+        );
+      }),
+    ).pipe(Effect.provide(NodeServices.layer)),
+);
 
 it.live(
   'Spotify resolves Spotifast automatically and preserves separate per-application metadata without writes',

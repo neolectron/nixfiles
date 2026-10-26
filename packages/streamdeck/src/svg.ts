@@ -2,6 +2,7 @@ import { NodeFileSystem, NodePath } from '@effect/platform-node';
 import { Effect, FileSystem, Layer, Path, Ref } from 'effect';
 import { StreamDeckError, invalid, invariant } from './errors.ts';
 import type { RgbImage } from './image.ts';
+import { cjkFontFiles } from './fonts.ts';
 export const escapeXml = (text: string) =>
   text.replace(/[&<>"']/g, (char) =>
     invariant(
@@ -25,6 +26,7 @@ export const make = Effect.gen(function* () {
     ['LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf'],
     (name) => path.fromFileUrl(new URL(`../assets/fonts/${name}`, import.meta.url)),
   );
+  fontFiles.push(...(yield* cjkFontFiles));
   yield* Effect.forEach(fontFiles, (currentPath) => fs.access(currentPath));
   const native = yield* Effect.tryPromise({ try: () => import('@resvg/resvg-js'), catch: failure });
   const options = {

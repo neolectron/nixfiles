@@ -245,7 +245,10 @@ and `Muted` label. Swipe the LCD left/right for more apps
 when they exceed the available app dials (five on the + XL). When an application
 disappears, remaining cards compact left while preserving their relative order;
 new apps append to that order, before cards requesting a trailing position such
-as Spotify. Empty application slots show only the
+as Spotify. Opening a player's now-playing card moves it after the other players,
+so it can fill the remaining empty space up to Master. Opening another player
+moves that player to the end in turn; its dial follows the displayed card.
+Empty application slots show only the
 strip background, without a placeholder card. Long names ellipsize using real font
 measurements to fit each region, including the narrow cards at the strip ends.
 

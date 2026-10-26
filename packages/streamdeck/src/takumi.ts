@@ -6,6 +6,7 @@ import type { ReactElement } from 'react';
 import type { RgbImage } from './image.ts';
 import type { Size } from './model.ts';
 import { StreamDeckError, invalid, invariant } from './errors.ts';
+import { cjkFontFiles, fontFamilies } from './fonts.ts';
 const failure = (cause: unknown) =>
   new StreamDeckError({
     reason: 'Driver',
@@ -32,6 +33,11 @@ export const make = Effect.gen(function* () {
       try: () => renderer.registerFont({ data, name: 'Liberation Sans', weight }),
       catch: failure,
     });
+  }
+  for (const filename of yield* cjkFontFiles) {
+    const data = yield* fs.readFile(filename);
+    // Preserve collection family names: its first face is the Japanese cut.
+    yield* Effect.tryPromise({ try: () => renderer.registerFont(data), catch: failure });
   }
   const lock = yield* Semaphore.make(1);
   const cache = new Map<string, Uint8Array>();
@@ -70,7 +76,7 @@ export const make = Effect.gen(function* () {
               ...size,
               format,
               css: parsed.css,
-              fontFamilies: ['Liberation Sans'],
+              fontFamilies,
             }),
           catch: failure,
         });

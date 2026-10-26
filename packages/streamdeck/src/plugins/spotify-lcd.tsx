@@ -32,7 +32,12 @@ export const register = (api: Controller) =>
       id: 'spotify-now-playing',
       matches: (app) => keyForApplication(app.key) !== undefined,
       expandIntoEmpty: true,
-      placement: 'last',
+      placement: (app) =>
+        Ref.get(visible).pipe(
+          Effect.map((keys) =>
+            keys.has(invariant(keyForApplication(app.key), 'spotify-lcd')) ? 'expanded' : 'last',
+          ),
+        ),
       retain:
         api.applications ??
         api.state.pipe(

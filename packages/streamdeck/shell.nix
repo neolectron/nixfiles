@@ -6,9 +6,10 @@ let
   pkgs = flake.inputs.nixpkgs.legacyPackages.${builtins.currentSystem};
 in
 pkgs.mkShell {
+  STREAMDECK_CJK_FONT = "${pkgs.noto-fonts-cjk-sans}/share/fonts/opentype/noto-cjk/NotoSansCJK-VF.otf.ttc";
   packages = [
     pkgs.nodejs_24
-    pkgs.pnpm
+    pkgs.pnpm_12
     pkgs.usbutils
     pkgs.pulseaudio # pactl controls PipeWire's existing PulseAudio interface.
     pkgs.glib # gio launches selected installed desktop applications.

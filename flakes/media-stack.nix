@@ -1,6 +1,8 @@
 { config, ... }:
 let
   username = config.flake.username;
+  libraryRoot = "/mnt/data/${username}/Videos/Library";
+  downloadsRoot = "${libraryRoot}/downloads";
 in
 {
   # NixOS side: *arr media automation stack
@@ -15,10 +17,10 @@ in
   #   Bazarr:      http://localhost:6765  — automatic subtitles (FR + EN)
   #
   # Setup order:
-  #   1. qBittorrent — set download path to ~/Videos/Library/downloads
+  #   1. qBittorrent — set download path to /mnt/data/<user>/Videos/Library/downloads
   #   2. Prowlarr    — add indexers (nyaa.si, etc.), then connect to Sonarr & Radarr
-  #   3. Sonarr      — set root folder ~/Videos/Library/Anime, connect to qBittorrent
-  #   4. Radarr      — set root folder ~/Videos/Library/Movies, connect to qBittorrent
+  #   3. Sonarr      — set root folder /mnt/data/<user>/Videos/Library/Anime, connect to qBittorrent
+  #   4. Radarr      — set root folder /mnt/data/<user>/Videos/Library/Movies, connect to qBittorrent
   flake.modules.nixos.mediaStack =
     { lib, pkgs, ... }:
     {
@@ -86,28 +88,39 @@ in
         settings.general.port = lib.mkDefault 6765;
       };
 
-      # Allow all media services to access ~/Videos/Library
-      # (systemd sets ProtectHome=yes by default, blocking /home entirely)
-      systemd.tmpfiles.rules = [
-        "d /home/${username}/Videos/Library 0775 ${username} media -"
-        "d /home/${username}/Videos/Library/downloads 0775 ${username} media -"
-      ];
-      systemd.services.qbittorrent.serviceConfig = {
-        ProtectHome = lib.mkForce "tmpfs";
-        BindPaths = [ "/home/${username}/Videos/Library" ];
-      };
-      systemd.services.sonarr.serviceConfig = {
-        ProtectHome = lib.mkForce "tmpfs";
-        BindPaths = [ "/home/${username}/Videos/Library" ];
-      };
-      systemd.services.radarr.serviceConfig = {
-        ProtectHome = lib.mkForce "tmpfs";
-        BindPaths = [ "/home/${username}/Videos/Library" ];
-      };
-      systemd.services.bazarr.serviceConfig = {
-        ProtectHome = lib.mkForce "tmpfs";
-        BindPaths = [ "/home/${username}/Videos/Library" ];
-      };
+      # Keep legacy download paths visible until existing completed torrents have
+      # been relocated explicitly. New downloads and library roots use /mnt/data.
+      # No tmpfiles rules here: they could create directories on the root disk
+      # before the optional data mount is available.
+      systemd.services =
+        lib.genAttrs
+          [
+            "qbittorrent"
+            "sonarr"
+            "radarr"
+            "jellyfin"
+            "bazarr"
+          ]
+          (name: {
+            # RequiresMountsFor also pulls in a mount marked nofail. BindsTo + After
+            # stops media writers before unmount, including unexpected mount loss.
+            unitConfig = {
+              RequiresMountsFor = libraryRoot;
+              AssertPathIsMountPoint = "/mnt/data";
+            };
+            bindsTo = [ "mnt-data.mount" ];
+            after = [ "mnt-data.mount" ];
+            serviceConfig = lib.mkIf (name != "jellyfin") {
+              ProtectHome = lib.mkForce "tmpfs";
+              BindPaths = [ "/home/${username}/Videos/Library" ];
+            };
+          })
+        // {
+          nginx.serviceConfig = {
+            ProtectHome = lib.mkForce "tmpfs";
+            BindPaths = [ "${pkgs.vuetorrent}/share/vuetorrent" ];
+          };
+        };
 
       services.qbittorrent = {
         enable = lib.mkDefault true;
@@ -119,6 +132,11 @@ in
 
         serverConfig = {
           LegalNotice.Accepted = true;
+          BitTorrent.Session = {
+            DefaultSavePath = downloadsRoot;
+            TempPath = "${downloadsRoot}/incomplete";
+            TempPathEnabled = false;
+          };
           Preferences = {
             WebUI = {
               # Use native web UI — Vuetorrent served separately via nginx
@@ -134,7 +152,7 @@ in
               MaxAuthenticationFailCount = 0;
             };
             Downloads = {
-              SavePath = "/home/${username}/Videos/Library/downloads";
+              SavePath = downloadsRoot;
             };
             Bittorrent = {
               # MaxRatio = -1 means no limit (seed forever). Set to e.g. 1 to stop at 1:1 ratio.
@@ -168,13 +186,6 @@ in
               proxyPass = "http://127.0.0.1:8080";
             };
           };
-        };
-      };
-      # Deploy Vuetorrent static files for nginx to serve
-      systemd.services.nginx = {
-        serviceConfig = {
-          ProtectHome = lib.mkForce "tmpfs";
-          BindPaths = [ "${pkgs.vuetorrent}/share/vuetorrent" ];
         };
       };
     };

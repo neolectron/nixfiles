@@ -47,13 +47,15 @@ export const assign = (
   previous: ReadonlyArray<string | null>,
   apps: ReadonlyArray<Application>,
   trailing: ReadonlySet<string> = new Set(),
+  expanded: ReadonlySet<string> = new Set(),
 ): ReadonlyArray<string> => {
   const keys = new Set(apps.map((app) => app.key));
   const slots = previous.filter((key): key is string => key !== null && keys.has(key));
   for (const app of apps) if (!slots.includes(app.key)) slots.push(app.key);
   return [
-    ...slots.filter((key) => !trailing.has(key)),
-    ...slots.filter((key) => trailing.has(key)),
+    ...slots.filter((key) => !trailing.has(key) && !expanded.has(key)),
+    ...slots.filter((key) => trailing.has(key) && !expanded.has(key)),
+    ...slots.filter((key) => expanded.has(key)),
   ];
 };
 export interface Slot extends Position, Size {
@@ -145,6 +147,16 @@ export const make = (options: MixerOptions = {}) =>
     const scene = yield* Ref.make<ReadonlyArray<Region> | undefined>(undefined);
     const render = (next: MixerState) =>
       Effect.gen(function* () {
+        const trailing = new Set<string>();
+        const expanded = new Set<string>();
+        if (extensions)
+          for (const app of next.apps) {
+            const placement = yield* extensions.placement(app);
+            if (placement === 'last') trailing.add(app.key);
+            if (placement === 'expanded') expanded.add(app.key);
+          }
+        if (next.online)
+          next = { ...next, assignments: assign(next.assignments, next.apps, trailing, expanded) };
         const previous = yield* Ref.get(state);
         if (extensions)
           for (const app of next.apps) {
@@ -327,11 +339,7 @@ export const make = (options: MixerOptions = {}) =>
             }),
           ),
         );
-        const trailing = new Set<string>();
-        if (apps && extensions)
-          for (const app of apps)
-            if ((yield* extensions.placement(app)) === 'last') trailing.add(app.key);
-        const assignments = apps ? assign(before.assignments, apps, trailing) : before.assignments;
+        const assignments = apps ? assign(before.assignments, apps) : before.assignments;
         const page = Math.min(
           before.page,
           Math.max(0, Math.ceil(assignments.length / appSlots.length) - 1),
@@ -458,7 +466,21 @@ export const make = (options: MixerOptions = {}) =>
                 message: 'L’application ou la page a changé. Recharge le mixer.',
               }),
             );
-          if (app && extensions && (yield* extensions.tap(app))) yield* render(current);
+          if (app && extensions && (yield* extensions.tap(app))) {
+            const promote = (yield* extensions.placement(app)) === 'expanded';
+            yield* render(
+              promote
+                ? {
+                    ...current,
+                    assignments: [
+                      ...current.assignments.filter((assigned) => assigned !== app.key),
+                      app.key,
+                    ],
+                    page: Math.floor((current.assignments.length - 1) / appSlots.length),
+                  }
+                : current,
+            );
+          }
         }),
       );
     const binding = yield* Bindings.start({

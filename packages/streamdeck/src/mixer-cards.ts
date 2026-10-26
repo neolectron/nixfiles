@@ -15,6 +15,7 @@ export interface Frame<E = never, R = never> {
   /** Portable JSON paired with a plugin-owned React renderer. Optional for legacy pixel-only cards. */
   readonly view?: View;
 }
+export type Placement = 'last' | 'expanded';
 export interface Contribution<E, R> {
   readonly id: string;
   readonly matches: (app: Application) => boolean;
@@ -31,8 +32,10 @@ export interface Contribution<E, R> {
   readonly onChange?: (app: Application, previous: Application) => Effect.Effect<void, E, R>;
   /** Contiguous empty space only, bounded by other apps, Master and configured LCD zones. */
   readonly expandIntoEmpty?: boolean;
-  /** Keep this source after ordinary app cards, independently of its selected view. */
-  readonly placement?: 'last';
+  /** Trailing cards follow ordinary apps; expanded cards follow other trailing cards. */
+  readonly placement?:
+    | Placement
+    | ((app: Application) => Effect.Effect<Placement | undefined, E, R>);
 }
 /** The mixer produces its base scene; scoped contributors own content and behavior. */
 export const make = Effect.sync(() => {
@@ -56,7 +59,7 @@ export const make = Effect.sync(() => {
     tap: (app: Application) => Effect.Effect<boolean>;
     adjust: (app: Application, change: Change) => Effect.Effect<boolean>;
     changed: (app: Application, previous: Application) => Effect.Effect<void>;
-    placement: 'last' | undefined;
+    placement: (app: Application) => Effect.Effect<Placement | undefined>;
   };
   const entries = new Map<string, Entry>();
   let revision = 0;
@@ -89,7 +92,10 @@ export const make = Effect.sync(() => {
         );
       const entry: Entry = {
         matches: contribution.matches,
-        placement: contribution.placement,
+        placement: (app) =>
+          typeof contribution.placement === 'function'
+            ? invoke(contribution.placement(app))
+            : Effect.succeed(contribution.placement),
         retain: contribution.retain
           ? invoke(contribution.retain).pipe(Effect.map((value) => value ?? []))
           : Effect.succeed([]),
@@ -144,7 +150,8 @@ export const make = Effect.sync(() => {
     changed: (app: Application, previous: Application) =>
       Effect.suspend(() => find(app)?.changed(app, previous) ?? Effect.void),
     label: (app: Application) => Effect.sync(() => find(app)?.label),
-    placement: (app: Application) => Effect.sync(() => find(app)?.placement),
+    placement: (app: Application) =>
+      Effect.suspend(() => find(app)?.placement(app) ?? Effect.succeed(undefined)),
     retain: Effect.suspend(() =>
       Effect.forEach([...entries.values()], (entry) => entry.retain).pipe(
         Effect.map((groups) => groups.flat()),
