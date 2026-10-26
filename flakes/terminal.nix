@@ -141,39 +141,5 @@ in
           background-blur = "10";
         };
       };
-
-      # Create a desktop entry for "terminal-as-file-manager"
-      # This replaces qdirstat as the handler for inode/directory
-      xdg.desktopEntries.terminal-file-manager = {
-        name = "Terminal (as File Manager)";
-        comment = "Open directory in terminal";
-        exec = "${lib.getExe pkgs.ghostty} --working-directory=%f";
-        terminal = false;
-        type = "Application";
-        mimeType = [
-          "inode/directory"
-          "inode/mount-point"
-        ];
-        categories = [
-          "System"
-          "FileTools"
-          "FileManager"
-        ];
-        icon = "utilities-terminal";
-        noDisplay = true;
-      };
-
-      # Set the terminal desktop entry as the default file manager
-      xdg.mimeApps = {
-        enable = true;
-        associations.added = {
-          "inode/directory" = [ "terminal-file-manager.desktop" ];
-          "inode/mount-point" = [ "terminal-file-manager.desktop" ];
-        };
-        defaultApplications = {
-          "inode/directory" = [ "terminal-file-manager.desktop" ];
-          "inode/mount-point" = [ "terminal-file-manager.desktop" ];
-        };
-      };
     };
 }
