@@ -14,10 +14,9 @@ let
     TimeoutStopSec = "30s";
     UMask = "0077";
     NoNewPrivileges = true;
-    PrivateTmp = true;
-    ProtectSystem = "strict";
-    ProtectHome = "read-only";
-    ReadWritePaths = [ privateDirectory ];
+    # Rootless mount namespaces remap root-owned ancestors to UID65534 here.
+    # Preserve real ownership for the gateway's strict private-file validation.
+    # Do not add ProtectHome/ProtectSystem/PrivateTmp/ReadWritePaths to user units.
     RestrictSUIDSGID = true;
     LockPersonality = true;
     RestrictAddressFamilies = [ "AF_UNIX AF_INET AF_INET6" ];

@@ -63,18 +63,27 @@ class ServiceContracts(unittest.TestCase):
         self.assertNotIn("--allow-remote-ui", command)
         self.assertNotIn("--embedded", command)
 
-    def test_private_writes_and_bounded_shutdown(self):
+    def test_private_mode_and_bounded_shutdown(self):
         for name in ["gateway", "tunnel"]:
             unit = directives(f"dsh-mcp-{name}")
             for key, value in {
                 "Restart": "on-failure", "RestartSec": "5s", "UMask": "0077",
-                "ProtectSystem": "strict", "ProtectHome": "read-only",
-                "NoNewPrivileges": "true", "PrivateTmp": "true", "TimeoutStopSec": "30s",
+                "NoNewPrivileges": "true", "TimeoutStopSec": "30s",
+                "RestrictSUIDSGID": "true", "LockPersonality": "true",
+                "RestrictAddressFamilies": "AF_UNIX AF_INET AF_INET6",
             }.items():
                 self.assertEqual(unit["Service", key], [value])
-            self.assertEqual(len(unit["Service", "ReadWritePaths"]), 1)
-            self.assertTrue(unit["Service", "ReadWritePaths"][0].endswith("/private"))
             self.assertEqual(unit["Install", "WantedBy"], ["default.target"])
+
+    def test_no_root_remapping_namespace_in_user_units(self):
+        for name in ["gateway", "tunnel"]:
+            unit = directives(f"dsh-mcp-{name}")
+            for key in [
+                "ProtectHome", "ProtectSystem", "PrivateTmp", "ReadWritePaths",
+                "PrivateUsers", "PrivateMounts", "RootDirectory", "RootImage",
+                "BindPaths", "BindReadOnlyPaths", "TemporaryFileSystem",
+            ]:
+                self.assertNotIn(("Service", key), unit)
 
 
 unittest.main()
