@@ -229,6 +229,7 @@ in
             # Features
             hm.terminal
             hm.coding
+            hm.dshMcpGateway
             hm.zed
             hm.musicProd
             hm.nixvim
@@ -255,6 +256,8 @@ in
             hm.wifiAudioStreaming
             hm.androidPhone
           ];
+          # Missing operator files keep both new services inactive until provisioned.
+          services.dshMcpGateway.enable = true;
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;
           programs.nix-index-database.comma.enable = true;
