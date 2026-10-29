@@ -38,7 +38,10 @@
       '';
     in
     {
-      home.packages = [ opencode-wrapper ];
+      home.packages = [
+        pkgs.claude-code
+        opencode-wrapper
+      ];
 
       # OpenCode headless server — always running
       # Defaults to localhost only (127.0.0.1). Set flake.opencode.hostname = "0.0.0.0" for LAN access.
