@@ -9,6 +9,7 @@
         qdirstat
         dust
         libation
+        losslesscut-bin
         # nemo
         vlc
         wl-clipboard

@@ -381,35 +381,19 @@ in
 
           };
 
-          programs.noctalia-shell = {
-            settings = {
-              location.name = "Toulouse";
-              wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
-              notifications.monitors = [ "DP-1" ];
-              osd.monitors = [ "DP-1" ];
-              general.animationSpeed = 1.3;
-              general.scaleRatio = 0.9;
-              systemMonitor.enableDgpuMonitoring = true;
-              audio.volumeOverdrive = true;
-            };
-            plugins = {
-              version = "2";
-              sources = [
-                {
-                  enabled = true;
-                  name = "Official Noctalia Plugins";
-                  url = "https://github.com/noctalia-dev/noctalia-plugins";
-                }
-              ];
-              states = {
-                # activate-linux.enabled = true; # didn't work but funny.
-                model-usage.enabled = true;
-                tailscale.enabled = true;
-                slowbongo.enabled = true;
-                screen-toolkit.enabled = true;
-                port-monitor.enabled = true;
-              };
-            };
+          programs.noctalia.settings = {
+            location.address = "Toulouse";
+            wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
+            notification.monitors = [ "DP-1" ];
+            osd.monitors = [ "DP-1" ];
+            shell.animation.speed = 1.3;
+            accessibility.ui_scale = 0.9;
+            audio.enable_overdrive = true;
+            plugins.enabled = [
+              "noctalia/bongocat"
+              "davemhammer/tailscale"
+              "alexander/screen-toolkit"
+            ];
           };
         };
       }
