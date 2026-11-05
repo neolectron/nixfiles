@@ -260,6 +260,8 @@ in
             ];
             # Use all available cores for building
             max-jobs = "auto";
+            # Hard-link identical files in newly built store paths
+            auto-optimise-store = true;
             # niri cachix is auto-added by niri-flake.cache.enable (default true)
             extra-substituters = [
               "https://cache.nixos.org"
@@ -272,6 +274,14 @@ in
               "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
             ];
           };
+          # Weekly cleanup: drop system generations older than 14 days, then GC
+          nix.gc = {
+            automatic = true;
+            dates = "weekly";
+            options = "--delete-older-than 14d";
+          };
+          # Periodic dedup of the whole store, including paths built before auto-optimise
+          nix.optimise.automatic = true;
           # Build parallelism is already handled by max-jobs = auto and cores = 0 (use all cores)
           system.stateVersion = "25.11";
         }
@@ -290,6 +300,12 @@ in
           home.username = username;
           home.homeDirectory = "/home/${username}";
           home.stateVersion = "25.11";
+          # Root's nix.gc does not expire per-user Home Manager generations
+          services.home-manager.autoExpire = {
+            enable = true;
+            frequency = "weekly";
+            timestamp = "-14 days";
+          };
 
           imports = [
             # Desktop environment & system integration
