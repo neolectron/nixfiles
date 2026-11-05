@@ -28,6 +28,7 @@
             background_opacity = lib.mkDefault 0.93;
             padding = lib.mkDefault 2;
             capsule = lib.mkDefault true;
+            radius = lib.mkDefault 0;
             start = [
               "control-center"
               "taskbar"
@@ -49,7 +50,7 @@
               group_by_workspace = true;
               show_all_outputs = false;
               only_active_workspace = false;
-              show_workspace_label = true;
+              show_workspace_label = false;
               hide_empty_workspaces = true;
               workspace_group_capsule = true;
               workspace_group_content = "icons";
