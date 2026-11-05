@@ -2,6 +2,8 @@
   inputs = {
     # Frameworks
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # Keep Discord current without updating the rest of the host packages.
+    nixpkgs-discord.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:vic/import-tree";
     home-manager = {
