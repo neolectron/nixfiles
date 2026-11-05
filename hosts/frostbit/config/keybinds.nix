@@ -8,9 +8,9 @@
         # Toggle Keep Awake / idle inhibitor (prevents sleep/lock/suspend)
         "Mod+Shift+C" = {
           action.spawn = [
-            "sh"
-            "-c"
-            "qs -c noctalia-shell ipc call idleInhibitor toggle"
+            "noctalia"
+            "msg"
+            "caffeine-toggle"
           ];
         };
       };

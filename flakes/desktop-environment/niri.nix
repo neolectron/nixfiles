@@ -216,6 +216,14 @@ in
           # Ghostty glassy blur effect - niri 26.04+
         ];
 
+        # Show Noctalia's wallpaper backdrop in the overview.
+        layer-rules = [
+          {
+            matches = [ { namespace = "^noctalia-backdrop"; } ];
+            place-within-backdrop = true;
+          }
+        ];
+
         # Cursor theme (must match home.pointerCursor so niri and spawned apps agree)
         cursor = {
           theme = lib.mkDefault "Adwaita";
@@ -225,9 +233,9 @@ in
         # XWayland support via xwayland-satellite (X11 compat for apps like Discord)
         xwayland-satellite.path = lib.getExe pkgs.xwayland-satellite;
 
-        # Spawn noctalia-shell and other startup apps
+        # Spawn Noctalia and other startup apps
         spawn-at-startup = [
-          { command = [ "noctalia-shell" ]; }
+          { command = [ "noctalia" ]; }
           { command = [ (lib.getExe floatBitwardenPopups) ]; }
         ];
 

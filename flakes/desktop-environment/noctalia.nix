@@ -1,16 +1,12 @@
 { inputs, ... }:
 {
-  # NixOS side: enable services noctalia benefits from
   flake.modules.nixos.noctalia =
     { ... }:
     {
-      # Power profiles for the power widget
       services.power-profiles-daemon.enable = true;
-      # Battery info for battery widget
       services.upower.enable = true;
     };
 
-  # Home Manager side: noctalia shell config
   flake.modules.homeManager.noctalia =
     {
       lib,
@@ -19,185 +15,127 @@
       ...
     }:
     {
-      imports = [
-        inputs.noctalia.homeModules.default
-      ];
-
-      # fastfetch: used by noctalia's system info integration
+      imports = [ inputs.noctalia.homeModules.default ];
       home.packages = [ pkgs.fastfetch ];
 
-      programs.noctalia-shell = {
+      programs.noctalia = {
         enable = true;
+        # The upstream module validates the generated TOML during the build.
         settings = {
-          # ── Bar ──────────────────────────────────────────────
-          bar.widgets = {
-            left = [
-              {
-                id = "ControlCenter";
-                useDistroLogo = true;
-                icon = "noctalia";
-              }
-              {
-                id = "Workspace";
-                characterCount = 4;
-                fontWeight = "bold";
-                groupedBorderOpacity = 0;
-                hideUnoccupied = true;
-                iconScale = 1;
-                labelMode = "none";
-                showApplications = true;
-                showBadge = true;
-              }
+          bar.main = {
+            margin_ends = lib.mkDefault 0;
+            margin_edge = lib.mkDefault 0;
+            background_opacity = lib.mkDefault 0.93;
+            padding = lib.mkDefault 2;
+            capsule = lib.mkDefault true;
+            start = [
+              "control-center"
+              "taskbar"
             ];
-            center = [
-              {
-                id = "ActiveWindow";
-                showIcon = true;
-                showText = true;
-                hideMode = "hidden";
-                scrollingMode = "hover";
-                maxWidth = 300;
-              }
-            ];
-            right = [
-              {
-                id = "plugin:slowbongo";
-              }
-              {
-                id = "Volume";
-                displayMode = "onhover";
-                middleClickCommand = "pwvucontrol";
-              }
-              {
-                id = "Microphone";
-                displayMode = "onhover";
-                middleClickCommand = "pwvucontrol";
-              }
-              {
-                id = "Network";
-                displayMode = "onhover";
-              }
-              {
-                id = "plugin:tailscale";
-              }
-              {
-                id = "plugin:port-monitor";
-              }
-              {
-                id = "CustomButton";
-                icon = "linux";
-                tooltip = "Toggle Activate Linux Watermark";
-                leftClickExec = "qs -c noctalia-shell ipc call plugin toggle activate-linux";
-              }
-              {
-                id = "KeepAwake";
-              }
-              {
-                id = "Clock";
-                formatHorizontal = "HH:mm:ss";
-                formatVertical = "HH mm";
-              }
-              {
-                id = "Tray";
-                drawerEnabled = false;
-                hidePassive = false;
-              }
+            center = [ "active_window" ];
+            end = [
+              "bongocat"
+              "volume"
+              "microphone"
+              "network"
+              "tailscale"
+              "caffeine"
+              "clock"
+              "tray"
             ];
           };
-
-          # ── General ─────────────────────────────────────────
-          general = {
-            avatarImage = "/home/${config.home.username}/.face";
-            radiusRatio = lib.mkDefault 0.2;
-            compactLockScreen = lib.mkDefault true;
-            passwordChars = lib.mkDefault true;
-          };
-
-          # ── UI ───────────────────────────────────────────────
-          ui.translucentWidgets = lib.mkDefault true;
-
-          # ── Wallpaper ────────────────────────────────────────
-          wallpaper = {
-            overviewEnabled = lib.mkDefault true;
-            fillColor = lib.mkDefault "#001625";
-            automationEnabled = lib.mkDefault true;
-            randomIntervalSec = lib.mkDefault 1800;
-          };
-
-          # ── Control Center ───────────────────────────────────
-          # brightness-card disabled
-          controlCenter.cards = [
-            {
-              enabled = true;
-              id = "profile-card";
-            }
-            {
-              enabled = true;
-              id = "shortcuts-card";
-            }
-            {
-              enabled = true;
-              id = "audio-card";
-            }
-            {
-              enabled = false;
-              id = "brightness-card";
-            }
-            {
-              enabled = true;
-              id = "weather-card";
-            }
-            {
-              enabled = true;
-              id = "media-sysmon-card";
-            }
-          ];
-
-          # ── Dock ─────────────────────────────────────────────
-          dock.enabled = lib.mkDefault false;
-
-          # ── Notifications ────────────────────────────────────
-          notifications = {
-            enableMarkdown = lib.mkDefault true;
-            density = lib.mkDefault "compact";
-            backgroundOpacity = lib.mkDefault 0.8;
-            sounds = {
-              enabled = lib.mkDefault false;
-              volume = lib.mkDefault 1;
-              excludedApps = lib.mkDefault "discord,firefox,chrome,chromium,edge";
+          widget = {
+            taskbar = {
+              group_by_workspace = true;
+              show_all_outputs = false;
+              only_active_workspace = false;
+              show_workspace_label = true;
+              hide_empty_workspaces = true;
+              workspace_group_capsule = true;
+              workspace_group_content = "icons";
+              group_single_icon_per_app = false;
+              show_active_indicator = true;
             };
-            enableMediaToast = lib.mkDefault true;
+            active_window = {
+              display = "icon_and_text";
+              max_length = 300;
+              title_scroll = "on_hover";
+              show_empty_label = false;
+            };
+            bongocat = {
+              type = "noctalia/bongocat:cat";
+              audio_spectrum = true;
+            };
+            volume = {
+              show_label = false;
+              actions.middle = "exec pwvucontrol";
+            };
+            microphone = {
+              type = "volume";
+              device = "input";
+              show_label = false;
+              actions.middle = "exec pwvucontrol";
+            };
+            network.show_label = false;
+            tailscale.type = "davemhammer/tailscale:status";
+            clock = {
+              format = "{:%H:%M:%S}";
+              vertical_format = "{:%H %M}";
+            };
+            tray = {
+              drawer = false;
+              hide_passive = false;
+            };
           };
 
-          # ── OSD ──────────────────────────────────────────────
-          osd = {
-            location = lib.mkDefault "top_right";
-            enabledTypes = [
-              0
-              1
-              2
-            ];
+          shell = {
+            setup_wizard_enabled = lib.mkDefault false;
+            avatar_path = "/home/${config.home.username}/.face";
+            corner_radius_scale = lib.mkDefault 0.2;
+            panel.transparency_mode = lib.mkDefault "soft";
           };
-
-          # ── Audio ────────────────────────────────────────────
-          audio.spectrumFrameRate = lib.mkDefault 30;
-
-          # ── System Monitor ──────────────────────────────────
-          systemMonitor.enableDgpuMonitoring = lib.mkDefault false;
-
-          # ── Color Schemes ────────────────────────────────────
-          colorSchemes.predefinedScheme = lib.mkDefault "Catppuccin";
-
-          # ── Idle ─────────────────────────────────────────────
-          idle = {
-            enabled = lib.mkDefault true;
-            screenOffTimeout = lib.mkDefault 300;
-            lockTimeout = lib.mkDefault 360;
-            suspendTimeout = lib.mkDefault 1800;
+          wallpaper = {
+            fill_color = lib.mkDefault "#001625";
+            automation = {
+              enabled = lib.mkDefault true;
+              interval_seconds = lib.mkDefault 1800;
+              order = lib.mkDefault "random";
+            };
           };
-
-          # ── Desktop Widgets ──────────────────────────────────
-          desktopWidgets.enabled = lib.mkDefault false;
+          weather.enabled = lib.mkDefault true;
+          backdrop.enabled = lib.mkDefault true;
+          dock.enabled = lib.mkDefault false;
+          notification = {
+            background_opacity = lib.mkDefault 0.8;
+            layer = lib.mkDefault "overlay";
+          };
+          audio = {
+            enable_sounds = lib.mkDefault false;
+            sound_volume = lib.mkDefault 1.0;
+          };
+          osd.position = lib.mkDefault "top_right";
+          theme = {
+            source = lib.mkDefault "builtin";
+            builtin = lib.mkDefault "Catppuccin";
+          };
+          idle.behavior = {
+            screen-off = {
+              enabled = lib.mkDefault true;
+              timeout = lib.mkDefault 300;
+              action = lib.mkDefault "screen_off";
+            };
+            lock = {
+              enabled = lib.mkDefault true;
+              timeout = lib.mkDefault 360;
+              action = lib.mkDefault "lock";
+            };
+            suspend = {
+              enabled = lib.mkDefault true;
+              timeout = lib.mkDefault 1800;
+              action = lib.mkDefault "lock_and_suspend";
+            };
+          };
+          desktop_widgets.enabled = lib.mkDefault false;
         };
       };
     };
