@@ -5,11 +5,11 @@
     let
       chatgpt-unwrapped = pkgs.stdenvNoCC.mkDerivation {
         pname = "chatgpt";
-        version = "26.1013.31256";
+        version = "26.1027.30824";
 
         src = pkgs.fetchurl {
-          url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_26.1013.31256_amd64.deb";
-          hash = "sha256-cMzyub94CY57u/3b8e4Zao/dQr63538W3UL6ujZAMyQ=";
+          url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_26.1027.30824_amd64.deb";
+          hash = "sha256-ThOaRPfJF6ZD8t0BStMimN0wrsbTJNMjUksZD3ZnaEw=";
         };
 
         nativeBuildInputs = [ pkgs.dpkg ];
