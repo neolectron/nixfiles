@@ -39,6 +39,8 @@ in
           btop-rocm
           uv
           gh
+          # Tunnels for DSH Public access (Cloudflare quick and named tunnels)
+          pkgs.cloudflared
           jujutsu
           nixfmt
           nixd
