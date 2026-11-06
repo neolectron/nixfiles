@@ -120,7 +120,31 @@ in
     }:
     let
       opencodexPackage = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.opencodex;
-      codexPackage = pkgs.callPackage ../packages/codex/default.nix { };
+      codexDesktopComputerUsePackage =
+        inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop-computer-use-ui;
+      desktopResources = "${codexDesktopComputerUsePackage}/opt/codex-desktop/resources";
+
+      # Use the CLI bundled with the desktop app. The app talks to it over a
+      # versioned app-server protocol, so a separately pinned CLI drifts out of
+      # sync on every app update and breaks startup ("Organization settings
+      # could not be loaded").
+      codexPackage =
+        pkgs.runCommand "codex-bundled"
+          {
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            meta.mainProgram = "codex";
+          }
+          ''
+            mkdir -p $out/bin
+            makeWrapper ${desktopResources}/codex $out/bin/codex \
+              --prefix PATH : ${
+                lib.makeBinPath [
+                  pkgs.bubblewrap
+                  pkgs.ripgrep
+                ]
+              }
+            ln -s ${desktopResources}/codex-code-mode-host $out/bin/codex-code-mode-host
+          '';
       codexExec = lib.getExe codexPackage;
       opencodeAuthPath = "${config.home.homeDirectory}/.local/share/opencode/auth.json";
       codexOpenCodeGoEnv = pkgs.writeShellScript "codex-opencode-go-env" ''
@@ -151,8 +175,6 @@ in
         }
       );
 
-      codexDesktopComputerUsePackage =
-        inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop-computer-use-ui;
       codexComputerUseLinux = pkgs.writeShellScriptBin "codex-computer-use-linux" ''
         export YDOTOOL_SOCKET="''${YDOTOOL_SOCKET:-/run/ydotoold/socket}"
         for plugin in unified-computer-use computer-use; do
