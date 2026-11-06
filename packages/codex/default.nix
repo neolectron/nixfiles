@@ -13,16 +13,16 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "codex";
-  version = "0.156.1";
+  version = "0.166.0";
 
   srcs = [
     (fetchurl {
       url = "${releaseBase}/rust-v${finalAttrs.version}/codex-${arch}.tar.gz";
-      hash = "sha256-r/RlOag6/4bjxixZK84sUNlTkfnfKJr68DpQwB0UUz0=";
+      hash = "sha256-oL9XLS+T8FbGcSpto0jpYHjchPOIX9e+Z4B+84nLOXg=";
     })
     (fetchurl {
       url = "${releaseBase}/rust-v${finalAttrs.version}/codex-code-mode-host-${arch}.tar.gz";
-      hash = "sha256-qSnaqfagvdwAwMnmQC3xF7ElrNlvnVVPbJnDLH5mxgg=";
+      hash = "sha256-dYgzT9R7xAA9lwtw39TR5FeEkbHpuqcpdqTC1+l1kNo=";
     })
   ];
 
