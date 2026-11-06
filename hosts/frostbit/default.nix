@@ -334,7 +334,6 @@ in
             hm.vicinae
             hm.chataigne
             hm.frostbitgames
-            hm.chatgpt
             hm.codexDesktop
             hm.keepAwake
             hm.streamdeck
