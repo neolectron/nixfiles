@@ -371,6 +371,18 @@ in
                 y = 0;
               };
             };
+            # Steam Remote Play streams the primary monitor (DP-1); keep Big Picture on it.
+            window-rules = [
+              {
+                matches = [
+                  {
+                    app-id = "^steam$";
+                    title = "^Steam Big Picture Mode$";
+                  }
+                ];
+                open-on-output = "DP-1";
+              }
+            ];
             layout = {
               # White focus ring on active window only (follows corner radius with prefer-no-csd)
               border.enable = false;
