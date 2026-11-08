@@ -397,6 +397,7 @@ in
           };
 
           programs.noctalia.settings = {
+            idle.behavior.suspend.enabled = false;
             location.address = "Toulouse";
             wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
             notification.monitors = [ "DP-1" ];
