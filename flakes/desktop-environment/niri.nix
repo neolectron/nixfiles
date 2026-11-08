@@ -158,6 +158,20 @@ in
             };
           }
 
+          # Steam Big Picture (also opened by Steam Link / Remote Play) is a full-screen UI,
+          # not a popup: undo the rule above for it.
+          {
+            matches = [
+              {
+                app-id = "^steam$";
+                title = "^Steam Big Picture Mode$";
+              }
+            ];
+            open-floating = false;
+            open-fullscreen = true;
+            open-focused = true;
+          }
+
           # Wine popups/menus/scrollbars — float everything except the main window
           # Wine apps create separate windows for menus, scrollbars, etc.
           # Main windows have a real title; popups have "" or "menu".
