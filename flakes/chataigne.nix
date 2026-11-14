@@ -31,7 +31,8 @@
           pkgs: with pkgs; [
             # Audio & MIDI
             alsa-lib
-            libjack2
+            # PipeWire's libjack, so JACK connects to the running PipeWire graph.
+            pipewire.jack
 
             # Bluetooth (Wiimote, Joycon support)
             bluez

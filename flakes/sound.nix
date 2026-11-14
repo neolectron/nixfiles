@@ -14,7 +14,8 @@
         alsa.support32Bit = true;
         pulse.enable = true;
         wireplumber.enable = true;
-        jack.enable = true;
+        # No jack.enable: it exports the PipeWire JACK library through a global
+        # LD_LIBRARY_PATH. JACK clients get it themselves (pipewire.jack).
       };
     };
 
