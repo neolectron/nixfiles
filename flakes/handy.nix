@@ -1,11 +1,21 @@
 { inputs, ... }:
+let
+  # nixpkgs d4f25a3: the Rust build links -lsqlite3, which the Tauri stack no
+  # longer brings in transitively. Drop this once upstream lists sqlite itself.
+  handyPackage =
+    pkgs:
+    inputs.handy.packages.${pkgs.stdenv.hostPlatform.system}.handy.overrideAttrs (old: {
+      buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.sqlite ];
+    });
+in
 {
   # NixOS side: udev rule for /dev/uinput + add package to system
   flake.modules.nixos.handy =
-    { ... }:
+    { pkgs, ... }:
     {
       imports = [ inputs.handy.nixosModules.default ];
       programs.handy.enable = true;
+      programs.handy.package = handyPackage pkgs;
     };
 
   # Home Manager side: on-demand systemd user service + niri keybind
@@ -14,6 +24,7 @@
     {
       imports = [ inputs.handy.homeManagerModules.default ];
       services.handy.enable = true;
+      services.handy.package = handyPackage pkgs;
 
       # Keep the user service available, but don't start it with the session.
       systemd.user.services.handy.Install.WantedBy = lib.mkForce [ ];
