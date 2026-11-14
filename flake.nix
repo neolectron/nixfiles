@@ -35,10 +35,6 @@
     };
 
     # No cachix binary caches, but we want to be able to override them with our own nixpkgs
-    envisaged = {
-      url = "github:utensils/Envisaged";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     handy = {
       url = "github:cjpais/Handy";
       inputs.nixpkgs.follows = "nixpkgs";

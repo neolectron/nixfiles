@@ -29,7 +29,6 @@ in
       nixos.gaming
       nixos.sunshine
       nixos.wslMount
-      nixos.envisaged
       nixos.gparted
       nixos.handy
       nixos.mediaStack
