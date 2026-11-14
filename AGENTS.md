@@ -85,10 +85,11 @@ After desktop runtime or graphics updates, verify the live session as well:
 check Noctalia's bar layers with `niri msg --json layers`, open Vicinae with
 `vicinae toggle`, and inspect fresh logs for EGL/OpenGL initialization failures.
 A running Vicinae daemon alone is insufficient; it can crash when its window opens.
-Noctalia follows the host nixpkgs so its glibc can load the host Mesa driver.
-Vicinae uses its cached upstream package with Mesa from the same package set,
-selected with `__EGL_VENDOR_LIBRARY_FILENAMES`: following the host currently
-mismatches upstream's GCC 15 build with Numen's GCC 16 library.
+GL apps from flakes (Noctalia, Vicinae, Spotifast) follow the host nixpkgs so
+their glibc can load the host Mesa driver. Never give an app a private Mesa with
+`__EGL_VENDOR_LIBRARY_FILENAMES` or similar variables: a launcher exports it to
+every program it starts, and Chrome, Steam or Electron apps then load two Mesa
+versions and their GPU process crashes into software rendering.
 
 ## Commit Messages
 

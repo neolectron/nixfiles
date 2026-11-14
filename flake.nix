@@ -22,11 +22,15 @@
       url = "github:noctalia-dev/noctalia/v5.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Keep Vicinae's cached toolchain; its module supplies a matching Mesa.
-    vicinae.url = "github:vicinaehq/vicinae";
+    # Built with the host packages so it loads the system Mesa driver: a GL app
+    # carrying its own Mesa must export it to every program it launches.
+    vicinae = {
+      url = "github:vicinaehq/vicinae";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     vicinae-extensions = {
       url = "github:vicinaehq/extensions";
-      inputs.nixpkgs.follows = "vicinae/nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs";
       inputs.vicinae.follows = "vicinae";
     };
 
@@ -40,7 +44,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.bun2nix.inputs.systems.url = "github:nix-systems/x86_64-linux";
     };
-    spotifast.url = "github:crmne/spotifast";
+    # Same reason as Vicinae: the host Mesa, not a private one.
+    spotifast = {
+      url = "github:crmne/spotifast";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Nixvim - Neovim configuration framework
     # Note: Not using follows as recommended by nixvim docs for compatibility

@@ -14,7 +14,7 @@ different fixes because their renderers do not use fontconfig's glyph fallback.
   at depth four. NixOS fontconfig lists store roots, so it never reaches
   `share/fonts/opentype/noto-cjk`. The Nix wrapper prefixes the collection's
   `share` directory to `XDG_DATA_DIRS`; the scanner then starts at `share/fonts`.
-  Existing XDG directories and the compatible Mesa selection are preserved.
+  Existing XDG directories are preserved.
   The upstream scanner chooses the regional face from the locale; this does not
   change the user's locale or force the Japanese interface language.
 
