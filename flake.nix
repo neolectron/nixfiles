@@ -17,7 +17,7 @@
     niri.url = "github:sodiboo/niri-flake";
     # Noctalia loads the host Mesa driver into its process; its glibc must match.
     noctalia = {
-      url = "github:noctalia-dev/noctalia/v5.4.1";
+      url = "github:noctalia-dev/noctalia/v5.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # Built with the host packages so it loads the system Mesa driver: a GL app
@@ -49,7 +49,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    _0fetch = {
+    zerofetch = {
       url = "github:peachey2k2/0fetch";
       inputs.nixpkgs.follows = "nixpkgs";
     };

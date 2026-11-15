@@ -9,7 +9,7 @@ in
     {
       nixpkgs.overlays = [
         (final: prev: {
-          _0fetch = inputs._0fetch.packages.${final.stdenv.hostPlatform.system}.default;
+          _0fetch = inputs.zerofetch.packages.${final.stdenv.hostPlatform.system}.default;
         })
       ];
 
