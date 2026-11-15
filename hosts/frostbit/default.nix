@@ -389,7 +389,6 @@ in
             accessibility.ui_scale = 0.9;
             audio.enable_overdrive = true;
             plugins.enabled = [
-              "noctalia/bongocat"
               "davemhammer/tailscale"
               "alexander/screen-toolkit"
             ];

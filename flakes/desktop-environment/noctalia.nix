@@ -35,7 +35,6 @@
             ];
             center = [ "active_window" ];
             end = [
-              "bongocat"
               "volume"
               "microphone"
               "network"
@@ -62,10 +61,6 @@
               max_length = 300;
               title_scroll = "on_hover";
               show_empty_label = false;
-            };
-            bongocat = {
-              type = "noctalia/bongocat:cat";
-              audio_spectrum = true;
             };
             volume = {
               show_label = false;
