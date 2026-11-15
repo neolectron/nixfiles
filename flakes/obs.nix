@@ -19,11 +19,11 @@ in
       # in the layout Home Manager's OBS wrapper expects.
       aitum-stream-suite = pkgs.stdenvNoCC.mkDerivation rec {
         pname = "obs-aitum-stream-suite";
-        version = "1.2.1";
+        version = "1.2.5";
 
         src = pkgs.fetchurl {
           url = "https://github.com/Aitum/obs-aitum-stream-suite/releases/download/${version}/aitum-stream-suite-linux-gnu.deb";
-          hash = "sha256-IlCLY4hNuxI1GC/ODiOdAMYTYmrQrMQBGDlmBZuY+ew=";
+          hash = "sha256-laPA57zHrLTDKwnTl26jhGZJljan0eSyZBmodX6OSzY=";
         };
 
         nativeBuildInputs = [
