@@ -1,7 +1,7 @@
 { inputs, config, ... }:
 let
   flakeConfig = config;
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   flake.modules.nixos.androidPhone =
@@ -10,7 +10,7 @@ in
       boot.kernelModules = [ "v4l2loopback" ];
       boot.extraModulePackages = [ config.boot.kernelPackages.v4l2loopback ];
       boot.extraModprobeConfig = ''
-        options v4l2loopback devices=1 video_nr=${toString flakeConfig.flake.androidPhone.videoNumber} card_label="${flakeConfig.flake.androidPhone.cameraLabel}" exclusive_caps=1
+        options v4l2loopback devices=1 video_nr=${toString flakeConfig.nixfiles.androidPhone.videoNumber} card_label="${flakeConfig.nixfiles.androidPhone.cameraLabel}" exclusive_caps=1
       '';
 
       users.users.${username}.extraGroups = [ "video" ];

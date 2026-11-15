@@ -6,12 +6,12 @@
 }:
 {
   # Option to configure opencode server hostname
-  options.flake.opencode.hostname = lib.mkOption {
+  options.nixfiles.opencode.hostname = lib.mkOption {
     type = lib.types.str;
     default = "127.0.0.1";
     description = "Hostname for opencode server to bind to (default: localhost only)";
   };
-  options.flake.opencode.database = lib.mkOption {
+  options.nixfiles.opencode.database = lib.mkOption {
     type = lib.types.str;
     default = "opencode-v2.db";
     description = "Database file for the OpenCode 2 service";
@@ -21,11 +21,11 @@
     { pkgs, lib, ... }:
     let
       # Get hostname from flake option
-      hostname = config.flake.opencode.hostname;
+      hostname = config.nixfiles.opencode.hostname;
 
       opencode-v2 = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.opencode-v2;
       opencode-bin = "${opencode-v2}/bin/opencode";
-      opencode-db = config.flake.opencode.database;
+      opencode-db = config.nixfiles.opencode.database;
 
       # Wrapper: bare `opencode` opens the current directory using the shared service.
       # Any subcommand (run, serve, auth, …) is passed through to the real binary unchanged.
@@ -44,7 +44,7 @@
       ];
 
       # OpenCode headless server — always running
-      # Defaults to localhost only (127.0.0.1). Set flake.opencode.hostname = "0.0.0.0" for LAN access.
+      # Defaults to localhost only (127.0.0.1). Set nixfiles.opencode.hostname = "0.0.0.0" for LAN access.
       # Starts after graphical-session.target so niri-session has already run
       # `systemctl --user import-environment`, giving us the full NixOS PATH.
       systemd.user.services.opencode = {

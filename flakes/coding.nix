@@ -1,6 +1,6 @@
 { inputs, config, ... }:
 let
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   # NixOS side: nix-ld for VSCode remote extensions and other dynamically-linked tools

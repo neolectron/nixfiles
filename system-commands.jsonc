@@ -150,7 +150,6 @@
   //   pipewire.service         - Audio/Video
   //   wireplumber.service     - Media session
   //   opencode.service      - Assistant
-  //   handy.service         - Speech-to-text
   //   vicinae.service       - App launcher
   //   dbus-broker.service  - D-Bus
 }

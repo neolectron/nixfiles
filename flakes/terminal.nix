@@ -1,6 +1,6 @@
 { inputs, config, ... }:
 let
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   # NixOS side: enable zsh system-wide, set user shell, install ghostty

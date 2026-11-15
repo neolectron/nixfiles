@@ -2,14 +2,14 @@
 let
   nixos = config.flake.modules.nixos;
   hm = config.flake.modules.homeManager;
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   imports = [ ./lab-vm.nix ];
 
-  config.flake.username = "neolectron";
-  config.flake.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
-  config.flake.opencode.database = "opencode-v2-frostbit.db";
+  config.nixfiles.username = "neolectron";
+  config.nixfiles.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
+  config.nixfiles.opencode.database = "opencode-v2-frostbit.db";
   config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       # ── System-level modules ──────────────────────────────
@@ -30,7 +30,6 @@ in
       nixos.sunshine
       nixos.wslMount
       nixos.gparted
-      nixos.handy
       nixos.mediaStack
       nixos.obs
       nixos.spotifast
@@ -41,7 +40,7 @@ in
       (
         { pkgs, ... }@os:
         {
-          users.users.${config.flake.username} = {
+          users.users.${config.nixfiles.username} = {
             isNormalUser = true;
             description = "neolectron";
             extraGroups = [
@@ -226,32 +225,6 @@ in
 
           # Nix config
           nixpkgs.config.allowUnfree = true;
-          nixpkgs.overlays = [
-            (final: prev: {
-              # nixpkgs currently trails Microsoft's stable channel by several
-              # releases. Keep VS Code current without moving the whole system
-              # off nixos-unstable.
-              vscode = prev.vscode.overrideAttrs (oldAttrs: rec {
-                version = "1.136.0";
-                src = final.fetchurl {
-                  name = "VSCode_${version}_linux-x64.tar.gz";
-                  url = "https://update.code.visualstudio.com/${version}/linux-x64/stable";
-                  hash = "sha256-Q0Hqp+A9H8JKOsnWT8fjSMkoOtwHq1ws+haNj5VwdPc=";
-                };
-                passthru = oldAttrs.passthru // {
-                  vscodeVersion = version;
-                };
-                meta = oldAttrs.meta // {
-                  changelog = "https://code.visualstudio.com/updates/v${
-                    builtins.replaceStrings [ "." ] [ "_" ] (prev.lib.versions.majorMinor version)
-                  }";
-                };
-              });
-            })
-          ];
-          nixpkgs.config.permittedInsecurePackages = [
-            "electron-39.8.10"
-          ];
           nix.settings = {
             experimental-features = [
               "nix-command"
@@ -329,7 +302,6 @@ in
             hm.bitwarden
             hm.curseforge
             hm.wine
-            hm.handy
             hm.vicinae
             hm.chataigne
             hm.frostbitgames

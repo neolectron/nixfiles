@@ -2,8 +2,6 @@
   inputs = {
     # Frameworks
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    # Keep Discord current without updating the rest of the host packages.
-    nixpkgs-discord.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:vic/import-tree";
     home-manager = {
@@ -34,12 +32,6 @@
       inputs.vicinae.follows = "vicinae";
     };
 
-    # No cachix binary caches, but we want to be able to override them with our own nixpkgs
-    handy = {
-      url = "github:cjpais/Handy";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.bun2nix.inputs.systems.url = "github:nix-systems/x86_64-linux";
-    };
     # Same reason as Vicinae: the host Mesa, not a private one.
     spotifast = {
       url = "github:crmne/spotifast";

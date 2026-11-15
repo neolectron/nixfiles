@@ -1,6 +1,6 @@
 { inputs, config, ... }:
 let
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   # NixOS side: enable niri compositor + greetd auto-login

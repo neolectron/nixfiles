@@ -37,8 +37,8 @@
       };
       clientConfig = (pkgs.formats.json { }).generate "wifi-audio-streaming-config.json" {
         app = {
-          autoConnectClientEnabled = config.flake.wifiAudioStreaming.autoConnectIps != [ ];
-          autoConnectIps = config.flake.wifiAudioStreaming.autoConnectIps;
+          autoConnectClientEnabled = config.nixfiles.wifiAudioStreaming.autoConnectIps != [ ];
+          autoConnectIps = config.nixfiles.wifiAudioStreaming.autoConnectIps;
           autoConnectIntervalSec = 5;
           autoConnectRetryDelaySec = 10;
           autoConnectPromptForKey = false;

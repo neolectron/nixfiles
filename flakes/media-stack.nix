@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  username = config.flake.username;
+  username = config.nixfiles.username;
   libraryRoot = "/mnt/data/${username}/Videos/Library";
   downloadsRoot = "${libraryRoot}/downloads";
 in

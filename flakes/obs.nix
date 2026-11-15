@@ -1,6 +1,6 @@
 { inputs, config, ... }:
 let
-  username = config.flake.username;
+  username = config.nixfiles.username;
 in
 {
   # ── NixOS: v4l2loopback kernel module for OBS virtual camera ─
@@ -71,7 +71,9 @@ in
             postBuild = ''
               wrapProgram $out/bin/obs --set QT_QPA_PLATFORM xcb
             '';
-            meta = pkgs.obs-studio.meta // { mainProgram = "obs"; };
+            meta = pkgs.obs-studio.meta // {
+              mainProgram = "obs";
+            };
           }
         );
 
@@ -95,7 +97,7 @@ in
 
       # Additional tools for webcam diagnostics
       home.packages = [
-        pkgs.v4l-utils          # v4l2-ctl, qv4l2
+        pkgs.v4l-utils # v4l2-ctl, qv4l2
       ];
     };
 }
