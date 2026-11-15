@@ -61,8 +61,7 @@
       imports = [
         inputs.flake-parts.flakeModules.modules
         inputs.home-manager.flakeModules.home-manager
-        (inputs.import-tree ./flakes)
-        (inputs.import-tree ./flakes/desktop-environment)
+        (inputs.import-tree ./modules)
         (inputs.import-tree ./hosts)
       ];
     };

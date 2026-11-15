@@ -30,7 +30,7 @@ permanently. For example:
 `nix shell nixpkgs#python -c python --version`.
 
 Follow every applicable `AGENTS.md`. Keep reusable configuration under
-`flakes/`, machine-specific values under `hosts/`, and never hardcode a home
+`modules/`, machine-specific values under `hosts/`, and never hardcode a home
 directory when the repository can derive it from the configured username.
 """
 

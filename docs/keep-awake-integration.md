@@ -8,8 +8,8 @@ Le worker installation gère séparément la configuration client approuvée.
 ## Copie et préservation de la source
 
 Le diff source a été lu avant copie. Il contient exactement 18 fichiers de
-`packages/keep-awake-mcp`, le nouveau `flakes/keep-awake.nix`, une ligne
-`hm.keepAwake` dans `hosts/frostbit/default.nix` et une section README racine.
+`packages/keep-awake-mcp`, le nouveau `modules/dev/keep-awake.nix`, une ligne
+`hm.keep-awake` dans `hosts/frostbit/default.nix` et une section README racine.
 Les fichiers partagés ont été appliqués avec `git apply --check` puis `git apply`.
 Le checkout source reste sur `main`, commit `b1da9453`, avec son travail
 non committé intact.

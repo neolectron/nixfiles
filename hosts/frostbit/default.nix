@@ -5,7 +5,6 @@ let
   username = config.nixfiles.username;
 in
 {
-  imports = [ ./lab-vm.nix ];
 
   config.nixfiles.username = "neolectron";
   config.nixfiles.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
@@ -14,27 +13,28 @@ in
     modules = [
       # ── System-level modules ──────────────────────────────
       inputs.nix-index-database.nixosModules.default
-      nixos.frostbitHardwareConfiguration
-      nixos.frostbitRebuildAuthorization
-      nixos.frostbitStreamDeck
-      nixos.codexDesktop
+      nixos.frostbit-hardware
+      nixos.frostbit-peripherals
+      nixos.frostbit-rebuild-authorization
+      nixos.frostbit-streamdeck
+      nixos.codex-desktop
       nixos.niri
       nixos.noctalia
-      nixos.plasmaSystemMonitor
+      nixos.plasma-system-monitor
       nixos.sound
-      nixos.audioInterface
+      nixos.frostbit-audio-interface
       nixos.coding
       nixos.terminal
       nixos.graphics
-      nixos.gaming
+      nixos.steam
       nixos.sunshine
-      nixos.wslMount
+      nixos.wsl-mount
       nixos.gparted
-      nixos.mediaStack
+      nixos.media-stack
       nixos.obs
       nixos.spotifast
-      nixos.wifiAudioStreaming
-      nixos.androidPhone
+      nixos.wifi-audio-streaming
+      nixos.android-phone
 
       # ── System-level config ──────────────────────────────
       (
@@ -50,214 +50,13 @@ in
             ];
           };
 
-          # Networking
-          networking.hostName = "frostbit";
-          networking.networkmanager.enable = true;
-          networking.firewall.allowedTCPPorts = [ 4096 ]; # OpenCode LAN access
-
-          # Provides the Tailscale daemon and CLI, and configures the forwarding
-          # required for this machine to act as an exit node.
-          services.tailscale = {
-            enable = true;
-            useRoutingFeatures = "server";
-          };
-          # Spotifast's Spotify OAuth callback needs localhost:8989.
-          services.sonarr.settings.server.port = 8990;
-          boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 1;
-
-          # Keep Tailscale/resolvconf as the front resolver. This local backend
-          # separates public DNS from Freebox DNS without a general ISP fallback.
-          services.dnsmasq = {
-            enable = true;
-            resolveLocalQueries = false;
-            settings = {
-              listen-address = "127.0.0.1";
-              bind-interfaces = true;
-              no-resolv = true;
-              domain-needed = true;
-              bogus-priv = true;
-              local = "/local/";
-              server = [
-                "8.8.8.8"
-                "1.1.1.1"
-                "/home/fd0f:ee:b0::1@enp34s0"
-                "/1.168.192.in-addr.arpa/fd0f:ee:b0::1@enp34s0"
-              ];
-            };
-          };
-          # Native profile generation reloads files; reapply their DNS on active
-          # connections too, without disconnecting either Ethernet interface.
-          systemd.services.NetworkManager-ensure-profiles = {
-            requires = [ "dnsmasq.service" ];
-            after = [ "dnsmasq.service" ];
-            postStart = ''
-              ${pkgs.networkmanager}/bin/nmcli connection load \
-                "/run/NetworkManager/system-connections/Wired connection 1.nmconnection" \
-                "/run/NetworkManager/system-connections/usb-ethernet-no-default.nmconnection"
-              if [ "$(${pkgs.networkmanager}/bin/nmcli -g GENERAL.CON-UUID device show enp34s0)" = "63de50e9-fba3-3d28-b023-b76e9ef49350" ]; then
-                ${pkgs.networkmanager}/bin/nmcli device reapply enp34s0
-              fi
-              if [ "$(${pkgs.networkmanager}/bin/nmcli -g GENERAL.CON-UUID device show enp3s0f0u10)" = "91bdad44-9682-3daf-bc17-b4a93cad8136" ]; then
-                ${pkgs.networkmanager}/bin/nmcli device reapply enp3s0f0u10
-              fi
-            '';
-          };
-          # Refresh Tailscale after the DNS backend and active profiles are ready.
-          systemd.services.tailscaled = {
-            requires = [ "NetworkManager-ensure-profiles.service" ];
-            after = [ "NetworkManager-ensure-profiles.service" ];
-            restartTriggers = [
-              os.config.services.dnsmasq.configFile
-              os.config.systemd.units."NetworkManager-ensure-profiles.service".unit
-            ];
-          };
-          # Avahi is already active; let normal applications use its .local names.
-          services.avahi.nssmdns4 = true;
-          services.avahi.nssmdns6 = true;
-
-          networking.networkmanager.ensureProfiles.profiles."Wired connection 1" = {
-            connection = {
-              id = "Wired connection 1";
-              uuid = "63de50e9-fba3-3d28-b023-b76e9ef49350";
-              type = "ethernet";
-              interface-name = "enp34s0";
-            };
-            ipv4 = {
-              method = "auto";
-              dns = "127.0.0.1;";
-              dns-search = "home;";
-              ignore-auto-dns = "true";
-            };
-            ipv6 = {
-              method = "auto";
-              ignore-auto-dns = "true";
-            };
-          };
-
-          # Prevent USB ethernet adapter from stealing the default route.
-          # The enp3s0f0u10 interface gets an IP via DHCP but has no actual
-          # internet gateway, causing IPv4 traffic to black-hole.
-          networking.networkmanager.ensureProfiles.profiles."usb-ethernet-no-default" = {
-            connection = {
-              id = "usb-ethernet-no-default";
-              uuid = "91bdad44-9682-3daf-bc17-b4a93cad8136";
-              type = "ethernet";
-              interface-name = "enp3s0f0u10";
-              autoconnect-priority = "100";
-            };
-            ipv4 = {
-              method = "auto";
-              ignore-auto-dns = "true";
-              never-default = "true";
-            };
-            ipv6 = {
-              method = "auto";
-              ignore-auto-dns = "true";
-            };
-          };
-
-          # Timezone & locale
-          time.timeZone = "Europe/Paris";
-          i18n.defaultLocale = "en_US.UTF-8";
-          i18n.extraLocaleSettings = {
-            LC_ADDRESS = "fr_FR.UTF-8";
-            LC_IDENTIFICATION = "fr_FR.UTF-8";
-            LC_MEASUREMENT = "fr_FR.UTF-8";
-            LC_MONETARY = "fr_FR.UTF-8";
-            LC_NAME = "fr_FR.UTF-8";
-            LC_NUMERIC = "fr_FR.UTF-8";
-            LC_PAPER = "fr_FR.UTF-8";
-            LC_TELEPHONE = "fr_FR.UTF-8";
-            LC_TIME = "fr_FR.UTF-8";
-          };
-
-          # Keyboard layout — qwerty-fr (QWERTY with French accents via AltGr)
-          services.xserver.xkb = {
-            layout = "us_qwerty-fr";
-            variant = "qwerty-fr";
-            extraLayouts.us_qwerty-fr = {
-              description = "US QWERTY with French accents";
-              languages = [
-                "eng"
-                "fra"
-              ];
-              symbolsFile = "${pkgs.qwerty-fr}/share/X11/xkb/symbols/us_qwerty-fr";
-            };
-          };
-
-          # Boot
-          boot.tmp.cleanOnBoot = true; # Clean /tmp on reboot (prevents stale lockfiles/sockets)
-
-          # ZSA Moonlander / Oryx flashing support
-          hardware.keyboard.zsa.enable = true;
-
-          # Gaming mouse configuration (Logitech G502 HERO)
-          # Enables ratbagd as a system service so ratbagctl works without sudo.
-          services.ratbagd.enable = true;
-          environment.systemPackages = [ pkgs.piper ];
-
-          # Kernel pin: using 6.19 instead of linuxPackages_latest.
-          # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
-          # that breaks transmit — NIC link shows UP but no packets go out,
-          # causing total DNS/network failure.
-          # The r8169 fix landed in kernel 7.0.x.
-          # Switch back to latest kernel.
-          boot.kernelPackages = pkgs.linuxPackages_latest;
-          boot.supportedFilesystems = [ "ntfs" ];
-          boot.loader.systemd-boot.enable = true;
-          boot.loader.efi.canTouchEfiVariables = true;
-
-          # Dual-boot: Windows on separate NVMe disk (Crucial P3 Plus)
-          # Uses EDK2 UEFI Shell to chainload Windows Boot Manager from the NVMe ESP.
-          # To find the efiDeviceHandle:
-          #   1. nixos-rebuild boot, reboot, select "EDK2 UEFI Shell"
-          #   2. Run: map -c
-          #   3. Try: ls HDXcY:\EFI  (look for one containing Microsoft\)
-          #   4. Verify: HDXcY:\EFI\Microsoft\Boot\Bootmgfw.efi
-          #   5. Set the handle below and nixos-rebuild switch
-          boot.loader.systemd-boot.edk2-uefi-shell.enable = true;
-          boot.loader.systemd-boot.windows."windows" = {
-            title = "Windows";
-            efiDeviceHandle = "PLACEHOLDER"; # TODO: replace after UEFI shell discovery
-          };
-          wslMount.enable = true;
-          wslMount.path = "/mnt/windows/Users/manu/AppData/Local/Packages/22955VineelSai.ArchWSL_qz230bc1wsk9j/LocalState/ext4.vhdx";
-
-          # Nix config
-          nixpkgs.config.allowUnfree = true;
-          nix.settings = {
-            experimental-features = [
-              "nix-command"
-              "flakes"
-            ];
-            # Use all available cores for building
-            max-jobs = "auto";
-            # Hard-link identical files in newly built store paths
-            auto-optimise-store = true;
-            # niri cachix is auto-added by niri-flake.cache.enable (default true)
-            extra-substituters = [
-              "https://cache.nixos.org"
-              "https://noctalia.cachix.org"
-              "https://vicinae.cachix.org"
-            ];
-            extra-trusted-public-keys = [
-              "cache.nixos.org-1:6NCHdP59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-              "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
-              "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
-            ];
-          };
-          # Weekly cleanup: drop system generations older than 14 days, then GC
-          nix.gc = {
-            automatic = true;
-            dates = "weekly";
-            options = "--delete-older-than 14d";
-          };
-          # Periodic dedup of the whole store, including paths built before auto-optimise
-          nix.optimise.automatic = true;
-          # Build parallelism is already handled by max-jobs = auto and cores = 0 (use all cores)
           system.stateVersion = "25.11";
         }
       )
+      nixos.frostbit-networking
+      nixos.locale
+      nixos.frostbit-boot
+      nixos.nix
 
       # ── Home Manager integration ─────────────────────────
       inputs.home-manager.nixosModules.home-manager
@@ -280,22 +79,23 @@ in
           };
 
           imports = [
+            hm.frostbit-desktop
             # Desktop environment & system integration
             hm.niri
             hm.sound
             hm.noctalia
-            hm.frostbitKeybinds
+            hm.frostbit-keybinds
             hm.dolphin
             # Features
             hm.terminal
             hm.coding
             hm.zed
-            hm.musicProd
+            hm.music-prod
             hm.nixvim
             # Applications
             hm.obs
             hm.utility-apps
-            hm.google-chrome
+            hm.chrome
             hm.discord
             hm.gologin
             hm.spotify
@@ -304,95 +104,18 @@ in
             hm.wine
             hm.vicinae
             hm.chataigne
-            hm.frostbitgames
-            hm.codexDesktop
-            hm.keepAwake
+            hm.game-launchers
+            hm.codex-desktop
+            hm.keep-awake
             hm.streamdeck
-            hm.agentSkills
+            hm.agent-skills
             hm.humanlayer
-            hm.wifiAudioStreaming
-            hm.androidPhone
+            hm.wifi-audio-streaming
+            hm.android-phone
           ];
           programs.bash.enable = true; # manage bashrc with hm.
           programs.direnv.config.global.hide_env_diff = true;
           programs.nix-index-database.comma.enable = true;
-
-          programs.niri.settings = {
-            prefer-no-csd = true; # Tell program avoid client-side decorations (like title bars) when possible
-            input = {
-              focus-follows-mouse = {
-                enable = true;
-                max-scroll-amount = "0%";
-              };
-              mouse = {
-                accel-profile = "flat";
-              };
-              keyboard.xkb = {
-                layout = "us_qwerty-fr";
-                variant = "qwerty-fr";
-              };
-            };
-            outputs = {
-              "DP-1".position = {
-                x = 0;
-                y = 0;
-              };
-              "HDMI-A-1".position = {
-                x = 1920;
-                y = 0;
-              };
-            };
-            # Steam Remote Play streams the primary monitor (DP-1); keep Big Picture on it.
-            window-rules = [
-              {
-                matches = [
-                  {
-                    app-id = "^steam$";
-                    title = "^Steam Big Picture Mode$";
-                  }
-                ];
-                open-on-output = "DP-1";
-              }
-            ];
-            layout = {
-              # White focus ring on active window only (follows corner radius with prefer-no-csd)
-              border.enable = false;
-              focus-ring = {
-                enable = true;
-                width = 1;
-                active.color = "#ffffff";
-                inactive.color = "#00000000";
-              };
-              # Subtle shadow on active window only
-              shadow = {
-                enable = true;
-                softness = 20.0;
-                spread = 2.0;
-                offset = {
-                  x = 0.0;
-                  y = 2.0;
-                };
-                color = "#00000040";
-                inactive-color = "#00000000";
-              };
-            };
-
-          };
-
-          programs.noctalia.settings = {
-            idle.behavior.suspend.enabled = false;
-            location.address = "Toulouse";
-            wallpaper.directory = "/home/${username}/Pictures/Wallpapers";
-            notification.monitors = [ "DP-1" ];
-            osd.monitors = [ "DP-1" ];
-            shell.animation.speed = 1.3;
-            accessibility.ui_scale = 0.9;
-            audio.enable_overdrive = true;
-            plugins.enabled = [
-              "davemhammer/tailscale"
-              "alexander/screen-toolkit"
-            ];
-          };
         };
       }
     ];

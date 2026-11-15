@@ -51,7 +51,7 @@ symlink and the new wrapper execs it via the moved path. **The inner wrapper
 script set is preserved and runs in the chain.** This is what allows stacked
 wrappers to compose.
 
-## Implementation in `flakes/obs.nix`
+## Implementation in `modules/media/obs.nix`
 
     package = lib.mkDefault (
       pkgs.symlinkJoin {

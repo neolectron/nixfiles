@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.modules.nixos.frostbitHardwareConfiguration =
+  flake.modules.nixos.frostbit-hardware =
     {
       config,
       lib,

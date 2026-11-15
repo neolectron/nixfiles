@@ -1,0 +1,192 @@
+{ config, ... }:
+let
+  username = config.nixfiles.username;
+  libraryRoot = "/mnt/data/${username}/Videos/Library";
+  downloadsRoot = "${libraryRoot}/downloads";
+in
+{
+  # NixOS side: *arr media automation stack
+  # Prowlarr (indexer manager) + Sonarr (TV/anime) + Radarr (movies) + qBittorrent (torrent client) + Bazarr (subtitles)
+  #
+  # Web UIs after setup:
+  #   Prowlarr:    http://localhost:9696  — add nyaa.si and other indexers here
+  #   Sonarr:      http://localhost:8989  — manage TV shows / anime
+  #   Radarr:      http://localhost:7878  — manage movies
+  #   qBittorrent: http://localhost:8080  — native torrent client UI
+  #   VueTorrent:  http://localhost:8082  — alternative qBittorrent UI
+  #   Bazarr:      http://localhost:6765  — automatic subtitles (FR + EN)
+  #
+  # Setup order:
+  #   1. qBittorrent — set download path to /mnt/data/<user>/Videos/Library/downloads
+  #   2. Prowlarr    — add indexers (nyaa.si, etc.), then connect to Sonarr & Radarr
+  #   3. Sonarr      — set root folder /mnt/data/<user>/Videos/Library/Anime, connect to qBittorrent
+  #   4. Radarr      — set root folder /mnt/data/<user>/Videos/Library/Movies, connect to qBittorrent
+  flake.modules.nixos.media-stack =
+    { lib, pkgs, ... }:
+    {
+      # ── Jellyfin: media server ────────────────────────────────
+      # Shared group so Jellyfin, Sonarr, Radarr, qBittorrent can all access media files
+      users.groups.media = { };
+      users.users.${username}.extraGroups = [ "media" ];
+
+      services.jellyfin = {
+        enable = lib.mkDefault true;
+        user = lib.mkDefault username;
+        group = lib.mkDefault "media";
+        openFirewall = lib.mkDefault true; # ports 8096 (HTTP) and 8920 (HTTPS)
+
+        # AMD VAAPI hardware transcoding
+        hardwareAcceleration = {
+          enable = lib.mkDefault true;
+          type = lib.mkDefault "vaapi";
+          device = lib.mkDefault "/dev/dri/renderD128";
+        };
+      };
+
+      # ── Prowlarr: indexer manager (replaces Jackett) ──────────
+      # Add nyaa.si and any other torrent trackers here.
+      # Prowlarr syncs indexers to Sonarr/Radarr automatically.
+      services.prowlarr = {
+        enable = lib.mkDefault true;
+        openFirewall = lib.mkDefault true; # port 9696
+      };
+
+      # ── Sonarr: TV shows & anime manager ─────────────────────
+      services.sonarr = {
+        enable = lib.mkDefault true;
+        user = lib.mkDefault username;
+        group = lib.mkDefault "media";
+        openFirewall = lib.mkDefault true; # port 8989
+      };
+
+      # ── Radarr: movie manager ────────────────────────────────
+      services.radarr = {
+        enable = lib.mkDefault true;
+        user = lib.mkDefault username;
+        group = lib.mkDefault "media";
+        openFirewall = lib.mkDefault true; # port 7878
+      };
+
+      # ── Bazarr: automatic subtitle downloader ───────────────
+      # Web UI: http://localhost:6765
+      #
+      # FIRST-TIME SETUP (via web UI):
+      #   1. Go to Settings → Sonarr
+      #      - Add Sonarr: URL http://localhost:8989, API key from Sonarr Settings→General
+      #   2. Go to Settings → Providers
+      #      - Enable: OpenSubtitles (free account at opensubtitles.com), Subscene, Addic7ed
+      #   3. Go to Settings → Languages
+      #      - Add and enable: English, French
+      #   4. Go to Series tab
+      #      - Find "Parks and Recreation", enable subtitle monitoring
+      #
+      services.bazarr = {
+        enable = lib.mkDefault true;
+        user = lib.mkDefault username;
+        group = lib.mkDefault "media";
+        openFirewall = lib.mkDefault true; # port 6765
+        settings.general.port = lib.mkDefault 6765;
+      };
+
+      # Keep legacy download paths visible until existing completed torrents have
+      # been relocated explicitly. New downloads and library roots use /mnt/data.
+      # No tmpfiles rules here: they could create directories on the root disk
+      # before the optional data mount is available.
+      systemd.services =
+        lib.genAttrs
+          [
+            "qbittorrent"
+            "sonarr"
+            "radarr"
+            "jellyfin"
+            "bazarr"
+          ]
+          (name: {
+            # RequiresMountsFor also pulls in a mount marked nofail. BindsTo + After
+            # stops media writers before unmount, including unexpected mount loss.
+            unitConfig = {
+              RequiresMountsFor = libraryRoot;
+              AssertPathIsMountPoint = "/mnt/data";
+            };
+            bindsTo = [ "mnt-data.mount" ];
+            after = [ "mnt-data.mount" ];
+            serviceConfig = lib.mkIf (name != "jellyfin") {
+              ProtectHome = lib.mkForce "tmpfs";
+              BindPaths = [ "/home/${username}/Videos/Library" ];
+            };
+          })
+        // {
+          nginx.serviceConfig = {
+            ProtectHome = lib.mkForce "tmpfs";
+            BindPaths = [ "${pkgs.vuetorrent}/share/vuetorrent" ];
+          };
+        };
+
+      services.qbittorrent = {
+        enable = lib.mkDefault true;
+        user = lib.mkDefault username;
+        group = lib.mkDefault "media";
+        openFirewall = lib.mkDefault true; # web UI 8080 + torrenting port
+        webuiPort = lib.mkDefault 8080;
+        torrentingPort = lib.mkDefault 6881;
+
+        serverConfig = {
+          LegalNotice.Accepted = true;
+          BitTorrent.Session = {
+            DefaultSavePath = downloadsRoot;
+            TempPath = "${downloadsRoot}/incomplete";
+            TempPathEnabled = false;
+          };
+          Preferences = {
+            WebUI = {
+              # Use native web UI — Vuetorrent served separately via nginx
+              # so both frontends connect to the same qBittorrent backend
+              AlternativeUIEnabled = false;
+              # Allow connection via nginx reverse proxy
+              HostHeaderValidation = false;
+              Username = "admin";
+              # PBKDF2 hash of "password" — change via web UI after first login
+              "Password_PBKDF2" =
+                "@ByteArray(x6USfliIDoKH1xH4lXuO1Q==:eN/oDd1HrfjN/7lPvMjbFdAoueiKz8FaW2Tx4YmQayB7WtNFG2WqQiHCAcEhpFwUzQY5Wih25SvZvcAOKxX1+A==)";
+              # Disable IP ban on failed login attempts (localhost-only service, ban is just annoying)
+              MaxAuthenticationFailCount = 0;
+            };
+            Downloads = {
+              SavePath = downloadsRoot;
+            };
+            Bittorrent = {
+              # MaxRatio = -1 means no limit (seed forever). Set to e.g. 1 to stop at 1:1 ratio.
+              MaxRatio = -1;
+            };
+          };
+        };
+      };
+
+      # ── nginx: reverse proxy serving both VueTorrent static files and qBittorrent API ────
+      # Access: http://localhost:8082/     → VueTorrent
+      #        http://localhost/api/*  → qBittorrent API
+      #        http://localhost:8080    → Native qBittorrent UI
+      services.nginx = {
+        enable = lib.mkDefault true;
+        recommendedProxySettings = true;
+        virtualHosts = {
+          "localhost" = {
+            listen = [
+              {
+                addr = "127.0.0.1";
+                port = 8082;
+              }
+            ];
+            # Serve VueTorrent static frontend at root
+            locations."/" = {
+              root = "${pkgs.vuetorrent}/share/vuetorrent/public";
+            };
+            # Proxy API calls to qBittorrent so VueTorrent can communicate with backend
+            locations."/api/" = {
+              proxyPass = "http://127.0.0.1:8080";
+            };
+          };
+        };
+      };
+    };
+}

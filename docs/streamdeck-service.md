@@ -1,6 +1,6 @@
 # Stream Deck session service
 
-`flakes/streamdeck.nix` provides `hm.streamdeck`, enabled by frostbit. The
+`modules/apps/streamdeck.nix` provides `hm.streamdeck`, enabled by frostbit. The
 `streamdeck-studio` user service starts when `graphical-session.target` starts,
 after niri has imported the Wayland and session environment. It stops with that
 session. This is automatic startup **after graphical login**, not before login.
@@ -36,7 +36,7 @@ running another hardware owner.
 The service requires read/write access to the deck's hidraw device. A visible
 USB device alone does not prove it can be opened. An active-session `uaccess`
 rule provides access scoped to the confirmed device model. Frostbit declares the
-approved `0fd9:00c6` rule in `hosts/frostbit/config/streamdeck.nix`, packaged as
+approved `0fd9:00c6` rule in `hosts/frostbit/streamdeck.nix`, packaged as
 `70-streamdeck.rules` so it runs before `73-seat-late.rules` assigns the ACL.
 Do not put this tag in `services.udev.extraRules`: its `99-local.rules` runs too
 late. Other hosts must approve and declare their own rule. Do not use a root service,

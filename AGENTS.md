@@ -1,7 +1,7 @@
 # nixfiles
 
 NixOS configuration using **flake-parts** + **import-tree**.
-Every `.nix` file under `flakes/` and `hosts/` is auto-imported as a flake-parts module.
+Every `.nix` file under `modules/` and `hosts/` is auto-imported as a flake-parts module.
 Desktop runs the **niri** Wayland compositor with the **Noctalia** shell.
 
 ## Git workflow
@@ -13,15 +13,21 @@ current task.
 
 ## Architecture
 
-`flakes` are reusable — another person could import these on their own host.
-`hosts` is user-machine-specific.
-**Never put hardware values** (monitors, disk UUIDs, device workarounds) in `flakes`.
-Each host lives in `hosts/<hostname>/`:
+One file is one feature. It registers `flake.modules.nixos.<name>` and/or
+`flake.modules.homeManager.<name>`, where `<name>` is the file name in
+kebab-case. Both halves of an app live in the same file.
 
-- `default.nix` — entrypoint: sets username, assembles `nixosConfigurations` from flakes + inline config.
-- `hardware-configuration.nix` — hardware-specific module (filesystems, kernel modules, UUIDs).
-- `config/` — optional folder, can be anything really, for splitting host config into multiple files.
-  Host `default.nix` uses any flakes from `flakes/` and overrides config values.
+- `modules/` — reusable features, grouped by domain: `system/`, `desktop/`,
+  `apps/`, `media/`, `gaming/`, `dev/`. `modules/flake/` holds flake-level
+  outputs (options, packages, checks, apps), not features.
+- `hosts/<hostname>/` — only that machine's choices. `default.nix` sets the
+  username and lists the features; the other files hold host-only modules named
+  `<hostname>-<file>` (hardware, boot, networking, desktop layout...).
+- `packages/` — derivations built with `callPackage` (the pnpm workspace).
+
+**Never put hardware values** (monitors, disk UUIDs, device workarounds) in
+`modules/`. A flake input that loads graphics drivers follows the host
+`nixpkgs`; do not add per-app flakes with their own `nixpkgs`.
 
 ## Commands
 
@@ -151,7 +157,7 @@ Host authors override a default with a plain assignment (priority 100 beats mkDe
 
 Flake-parts `config`, NixOS `config`, and Home Manager `config` are separate.
 A NixOS module cannot read HM values. HM _can_ read NixOS config via `osConfig`,
-but this repo bridges scopes through `./flakes/flake-options.nix` instead.
+but this repo bridges scopes through `./modules/flake/options.nix` instead.
 flake-options defines the options used in each host's `default.nix` and readable from any scope.
 
 ### Other

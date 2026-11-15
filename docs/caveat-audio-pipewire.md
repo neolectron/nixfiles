@@ -1,7 +1,7 @@
 # Audio: PipeWire + WirePlumber
 
 This system uses PipeWire as the audio engine and WirePlumber as the session manager.
-Config lives in `flakes/sound.nix` (services) and `hosts/frostbit/hardware/audio-UMC1820.nix`
+Config lives in `modules/system/sound.nix` (services) and `hosts/frostbit/audio-interface.nix`
 (hardware routing).
 
 ## Why WirePlumber is required
@@ -14,7 +14,7 @@ nothing — result is silence.
 
 It is not optional on this host because:
 
-- **UMC1820 routing** (`hosts/frostbit/hardware/audio-UMC1820.nix`) — the 18-channel
+- **UMC1820 routing** (`hosts/frostbit/audio-interface.nix`) — the 18-channel
   Behringer is split into per-channel loopback nodes (AUX2 mic, AUX3 mic, speaker,
   headphones). WirePlumber enforces this routing and the channel maps.
 - **Volume keys** — niri's `XF86Audio*` binds call `wpctl` (the WirePlumber CLI).

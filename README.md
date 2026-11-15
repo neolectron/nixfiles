@@ -97,24 +97,28 @@ registration remains separate.
 ## How this repo works
 
 **Key idea:**
-`flakes/` is reusable in hosts, and `hosts/` is per-machine.
-Users, user preferences, hardware details (monitor placement, keyboard layout) never go in `flakes/`.
+`modules/` is reusable in hosts, and `hosts/` is per-machine.
+Users, user preferences, hardware details (monitor placement, keyboard layout) never go in `modules/`.
+One file is one feature, holding both its NixOS and Home Manager halves.
 
 ```
 nixfiles/
-├── flake.nix          ← entrypoint, wires up inputs + import-tree
-├── flakes/            ← reusable modules (anyone can import these)
-│   ├── niri.nix       ← niri compositor + keybinds + layout
-│   ├── noctalia.nix   ← noctalia desktop shell integration
-│   ├── terminal.nix   ← kitty config
-│   ├── coding.nix     ← dev tools
-│   ├── sound.nix      ← audio stack
-│    ...
-└── hosts/
-    └── frostbit/      ← one host, machine-specific
-        ├── default.nix              ← picks modules, sets username, configures hardware
-        ├── hardware-configuration.nix ← filesystems, kernel modules (generated)
-        └── config/keybinds.nix                 ← however you wish to split your folders I don't care (e.g. custom keybinds)
+├── flake.nix            ← entrypoint, wires up inputs + import-tree
+├── modules/             ← reusable features (anyone can import these)
+│   ├── system/          ← nix settings, locale, sound, graphics
+│   ├── desktop/         ← niri, noctalia, vicinae, dolphin
+│   ├── apps/            ← discord, chrome, bitwarden, streamdeck
+│   ├── media/           ← obs, spotify, spotifast, music production
+│   ├── gaming/          ← steam, launchers, sunshine
+│   ├── dev/             ← coding, terminal, editors, agents
+│   └── flake/           ← flake outputs: options, packages, checks, apps
+├── hosts/
+│   ├── frostbit/        ← one machine: features list + its own choices
+│   │   ├── default.nix                ← username, feature list, Home Manager wiring
+│   │   ├── hardware-configuration.nix ← filesystems, kernel modules (generated)
+│   │   └── boot.nix, networking.nix, desktop.nix, ...
+│   └── frostbit-lab/    ← test VM
+└── packages/            ← own derivations (pnpm workspace)
 ```
 
 ## Create your own host
@@ -133,13 +137,13 @@ Copy the generated `hardware-configuration.nix` into `hosts/myhost/`.
 
 ### 2. Add config to your host
 
-Copy `hosts/minimal/default.nix` to `hosts/myhost/default.nix` and edit the config as you like. The most important part is the `imports` list — this is where you pick which flakes you want on your system.
+Copy `hosts/frostbit/default.nix` to `hosts/myhost/default.nix` and edit the config as you like. The most important part is the feature list — this is where you pick which modules you want on your system.
 
 That's it — `import-tree` auto-discovers your new host file. No need to wire anything manually.
 
 ### Override any default
 
-Every "sensible default" in `flakes/` uses `lib.mkDefault`, so you can override it from your host with a plain value:
+Every "sensible default" in `modules/` uses `lib.mkDefault`, so you can override it from your host with a plain value:
 
 ```nix
 # In your host's Home Manager config:
