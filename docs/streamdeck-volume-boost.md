@@ -32,7 +32,7 @@ this report and the package README describe the new policy.
 Final checks with the selected 200% ceiling: **42 Stream Deck tests pass**,
 typecheck and build pass, and `git diff --check` is clean. The previous live
 mixer was stopped with SIGINT, and this version restarted in the dedicated
-Ghostty terminal. The [live startup snapshot](streamdeck-audio-mixer/boost-live.log)
+Ghostty terminal. The live startup snapshot
 records a successful + XL connection and completed feedback: Discord 64%, Spotify
 20%, MASTER 100%, all unmuted. No automatic amplification was performed to test
 the change; >100% commands and colored percentage pixels were tested with inert

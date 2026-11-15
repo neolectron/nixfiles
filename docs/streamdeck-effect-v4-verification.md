@@ -49,10 +49,10 @@ Before opening, `udevadm` reconfirmed `Stream Deck + XL`, `0fd9:00c6`, and
 `getfacl` reconfirmed Manuel's existing `user:neolectron:rw-` ACL on `/dev/hidraw8`.
 No permissions were changed by this rewrite.
 
-1. [30-second smoke](streamdeck-effect-v4/usb-smoke.log): rewritten Effect service
+1. 30-second smoke: rewritten Effect service
    opens the hardware, writes the first key and LCD strip, reaches the listening
    state, times out normally and closes without errors; exit 0.
-2. [Final Effect CLI smoke](streamdeck-effect-v4/effect-cli-usb-smoke.log): the
+2. Final Effect CLI smoke: the
    `Command`/`Flag` CLI parses `hello --lcd --path /dev/hidraw8 --duration 5` and
    runs the same physical write/close path; exit 0.
 

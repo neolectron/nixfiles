@@ -100,8 +100,8 @@ pnpm streamdeck benchmark
   Node watch mode. Its initial snapshot shows Plants vs. Zombies and the default
   output at 100%; no fake audio layer remains active.
 
-The [preview](preview.png) shows three illustrative rows, not live audio values.
-The [benchmark log](benchmark.log) contains 40 warmed samples for each renderer,
+The preview shows three illustrative rows, not live audio values.
+The benchmark log contains 40 warmed samples for each renderer,
 at 216×100. An initial run measured SVG median 2.579 ms / p95 3.514 ms and React
 median 2.834 ms / p95 6.472 ms. These include markup, layout/raster and RGB
 conversion, excluding JPEG encoding and USB transfer. They establish the cost

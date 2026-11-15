@@ -48,7 +48,7 @@ shows amber feedback and retries on the next poll. USB disconnect requires resta
   offline recovery, event routing and mock CLI isolation.
 - `nix flake check --no-write-lock-file` reports **all checks passed**. Existing
   warnings about nonstandard flake outputs remain. No lockfile change or activation.
-- Live [USB/PipeWire log](streamdeck-audio-mixer/live.log): Stream Deck + XL on
+- Live USB/PipeWire log: Stream Deck + XL on
   `/dev/hidraw8`, Discord initially 100%, Spotify initially 20%. Startup completed
   all six region writes and read the actual session without changing its audio.
   Physical clicks muted/unmuted Spotify; clockwise and counterclockwise turns

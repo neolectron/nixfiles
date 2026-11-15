@@ -35,7 +35,7 @@ stopped with SIGINT, then the new version opened in the dedicated Ghostty termin
 `Stream Deck Audio Mixer`; Ctrl+C stops it. No permission, configuration or default
 device change was made.
 
-The [live log snapshot](streamdeck-audio-mixer/master-live.log) records this startup
+The live log snapshot records this startup
 and Google Chrome playback appearing/disappearing while MASTER stayed at the
 rightmost position. No physical master rotation/click was captured in that
 snapshot; the hands-on confirmation request remains pending. The mixer continues

@@ -22,7 +22,7 @@ Le manifeste `SHA256.json` de cette sauvegarde a pour SHA-256 :
 
 `3283d469ce9c23fd1eb70849dcf7654fb4fea6f85f2d2a7d2e254dd5460f071c`
 
-Une copie des hashes est versionnée dans `keep-awake-source-sha256.json`.
+
 Les 21 fichiers ont été comparés avant/après copie et à la fin des validations.
 Aucun fichier source n'a été effacé, déplacé ou modifié par l'intégration.
 

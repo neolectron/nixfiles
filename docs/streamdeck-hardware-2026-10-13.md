@@ -22,7 +22,7 @@ Bus 001 Device 012: ID 0fd9:00c6 Elgato Systems GmbH Stream Deck + XL
 
 Sysfs confirme `idVendor=0fd9`, `idProduct=00c6`, `product=Stream Deck + XL` et `authorized=1`.
 `pnpm streamdeck list` reconnaît `/dev/hidraw8` comme `Stream Deck + XL`.
-Les [capacités détaillées](streamdeck-hardware-2026-10-13/device.json) sont le résultat
+Les capacités détaillées sont le résultat
 réel de l'énumération par `@elgato-stream-deck/node` 7.8.0, sans ouverture HID :
 
 | Contrôle | Capacités données par le pilote |
@@ -87,8 +87,8 @@ pnpm streamdeck hello --lcd --path /dev/hidraw8 --duration 300
 Les deux processus ont été fermés proprement par SIGTERM, avec code de sortie 0,
 avant de libérer leur handle HID. Les dernières images restent affichées.
 
-- Première démo : Manuel confirme HELLO/OK. Les [extraits d'événements](streamdeck-hardware-2026-10-13/hello-observed.jsonl) prouvent les boutons 0/1, rotations positives/négatives sur potards 0/3/4/5 et clics de potards 3/4. Le flux de sortie du premier essai a été tronqué ; ces extraits ne sont pas un journal exhaustif.
-- Deuxième démo : [journal complet](streamdeck-hardware-2026-10-13/lcd-live.log) et [résumé](streamdeck-hardware-2026-10-13/lcd-summary.json). 324 écritures terminées (162 touche, 162 bande), 121 rotations, 20 événements down et 20 up, sept gestes tactiles (appuis courts et glissements). Manuel confirme HELLO lisible sur la bande et jauge mobile en tournant le potard. Aucun événement d'erreur.
+- Première démo : Manuel confirme HELLO/OK. Les extraits d'événements prouvent les boutons 0/1, rotations positives/négatives sur potards 0/3/4/5 et clics de potards 3/4. Le flux de sortie du premier essai a été tronqué ; ces extraits ne sont pas un journal exhaustif.
+- Deuxième démo : journal complet et résumé. 324 écritures terminées (162 touche, 162 bande), 121 rotations, 20 événements down et 20 up, sept gestes tactiles (appuis courts et glissements). Manuel confirme HELLO lisible sur la bande et jauge mobile en tournant le potard. Aucun événement d'erreur.
 
 Le nouveau mode explicite `hello --lcd` dessine seulement la première touche et
 la première bande LCD aux dimensions détectées. La bande reste intacte par défaut.

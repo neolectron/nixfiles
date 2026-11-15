@@ -12,9 +12,3 @@ node_modules/
 .env
 .env.*
 !.env.example
-
-# Locally supplied upstream Bitwig candidates are tested by hash. Keep the
-# proprietary binaries and machine-specific analyzer output out of Git.
-assets/bitwig/candidates/*/bitwig.jar
-assets/bitwig/candidates/*/generated-bitwig.jar
-assets/bitwig/candidates/*/semantic-anchor-map.json
