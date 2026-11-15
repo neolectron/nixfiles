@@ -6,12 +6,8 @@
       # Boot
       boot.tmp.cleanOnBoot = true; # Clean /tmp on reboot (prevents stale lockfiles/sockets)
 
-      # Kernel pin: using 6.19 instead of linuxPackages_latest.
-      # Reason: kernel 7.0 has an r8169 (Realtek RTL8168h/8111h) regression
-      # that breaks transmit — NIC link shows UP but no packets go out,
-      # causing total DNS/network failure.
-      # The r8169 fix landed in kernel 7.0.x.
-      # Switch back to latest kernel.
+      # Kernel 7.0.0 broke r8169 (Realtek RTL8168h) transmit; 7.0.x fixed it.
+      # If the NIC links up but sends nothing, pin an older kernel here.
       boot.kernelPackages = pkgs.linuxPackages_latest;
       boot.supportedFilesystems = [ "ntfs" ];
       boot.loader.systemd-boot.enable = true;

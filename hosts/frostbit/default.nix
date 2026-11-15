@@ -1,46 +1,91 @@
 { inputs, config, ... }:
 let
+  inherit (inputs.nixpkgs) lib;
   nixos = config.flake.modules.nixos;
   hm = config.flake.modules.homeManager;
   username = config.nixfiles.username;
+
+  # Each name enables the feature's NixOS half and/or its Home Manager half,
+  # whichever its module file defines.
+  features = [
+    # This machine
+    "frostbit-desktop"
+    "frostbit-hardware"
+    "frostbit-peripherals"
+    "frostbit-boot"
+    "frostbit-networking"
+    "frostbit-audio-interface"
+    "frostbit-keybinds"
+    "frostbit-rebuild-authorization"
+    "frostbit-streamdeck"
+
+    # System
+    "nix"
+    "locale"
+    "graphics"
+    "sound"
+    "wsl-mount"
+
+    # Desktop
+    "niri"
+    "noctalia"
+    "vicinae"
+    "dolphin"
+    "plasma-system-monitor"
+
+    # Apps
+    "utility-apps"
+    "chrome"
+    "discord"
+    "gologin"
+    "bitwarden"
+    "gparted"
+    "streamdeck"
+    "wifi-audio-streaming"
+    "android-phone"
+
+    # Media
+    "obs"
+    "spotify"
+    "spotifast"
+    "chataigne"
+    "music-prod"
+    "media-stack"
+
+    # Gaming
+    "steam"
+    "game-launchers"
+    "curseforge"
+    "wine"
+    "sunshine"
+
+    # Development
+    "terminal"
+    "coding"
+    "zed"
+    "nixvim"
+    "codex-desktop"
+    "keep-awake"
+    "agent-skills"
+    "humanlayer"
+  ];
+
+  halves =
+    namespace: lib.concatMap (name: lib.optional (namespace ? ${name}) namespace.${name}) features;
+  unknown = lib.filter (name: !(nixos ? ${name}) && !(hm ? ${name})) features;
 in
 {
-
   config.nixfiles.username = "neolectron";
   config.nixfiles.opencode.hostname = "0.0.0.0"; # Enable LAN access for frostbit
   config.nixfiles.opencode.database = "opencode-v2-frostbit.db";
-  config.flake.nixosConfigurations.frostbit = inputs.nixpkgs.lib.nixosSystem {
-    modules = [
-      # ── System-level modules ──────────────────────────────
-      inputs.nix-index-database.nixosModules.default
-      nixos.frostbit-hardware
-      nixos.frostbit-peripherals
-      nixos.frostbit-rebuild-authorization
-      nixos.frostbit-streamdeck
-      nixos.codex-desktop
-      nixos.niri
-      nixos.noctalia
-      nixos.plasma-system-monitor
-      nixos.sound
-      nixos.frostbit-audio-interface
-      nixos.coding
-      nixos.terminal
-      nixos.graphics
-      nixos.steam
-      nixos.sunshine
-      nixos.wsl-mount
-      nixos.gparted
-      nixos.media-stack
-      nixos.obs
-      nixos.spotifast
-      nixos.wifi-audio-streaming
-      nixos.android-phone
-
-      # ── System-level config ──────────────────────────────
-      (
-        { pkgs, ... }@os:
+  config.flake.nixosConfigurations.frostbit =
+    assert lib.assertMsg (unknown == [ ]) "frostbit: unknown features: ${toString unknown}";
+    inputs.nixpkgs.lib.nixosSystem {
+      modules = [
+        inputs.nix-index-database.nixosModules.default
+        inputs.home-manager.nixosModules.home-manager
         {
-          users.users.${config.nixfiles.username} = {
+          users.users.${username} = {
             isNormalUser = true;
             description = "neolectron";
             extraGroups = [
@@ -49,75 +94,31 @@ in
               "input"
             ];
           };
-
           system.stateVersion = "25.11";
-        }
-      )
-      nixos.frostbit-networking
-      nixos.locale
-      nixos.frostbit-boot
-      nixos.nix
 
-      # ── Home Manager integration ─────────────────────────
-      inputs.home-manager.nixosModules.home-manager
-      {
-        home-manager.useGlobalPkgs = true;
-        home-manager.useUserPackages = true;
-        home-manager.backupFileExtension = "backup";
-        home-manager.sharedModules = [
-          inputs.nix-index-database.homeModules.nix-index
-        ];
-        home-manager.users.${username} = {
-          home.username = username;
-          home.homeDirectory = "/home/${username}";
-          home.stateVersion = "25.11";
-          # Root's nix.gc does not expire per-user Home Manager generations
-          services.home-manager.autoExpire = {
-            enable = true;
-            frequency = "weekly";
-            timestamp = "-14 days";
-          };
-
-          imports = [
-            hm.frostbit-desktop
-            # Desktop environment & system integration
-            hm.niri
-            hm.sound
-            hm.noctalia
-            hm.frostbit-keybinds
-            hm.dolphin
-            # Features
-            hm.terminal
-            hm.coding
-            hm.zed
-            hm.music-prod
-            hm.nixvim
-            # Applications
-            hm.obs
-            hm.utility-apps
-            hm.chrome
-            hm.discord
-            hm.gologin
-            hm.spotify
-            hm.bitwarden
-            hm.curseforge
-            hm.wine
-            hm.vicinae
-            hm.chataigne
-            hm.game-launchers
-            hm.codex-desktop
-            hm.keep-awake
-            hm.streamdeck
-            hm.agent-skills
-            hm.humanlayer
-            hm.wifi-audio-streaming
-            hm.android-phone
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "backup";
+          home-manager.sharedModules = [
+            inputs.nix-index-database.homeModules.nix-index
           ];
-          programs.bash.enable = true; # manage bashrc with hm.
-          programs.direnv.config.global.hide_env_diff = true;
-          programs.nix-index-database.comma.enable = true;
-        };
-      }
-    ];
-  };
+          home-manager.users.${username} = {
+            imports = halves hm;
+            home.username = username;
+            home.homeDirectory = "/home/${username}";
+            home.stateVersion = "25.11";
+            # Root's nix.gc does not expire per-user Home Manager generations
+            services.home-manager.autoExpire = {
+              enable = true;
+              frequency = "weekly";
+              timestamp = "-14 days";
+            };
+            programs.bash.enable = true; # manage bashrc with hm.
+            programs.direnv.config.global.hide_env_diff = true;
+            programs.nix-index-database.comma.enable = true;
+          };
+        }
+      ]
+      ++ halves nixos;
+    };
 }
